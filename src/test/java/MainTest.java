@@ -28,18 +28,53 @@ public class MainTest {
     }
 
     // Test 1a: Verify Fire Incident Subsystem reads valid input events
+    @Test
+    @Order(1)
+    public void test_1a() {
+        System.out.println("Test 1a: Verify Fire Incident Subsystem reads valid input events");
+    }
 
     // Test 1b: Verify FIS handles invalid input events
+    @Test
+    @Order(2)
+    public void test_1b() {
+        System.out.println("Test 1b: Verify FIS handles invalid input events");
+    }
 
     // Test 2: Verify FIS sends valid input to Scheduler
+    @Test
+    @Order(3)
+    public void test_2() {
+        System.out.println("Test 2: Verify FIS sends valid input to Scheduler");
+    }
 
     // Test 3a: Verify Drone Subsystem contacts Scheduler - Handles NO tasks/fires to put out properly
+    @Test
+    @Order(4)
+    public void test_3a() {
+        System.out.println("Test 3a: Verify Drone Subsystem contacts Scheduler - Handles NO tasks/fires to put out properly");
+    }
 
     // Test 3b: Verify Drone Subsystem contacts Scheduler - Handles HAS tasks/fires to put out properly
+    @Test
+    @Order(5)
+    public void test_3b() {
+        System.out.println("Test 3b: Verify Drone Subsystem contacts Scheduler - Handles HAS tasks/fires to put out properly");
+    }
 
     // Test 4a: Verify Scheduler reads messages from FIS and forwards to DS
+    @Test
+    @Order(6)
+    public void test_4a() {
+        System.out.println("Test 4a: Verify Scheduler reads messages from FIS and forwards to DS");
+    }
 
     // Test 4b: Verify Scheduler reads messages from DS and forwards to FIS
+    @Test
+    @Order(7)
+    public void test_4b() {
+        System.out.println("Test 4b: Verify Scheduler reads messages from DS and forwards to FIS");
+    }
 
     public static void main(String[] args) {}
 }
