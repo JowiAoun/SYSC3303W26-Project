@@ -8,11 +8,7 @@ public class Main {
      * Usage: java Main <path-to-events.csv>
      */
     public static void main(String[] args) {
-        if (args.length == 0) {
-            System.out.println("Usage: java Main <path-to-events.csv>");
-            return;
-        }
-        String inputPath = args[0];
+        String inputPath = "./src/main/resources/events.csv";
 
         // Message buffers
         MessageBuffer toScheduler = new MessageBuffer();
