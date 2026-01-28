@@ -13,7 +13,7 @@ public class Main {
      * Usage: java Main <path-to-events.csv>
      */
     public static void main(String[] args) {
-        String inputPath = "./src/main/resources/events.csv";
+        String inputPath = "./src/main/resources/data/events.csv";
 
         // Message buffers
         MessageBuffer toScheduler = new MessageBuffer();
