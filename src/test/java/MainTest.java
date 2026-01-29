@@ -69,6 +69,11 @@ public class MainTest {
     @Order(3)
     public void test_2() {
         System.out.println("Test 2: Verify FIS sends valid input to Scheduler");
+        // TODO:
+        // 1. FIS reads fire event from test input data
+        // 2. FIS sends fire event to Scheduler
+        // 3. Scheduler reads, handles the sent fire event data
+        // 4. ASSERT that Scheduler handled to sent data correctly, maybe check some variable/state change?
     }
 
     // Test 3a: Verify Drone Subsystem contacts Scheduler - Handles NO tasks/fires to put out properly
@@ -76,6 +81,9 @@ public class MainTest {
     @Order(4)
     public void test_3a() {
         System.out.println("Test 3a: Verify Drone Subsystem contacts Scheduler - Handles NO tasks/fires to put out properly");
+        // TODO:
+        // 1. DS contacts Scheduler
+        // 2. ASSERT Scheduler return message/bool: No tasks for drone (false?)
     }
 
     // Test 3b: Verify Drone Subsystem contacts Scheduler - Handles HAS tasks/fires to put out properly
@@ -83,6 +91,9 @@ public class MainTest {
     @Order(5)
     public void test_3b() {
         System.out.println("Test 3b: Verify Drone Subsystem contacts Scheduler - Handles HAS tasks/fires to put out properly");
+        // TODO:
+        // 1. DS contacts Scheduler
+        // 2. ASSERT Scheduler return message/bool: Has task for drone (true?)
     }
 
     // Test 4a: Verify Scheduler reads messages from FIS and forwards to DS
@@ -90,6 +101,10 @@ public class MainTest {
     @Order(6)
     public void test_4a() {
         System.out.println("Test 4a: Verify Scheduler reads messages from FIS and forwards to DS");
+        // TODO:
+        // 1. FIS sends a message to Scheduler
+        // 2. Scheduler sends message to DS
+        // 3. ASSERT DS reception of forwarded message is same as message originally sent by FIS
     }
 
     // Test 4b: Verify Scheduler reads messages from DS and forwards to FIS
@@ -97,6 +112,10 @@ public class MainTest {
     @Order(7)
     public void test_4b() {
         System.out.println("Test 4b: Verify Scheduler reads messages from DS and forwards to FIS");
+        // TODO:
+        // 1. DS sends a message to Scheduler
+        // 2. Scheduler sends message to FIS
+        // 3. ASSERT FIS reception of forwarded message is same as message originally sent by DS
     }
 
     public static void main(String[] args) {}
