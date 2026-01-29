@@ -2,24 +2,38 @@ import static org.junit.jupiter.api.Assertions.*;
 import org.junit.jupiter.api.*;
 
 public class MainTest {
-    String inputPath = "./src/main/resources/data/events.csv";
+    String inputPath = "./src/test/resources/data/events.csv";
+    // Message buffers
+    private MessageBuffer toScheduler;
+    private MessageBuffer schedulerToFire;
+    private MessageBuffer schedulerToDrone;
+
+    // Build subsystems.
+    private FireIncidentSubsystem fireIncident;
+    private DroneSubsystem drone;
+    private Scheduler scheduler;
+
+    // Launch threads.
+    private Thread fireThread;
+    private Thread droneThread;
+    private Thread schedulerThread;
 
     @BeforeEach
     public void setup() {
         // Message buffers
-        MessageBuffer toScheduler = new MessageBuffer();
-        MessageBuffer schedulerToFire = new MessageBuffer();
-        MessageBuffer schedulerToDrone = new MessageBuffer();
+        toScheduler = new MessageBuffer();
+        schedulerToFire = new MessageBuffer();
+        schedulerToDrone = new MessageBuffer();
 
         // Build subsystems.
-        FireIncidentSubsystem fireIncident = new FireIncidentSubsystem(inputPath, toScheduler, schedulerToFire);
-        DroneSubsystem drone = new DroneSubsystem(toScheduler, schedulerToDrone);
-        Scheduler scheduler = new Scheduler(toScheduler, schedulerToFire, schedulerToDrone);
+        fireIncident = new FireIncidentSubsystem(inputPath, toScheduler, schedulerToFire);
+        drone = new DroneSubsystem(toScheduler, schedulerToDrone);
+        scheduler = new Scheduler(toScheduler, schedulerToFire, schedulerToDrone);
 
         // Launch threads.
-        Thread fireThread = new Thread(fireIncident, "FireIncidentSubsystem");
-        Thread droneThread = new Thread(drone, "DroneSubsystem");
-        Thread schedulerThread = new Thread(scheduler, "Scheduler");
+        fireThread = new Thread(fireIncident, "FireIncidentSubsystem");
+        droneThread = new Thread(drone, "DroneSubsystem");
+        schedulerThread = new Thread(scheduler, "Scheduler");
     }
 
     @AfterEach
@@ -32,6 +46,9 @@ public class MainTest {
     @Order(1)
     public void test_1a() {
         System.out.println("Test 1a: Verify Fire Incident Subsystem reads valid input events");
+        String expectedReturnString = "Read valid input event";
+        assertEquals(expectedReturnString, fireIncident.readInputEvent);
+        System.out.printf("Expecting: %s, got %s", expectedReturnString, fireIncident.readInputEvent);
     }
 
     // Test 1b: Verify FIS handles invalid input events
