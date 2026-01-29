@@ -8,6 +8,8 @@ Amir Dedeic - 101266477
 Thanos Jia - 101189709
 Jowi Aoun - 101272429
 
+*See team responsibility history at the bottom of this text file.
+
 PROJECT DESCRIPTION
 --------------------------------------------------------------------------------
 This project implements a Firefighting Drone System as specified in the SYSC 3033A
@@ -60,3 +62,13 @@ The system will run automatically upon start.
    - Scheduler receiving events and forwarding/scheduling.
    - DroneSubsystem receiving tasks.
 3. The program concludes after processing all events in the file.
+
+BREAKDOWN OF RESPONSIBILITIES
+--------------------------------------------------------------------------------
+
+Iteration 1
+-----------
+Zachary: Graphical user interface
+Amir: Source code
+Thanos: Testing
+Jowi: Documentation and diagrams
