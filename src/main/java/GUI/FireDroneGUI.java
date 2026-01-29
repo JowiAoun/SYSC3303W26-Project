@@ -161,12 +161,12 @@ public class FireDroneGUI extends JFrame {
         JPanel p = new JPanel(new GridLayout(0, 1, 4, 4));
         p.setBorder(new EmptyBorder(4,4,4,4));
 
-        p.add(createLegendRow("Z(n) = Zone Label", CellState.EMPTY, "Zx"));
+        p.add(createLegendRow("Zone Label", CellState.EMPTY, "Zn"));
         p.add(createLegendRow("Active Fire", CellState.ACTIVE_FIRE, "F"));
         p.add(createLegendRow("Extinguished Fire", CellState.EXTINGUISHED, "X"));
-        p.add(createLegendRow("D(n) = Drone Outbound", CellState.DRONE_OUTBOUND, "D(n)"));
-        p.add(createLegendRow("D(n) = Drone Extinguished Fire", CellState.DRONE_EXTINGUISHED, "D(n)"));
-        p.add(createLegendRow("D(n) = Drone Returning", CellState.DRONE_RETURNING, "D(n)"));
+        p.add(createLegendRow("Drone Outbound", CellState.DRONE_OUTBOUND, "D(n)"));
+        p.add(createLegendRow("Drone Extinguished Fire", CellState.DRONE_EXTINGUISHED, "D(n)"));
+        p.add(createLegendRow("Drone Returning", CellState.DRONE_RETURNING, "D(n)"));
 
         return p;
     }
