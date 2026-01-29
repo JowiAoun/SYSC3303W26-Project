@@ -70,7 +70,7 @@ public class MainTest {
     public void test_2() {
         System.out.println("Test 2: Verify FIS sends valid input to Scheduler");
         // TODO:
-        // 1. FIS reads fire event from test input data
+        // 1. FIS reads fire event from test input data (or we can rig the FIS to read a set fire event, might be easier)
         // 2. FIS sends fire event to Scheduler
         // 3. Scheduler reads, handles the sent fire event data
         // 4. ASSERT that Scheduler handled to sent data correctly, maybe check some variable/state change?
