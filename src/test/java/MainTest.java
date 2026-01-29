@@ -2,7 +2,7 @@ import static org.junit.jupiter.api.Assertions.*;
 import org.junit.jupiter.api.*;
 
 public class MainTest {
-    String inputPath = "./src/test/resources/data/events.csv";
+    String inputPath;
     // Message buffers
     private MessageBuffer toScheduler;
     private MessageBuffer schedulerToFire;
@@ -20,6 +20,8 @@ public class MainTest {
 
     @BeforeEach
     public void setup() {
+        inputPath = "./src/test/resources/data/events.csv";
+
         // Message buffers
         toScheduler = new MessageBuffer();
         schedulerToFire = new MessageBuffer();
@@ -46,9 +48,9 @@ public class MainTest {
     @Order(1)
     public void test_1a() {
         System.out.println("Test 1a: Verify Fire Incident Subsystem reads valid input events");
-        String expectedReturnString = "Read valid input event";
-        assertEquals(expectedReturnString, fireIncident.readInputEvent);
-        System.out.printf("Expecting: %s, got %s", expectedReturnString, fireIncident.readInputEvent);
+        // FYI fireIncident.readInputEvent is a dummy method
+        assertTrue(fireIncident.readInputEvent);
+        System.out.printf("Expecting: true, got %s", fireIncident.readInputEvent);
     }
 
     // Test 1b: Verify FIS handles invalid input events
@@ -56,6 +58,10 @@ public class MainTest {
     @Order(2)
     public void test_1b() {
         System.out.println("Test 1b: Verify FIS handles invalid input events");
+        // invalid_events_data.csv -> a csv file containing invalid input
+        inputPath = "./src/test/resources/data/invalid_events_data.csv";
+        assertFalse(fireIncident.readInputEvent);
+        System.out.printf("Expecting: true, got %s", fireIncident.readInputEvent);
     }
 
     // Test 2: Verify FIS sends valid input to Scheduler
