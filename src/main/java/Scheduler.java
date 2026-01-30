@@ -32,6 +32,8 @@ public class Scheduler implements Runnable {
         this.toDrone = toDrone;
     }
 
+    public int getTotalEvents() { return totalEvents; }
+
     @Override
     public void run() {
         System.out.println("[Scheduler] Started.");
