@@ -140,7 +140,7 @@ public class MainTest {
 
         // 1. DS contacts Scheduler
         drone.sendReadySignal();
-        // 2. Scheduler receives signal, checks incidents, nothing to report
+        // 2. Scheduler receives signal, checks incidents
         msg = scheduler.receiveSubsystemMessage();
         scheduler.handleIncomingMessage(msg);
         // 3. ASSERT Scheduler return message/bool: Has task for drone
@@ -152,12 +152,27 @@ public class MainTest {
     // Test 4a: Verify Scheduler reads messages from FIS and forwards to DS
     @Test
     @Order(6)
-    public void test_4a() {
+    public void test_4a() throws InterruptedException {
         System.out.println("Test 4a: Verify Scheduler reads messages from FIS and forwards to DS");
-        // TODO:
+        fireIncident.setInputCsvPath("./src/test/resources/data/valid_fire_event.csv");
+        List<FireEvent> events = fireIncident.loadEventsFromCsv();
+        drone.sendReadySignal();
+        Message msg = scheduler.receiveSubsystemMessage();
+        scheduler.handleIncomingMessage(msg);
+
         // 1. FIS sends a message to Scheduler
+        int eventsSent = fireIncident.sendEventsToScheduler(events);
+        System.out.printf("eventsSent: %d\n", eventsSent);
+        msg = scheduler.receiveSubsystemMessage();
+        scheduler.handleIncomingMessage(msg);
         // 2. Scheduler sends message to DS
+        if (scheduler.canDispatchPendingEvent()) {
+            scheduler.dispatchPendingEvent();
+        }
         // 3. ASSERT DS reception of forwarded message is same as message originally sent by FIS
+        msg = drone.receiveMessage();
+        assertEquals(Message.Type.DRONE_ASSIGNMENT, msg.getType());
+        System.out.printf("Expecting msg type: DRONE_ASSIGNMENT, got %s\n", msg.getType());
     }
 
     // Test 4b: Verify Scheduler reads messages from DS and forwards to FIS
@@ -171,5 +186,4 @@ public class MainTest {
         // 3. ASSERT FIS reception of forwarded message is same as message originally sent by DS
     }
 
-    public static void main(String[] args) {}
 }
