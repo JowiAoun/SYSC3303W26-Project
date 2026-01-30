@@ -40,21 +40,21 @@ public class MainTest {
         schedulerThread = new Thread(scheduler, "Scheduler");
     }
 
-    public void startThreads() {
-        fireThread.start();
-        droneThread.start();
-        schedulerThread.start();
-    }
-
-    public void stopThreads() {
-        try {
-            fireThread.join();
-            droneThread.join();
-            schedulerThread.join();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-        }
-    }
+    // Possibly redundant
+//    public void startThreads() {
+//        fireThread.start();
+//        droneThread.start();
+//        schedulerThread.start();
+//    }
+//    public void stopThreads() {
+//        try {
+//            fireThread.join();
+//            droneThread.join();
+//            schedulerThread.join();
+//        } catch (InterruptedException e) {
+//            Thread.currentThread().interrupt();
+//        }
+//    }
 
     @AfterEach
     public void spacing() {
@@ -66,8 +66,10 @@ public class MainTest {
     @Order(1)
     public void test_1a() {
         System.out.println("Test 1a: Verify Fire Incident Subsystem reads valid input events");
-        assertTrue(fireIncident.hasAtLeastOneValidEvent());
-        System.out.printf("Expecting: true, got %s\n", fireIncident.hasAtLeastOneValidEvent());
+
+        boolean actualValue = fireIncident.hasAtLeastOneValidEvent();
+        assertTrue(actualValue);
+        System.out.printf("Expecting: true, got %s\n", actualValue);
     }
 
     // Test 1b: Verify FIS handles invalid input events
@@ -75,10 +77,12 @@ public class MainTest {
     @Order(2)
     public void test_1b() {
         System.out.println("Test 1b: Verify FIS handles invalid input events");
+
         // Set input data to invalid input
         fireIncident.setInputCsvPath("./src/test/resources/data/invalid_events_data.csv");
-        assertFalse(fireIncident.hasAtLeastOneValidEvent());
-        System.out.printf("Expecting: false, got %s\n", fireIncident.hasAtLeastOneValidEvent());
+        boolean actualValue = fireIncident.hasAtLeastOneValidEvent();
+        assertFalse(actualValue);
+        System.out.printf("Expecting: false, got %s\n", actualValue);
     }
 
     // Test 2: Verify FIS sends valid input to Scheduler
@@ -86,7 +90,7 @@ public class MainTest {
     @Order(3)
     public void test_2() throws InterruptedException {
         System.out.println("Test 2: Verify FIS sends valid input to Scheduler");
-        // TODO:
+
         // 1. FIS reads fire event from test input data (or we can rig the FIS to read a set fire event, might be easier)
         fireIncident.setInputCsvPath("./src/test/resources/data/valid_fire_event.csv");
         List<FireEvent> events = fireIncident.loadEventsFromCsv();
@@ -100,27 +104,49 @@ public class MainTest {
         // 4. ASSERT that Scheduler handled the sent data correctly, maybe check some variable/state change?
         System.out.printf("Total events AFTER receiving message: %d\n", scheduler.getTotalEvents());
         assertEquals(1, scheduler.getTotalEvents());
+        System.out.printf("Expecting: 1, got %d\n", scheduler.getTotalEvents());
 
     }
 
     // Test 3a: Verify Drone Subsystem contacts Scheduler - Handles NO tasks/fires to put out properly
     @Test
     @Order(4)
-    public void test_3a() {
+    public void test_3a() throws InterruptedException {
         System.out.println("Test 3a: Verify Drone Subsystem contacts Scheduler - Handles NO tasks/fires to put out properly");
-        // TODO:
+        fireIncident.setInputCsvPath("./src/test/resources/data/blank_data.csv");
+
         // 1. DS contacts Scheduler
-        // 2. ASSERT Scheduler return message/bool: No tasks for drone (false?)
+        drone.sendReadySignal();
+        // 2. Scheduler receives signal, checks incidents, nothing to report
+        Message msg = scheduler.receiveSubsystemMessage();
+        scheduler.handleIncomingMessage(msg);
+        // 3. ASSERT Scheduler return message/bool: No tasks for drone
+        boolean actualValue = scheduler.canDispatchPendingEvent();
+        assertFalse(actualValue);
+        System.out.printf("Expecting: false, got %s\n", actualValue);
     }
 
     // Test 3b: Verify Drone Subsystem contacts Scheduler - Handles HAS tasks/fires to put out properly
     @Test
     @Order(5)
-    public void test_3b() {
+    public void test_3b() throws InterruptedException {
         System.out.println("Test 3b: Verify Drone Subsystem contacts Scheduler - Handles HAS tasks/fires to put out properly");
-        // TODO:
+        fireIncident.setInputCsvPath("./src/test/resources/data/valid_fire_event.csv");
+        List<FireEvent> events = fireIncident.loadEventsFromCsv();
+        int eventsSent = fireIncident.sendEventsToScheduler(events);
+        System.out.printf("eventsSent: %d\n", eventsSent);
+        Message msg = scheduler.receiveSubsystemMessage();
+        scheduler.handleIncomingMessage(msg);
+
         // 1. DS contacts Scheduler
-        // 2. ASSERT Scheduler return message/bool: Has task for drone (true?)
+        drone.sendReadySignal();
+        // 2. Scheduler receives signal, checks incidents, nothing to report
+        msg = scheduler.receiveSubsystemMessage();
+        scheduler.handleIncomingMessage(msg);
+        // 3. ASSERT Scheduler return message/bool: Has task for drone
+        boolean actualValue = scheduler.canDispatchPendingEvent();
+        assertTrue(actualValue);
+        System.out.printf("Expecting: true, got %s\n", actualValue);
     }
 
     // Test 4a: Verify Scheduler reads messages from FIS and forwards to DS

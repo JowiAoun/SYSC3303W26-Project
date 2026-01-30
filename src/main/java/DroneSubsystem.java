@@ -51,6 +51,7 @@ public class DroneSubsystem implements Runnable {
      * Announce readiness to the Scheduler.
      */
     void sendReadySignal() throws InterruptedException {
+        System.out.println("[Drone] Sending Ready Signal");
         toScheduler.put(Message.droneReady());
     }
 

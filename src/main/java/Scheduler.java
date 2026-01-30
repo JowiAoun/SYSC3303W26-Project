@@ -82,7 +82,13 @@ public class Scheduler implements Runnable {
      * Checks if the scheduler can dispatch a pending event.
      */
     boolean canDispatchPendingEvent() {
-        return droneReady && !pending.isEmpty();
+        boolean canDispatch = droneReady && !pending.isEmpty();
+        if (canDispatch) {
+            System.out.println("[Scheduler] Drone can be dispatched");
+        } else {
+            System.out.println("[Scheduler] Drone cannot be dispatched at this time");
+        }
+        return canDispatch;
     }
 
     /**
@@ -151,6 +157,7 @@ public class Scheduler implements Runnable {
     private void handleDroneMessage(Message message) throws InterruptedException {
         if (message.getType() == Message.Type.DRONE_READY) {
             droneReady = true;
+            System.out.println("[Scheduler] Received Drone Ready Signal");
         } else if (message.getType() == Message.Type.DRONE_COMPLETED) {
             completed++;
             toFireIncident.put(Message.fireAck(message.getEvent()));
