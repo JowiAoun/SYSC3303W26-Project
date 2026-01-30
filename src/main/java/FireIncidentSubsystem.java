@@ -11,7 +11,7 @@ import java.util.List;
  * Then waits for completion acknowledgments.
  */
 public class FireIncidentSubsystem implements Runnable {
-    private final String inputCsvPath;
+    private String inputCsvPath;
     private final MessageBuffer toScheduler;
     private final MessageBuffer fromScheduler;
     public final boolean readInputEvent;
@@ -28,6 +28,10 @@ public class FireIncidentSubsystem implements Runnable {
         this.toScheduler = toScheduler;
         this.fromScheduler = fromScheduler;
         this.readInputEvent = hasAtLeastOneValidEvent();
+    }
+
+    public void setInputCsvPath(String inputCsvPath) {
+        this.inputCsvPath = inputCsvPath;
     }
 
     @Override

@@ -1,6 +1,8 @@
 import static org.junit.jupiter.api.Assertions.*;
 import org.junit.jupiter.api.*;
 
+import java.util.List;
+
 public class MainTest {
     String inputPath;
     // Message buffers
@@ -27,7 +29,7 @@ public class MainTest {
         schedulerToFire = new MessageBuffer();
         schedulerToDrone = new MessageBuffer();
 
-        // Build subsystems.
+        // Build subsystems
         fireIncident = new FireIncidentSubsystem(inputPath, toScheduler, schedulerToFire);
         drone = new DroneSubsystem(toScheduler, schedulerToDrone);
         scheduler = new Scheduler(toScheduler, schedulerToFire, schedulerToDrone);
@@ -48,9 +50,8 @@ public class MainTest {
     @Order(1)
     public void test_1a() {
         System.out.println("Test 1a: Verify Fire Incident Subsystem reads valid input events");
-        // FYI fireIncident.readInputEvent is a dummy method
-        assertTrue(fireIncident.readInputEvent);
-        System.out.printf("Expecting: true, got %s", fireIncident.readInputEvent);
+        assertTrue(fireIncident.hasAtLeastOneValidEvent());
+        System.out.printf("Expecting: true, got %s", fireIncident.hasAtLeastOneValidEvent());
     }
 
     // Test 1b: Verify FIS handles invalid input events
@@ -58,10 +59,10 @@ public class MainTest {
     @Order(2)
     public void test_1b() {
         System.out.println("Test 1b: Verify FIS handles invalid input events");
-        // invalid_events_data.csv -> a csv file containing invalid input
-        inputPath = "./src/test/resources/data/invalid_events_data.csv";
-        assertFalse(fireIncident.readInputEvent);
-        System.out.printf("Expecting: true, got %s", fireIncident.readInputEvent);
+        // Set input data to invalid input
+        fireIncident.setInputCsvPath("./src/test/resources/data/invalid_events_data.csv");
+        assertFalse(fireIncident.hasAtLeastOneValidEvent());
+        System.out.printf("Expecting: false, got %s", fireIncident.hasAtLeastOneValidEvent());
     }
 
     // Test 2: Verify FIS sends valid input to Scheduler
