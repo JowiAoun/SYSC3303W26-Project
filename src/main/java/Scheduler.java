@@ -38,18 +38,13 @@ public class Scheduler implements Runnable {
 
         try {
             while (true) {
-                // Read the next incoming message.
-                Message msg = readNextMessage();
-                // Route it to the Fire Incident or Drone handler.
-                routeMessage(msg);
-                // Dispatch a pending event if the drone is ready.
-                if (hasPendingDispatch()) {
-                    dispatchNextEvent();
+                Message msg = receiveSubsystemMessage();
+                handleIncomingMessage(msg);
+                if (canDispatchPendingEvent()) {
+                    dispatchPendingEvent();
                 }
-                // Send shutdowns once all work is complete.
-                sendShutdownToDroneIfNeeded();
-                sendShutdownToFireIfNeeded();
-                // Exit after both subsystems are shut down.
+                sendShutdownToDroneIfComplete();
+                sendShutdownToFireIfComplete();
                 if (shouldTerminate()) {
                     break;
                 }
@@ -65,14 +60,14 @@ public class Scheduler implements Runnable {
     /**
      * Reads one message from the shared buffer.
      */
-    Message readNextMessage() throws InterruptedException {
+    Message receiveSubsystemMessage() throws InterruptedException {
         return fromSubsystems.get();
     }
 
     /**
-     * Routes a message to the correct handler.
+     * Handles a message from either subsystem.
      */
-    void routeMessage(Message msg) throws InterruptedException {
+    void handleIncomingMessage(Message msg) throws InterruptedException {
         if (msg.getType() == Message.Type.FIRE_EVENT ||
                 msg.getType() == Message.Type.SHUTDOWN) {
             handleFireIncidentMessage(msg);
@@ -84,14 +79,14 @@ public class Scheduler implements Runnable {
     /**
      * Checks if the scheduler can dispatch a pending event.
      */
-    boolean hasPendingDispatch() {
+    boolean canDispatchPendingEvent() {
         return droneReady && !pending.isEmpty();
     }
 
     /**
      * Dispatches the next pending event to the drone.
      */
-    void dispatchNextEvent() throws InterruptedException {
+    void dispatchPendingEvent() throws InterruptedException {
         FireEvent next = pending.poll();
         toDrone.put(Message.droneAssignment(next));
         droneReady = false;
@@ -101,8 +96,8 @@ public class Scheduler implements Runnable {
     /**
      * Sends shutdown to Drone subsystem if conditions are met.
      */
-    void sendShutdownToDroneIfNeeded() throws InterruptedException {
-        if (isAllDone() && !shutdownSentToDrone) {
+    void sendShutdownToDroneIfComplete() throws InterruptedException {
+        if (isProcessingComplete() && !shutdownSentToDrone) {
             toDrone.put(Message.shutdown());
             shutdownSentToDrone = true;
             System.out.println("[Scheduler] Sent shutdown to Drone.");
@@ -112,8 +107,8 @@ public class Scheduler implements Runnable {
     /**
      * Sends shutdown to Fire Incident subsystem if conditions are met.
      */
-    void sendShutdownToFireIfNeeded() throws InterruptedException {
-        if (isAllDone() && !shutdownSentToFire) {
+    void sendShutdownToFireIfComplete() throws InterruptedException {
+        if (isProcessingComplete() && !shutdownSentToFire) {
             toFireIncident.put(Message.shutdown());
             shutdownSentToFire = true;
             System.out.println("[Scheduler] Sent shutdown to Fire Incident.");
@@ -123,7 +118,7 @@ public class Scheduler implements Runnable {
     /**
      * Checks whether all events are complete and queues are empty.
      */
-    boolean isAllDone() {
+    boolean isProcessingComplete() {
         return fireIncidentDone && pending.isEmpty() && completed == totalEvents;
     }
 
@@ -131,7 +126,7 @@ public class Scheduler implements Runnable {
      * Checks whether the scheduler should terminate.
      */
     boolean shouldTerminate() {
-        return isAllDone() && shutdownSentToDrone && shutdownSentToFire;
+        return isProcessingComplete() && shutdownSentToDrone && shutdownSentToFire;
     }
 
     /**

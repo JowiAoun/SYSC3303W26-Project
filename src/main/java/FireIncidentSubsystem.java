@@ -14,6 +14,7 @@ public class FireIncidentSubsystem implements Runnable {
     private final String inputCsvPath;
     private final MessageBuffer toScheduler;
     private final MessageBuffer fromScheduler;
+    public final boolean readInputEvent;
 
     /**
      * @param inputCsvPath path to the input CSV file
@@ -26,52 +27,53 @@ public class FireIncidentSubsystem implements Runnable {
         this.inputCsvPath = inputCsvPath;
         this.toScheduler = toScheduler;
         this.fromScheduler = fromScheduler;
+        this.readInputEvent = hasAtLeastOneValidEvent();
     }
 
     @Override
     public void run() {
-        // Read all raw input lines from the CSV file.
-        List<String> inputLines = readInputLines();
-        // Parse validated lines into FireEvent objects.
-        List<FireEvent> events = parseEvents(inputLines);
-        // Send parsed events to the Scheduler.
-        int eventsSent = sendEvents(events);
-        // Signal that no more input events are coming.
-        sendShutdownSignal();
-        // Wait for completion acknowledgments before finishing.
-        int eventsCompleted = waitForAcknowledgments();
+        List<FireEvent> events = loadEventsFromCsv();
+        int eventsSent = sendEventsToScheduler(events);
+        notifySchedulerInputComplete();
+        int eventsCompleted = awaitAcknowledgments();
         System.out.println("[FireIncident] Finished. Completed: " + eventsCompleted + "/" + eventsSent);
     }
 
     /**
-     * Reads all lines from the input CSV file.
+     * Loads and parses FireEvents from the input CSV file.
      */
-    List<String> readInputLines() {
-        List<String> lines = new ArrayList<>();
+    List<FireEvent> loadEventsFromCsv() {
+        List<FireEvent> events = new ArrayList<>();
         System.out.println("[FireIncident] Reading input: " + inputCsvPath);
         try (BufferedReader reader = new BufferedReader(new FileReader(inputCsvPath))) {
             String line;
             while ((line = reader.readLine()) != null) {
-                lines.add(line);
+                FireEvent event = parseEventLine(line);
+                if (event != null) {
+                    events.add(event);
+                }
             }
         } catch (IOException ex) {
             throw new RuntimeException("[FireIncident] File error: " + ex.getMessage(), ex);
         }
-        return lines;
+        return events;
     }
 
     /**
-     * Parses the raw input lines into FireEvent objects.
+     * Checks whether the input contains at least one valid event.
      */
-    List<FireEvent> parseEvents(List<String> lines) {
-        List<FireEvent> events = new ArrayList<>();
-        for (String line : lines) {
-            FireEvent event = parseEventLine(line);
-            if (event != null) {
-                events.add(event);
+    boolean hasAtLeastOneValidEvent() {
+        try (BufferedReader reader = new BufferedReader(new FileReader(inputCsvPath))) {
+            String line;
+            while ((line = reader.readLine()) != null) {
+                if (parseEventLine(line) != null) {
+                    return true;
+                }
             }
+        } catch (IOException ex) {
+            return false;
         }
-        return events;
+        return false;
     }
 
     /**
@@ -101,7 +103,7 @@ public class FireIncidentSubsystem implements Runnable {
      * Sends events to the Scheduler.
      * @return number of events sent
      */
-    int sendEvents(List<FireEvent> events) {
+    int sendEventsToScheduler(List<FireEvent> events) {
         int eventsSent = 0;
         for (FireEvent event : events) {
             toScheduler.put(Message.fireEvent(event));
@@ -114,7 +116,7 @@ public class FireIncidentSubsystem implements Runnable {
     /**
      * Sends the shutdown signal to the Scheduler.
      */
-    void sendShutdownSignal() {
+    void notifySchedulerInputComplete() {
         toScheduler.put(Message.shutdown());
     }
 
@@ -122,7 +124,7 @@ public class FireIncidentSubsystem implements Runnable {
      * Waits for completion acknowledgments or shutdown.
      * @return number of completed events
      */
-    int waitForAcknowledgments() {
+    int awaitAcknowledgments() {
         int eventsCompleted = 0;
         System.out.println("[FireIncident] Waiting for acknowledgments...");
         while (true) {

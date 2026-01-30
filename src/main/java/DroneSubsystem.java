@@ -25,17 +25,17 @@ public class DroneSubsystem implements Runnable {
 
         try {
             // Announce initial readiness to the Scheduler.
-            announceReady();
+            sendReadySignal();
             while (true) {
                 // Wait for the next message from the Scheduler.
-                Message reply = readNextMessage();
+                Message reply = receiveMessage();
                 // Stop cleanly when a shutdown message is received.
-                if (isShutdownMessage(reply)) {
+                if (isShutdown(reply)) {
                     break;
                 }
                 // Handle assignments and report completion.
-                if (isAssignmentMessage(reply)) {
-                    handleAssignment(reply);
+                if (isAssignment(reply)) {
+                    processAssignment(reply);
                     completed++;
                 }
             }
@@ -50,48 +50,48 @@ public class DroneSubsystem implements Runnable {
     /**
      * Announce readiness to the Scheduler.
      */
-    void announceReady() throws InterruptedException {
+    void sendReadySignal() throws InterruptedException {
         toScheduler.put(Message.droneReady());
     }
 
     /**
      * Reads one message from the Scheduler.
      */
-    Message readNextMessage() throws InterruptedException {
+    Message receiveMessage() throws InterruptedException {
         return fromScheduler.get();
     }
 
     /**
      * Checks if a message is a shutdown signal.
      */
-    boolean isShutdownMessage(Message reply) {
+    boolean isShutdown(Message reply) {
         return reply.getType() == Message.Type.SHUTDOWN;
     }
 
     /**
      * Checks if a message is an assignment.
      */
-    boolean isAssignmentMessage(Message reply) {
+    boolean isAssignment(Message reply) {
         return reply.getType() == Message.Type.DRONE_ASSIGNMENT;
     }
 
     /**
      * Handle an assignment from the Scheduler.
      */
-    void handleAssignment(Message reply) throws InterruptedException {
+    void processAssignment(Message reply) throws InterruptedException {
         FireEvent event = reply.getEvent();
         System.out.println("[Drone] Assigned: " + event);
 
         simulateService(event);
-        reportCompletion(event);
+        sendCompletion(event);
         System.out.println("[Drone] Ready.");
-        announceReady();
+        sendReadySignal();
     }
 
     /**
      * Reports completion of an event to the Scheduler.
      */
-    void reportCompletion(FireEvent event) throws InterruptedException {
+    void sendCompletion(FireEvent event) throws InterruptedException {
         toScheduler.put(Message.droneCompleted(event));
     }
 
