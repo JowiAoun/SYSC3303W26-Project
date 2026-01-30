@@ -169,21 +169,46 @@ public class MainTest {
         if (scheduler.canDispatchPendingEvent()) {
             scheduler.dispatchPendingEvent();
         }
-        // 3. ASSERT DS reception of forwarded message is same as message originally sent by FIS
+        // 3. ASSERT DS reception of forwarded message
         msg = drone.receiveMessage();
-        assertEquals(Message.Type.DRONE_ASSIGNMENT, msg.getType());
-        System.out.printf("Expecting msg type: DRONE_ASSIGNMENT, got %s\n", msg.getType());
+        boolean actualValue = drone.isAssignment(msg);
+        assertTrue(actualValue);
+        System.out.printf("Expecting: true, got %s\n", actualValue);
     }
 
     // Test 4b: Verify Scheduler reads messages from DS and forwards to FIS
     @Test
     @Order(7)
-    public void test_4b() {
+    public void test_4b() throws InterruptedException {
         System.out.println("Test 4b: Verify Scheduler reads messages from DS and forwards to FIS");
         // TODO:
+        fireIncident.setInputCsvPath("./src/test/resources/data/valid_fire_event.csv");
+        List<FireEvent> events = fireIncident.loadEventsFromCsv();
+        drone.sendReadySignal();
+        Message msg = scheduler.receiveSubsystemMessage();
+        scheduler.handleIncomingMessage(msg);
+        int eventsSent = fireIncident.sendEventsToScheduler(events);
+        System.out.printf("eventsSent: %d\n", eventsSent);
+        msg = scheduler.receiveSubsystemMessage();
+        scheduler.handleIncomingMessage(msg);
+        if (scheduler.canDispatchPendingEvent()) {
+            scheduler.dispatchPendingEvent();
+        }
+        msg = drone.receiveMessage();
+        if (drone.isAssignment(msg)) {
+            drone.processAssignment(msg);
+        }
         // 1. DS sends a message to Scheduler
+        drone.processAssignment(msg);
         // 2. Scheduler sends message to FIS
-        // 3. ASSERT FIS reception of forwarded message is same as message originally sent by DS
+        msg = scheduler.receiveSubsystemMessage();
+        scheduler.handleIncomingMessage(msg);
+        scheduler.sendShutdownToDroneIfComplete();
+        scheduler.sendShutdownToFireIfComplete();
+        // 3. ASSERT FIS reception of forwarded message
+        msg = fireIncident.receiveMessage();
+        assertEquals(Message.Type.FIRE_ACK, msg.getType());
+        System.out.printf("Expecting msg type: FIRE_ACK, got %s\n", msg.getType());
     }
 
 }

@@ -118,6 +118,13 @@ public class FireIncidentSubsystem implements Runnable {
     }
 
     /**
+     * Reads one message from the Scheduler.
+     */
+    Message receiveMessage() throws InterruptedException {
+        return fromScheduler.get();
+    }
+
+    /**
      * Sends the shutdown signal to the Scheduler.
      */
     void notifySchedulerInputComplete() {
@@ -128,7 +135,7 @@ public class FireIncidentSubsystem implements Runnable {
      * Waits for completion acknowledgments or shutdown.
      * @return number of completed events
      */
-    int awaitAcknowledgments() {
+    public int awaitAcknowledgments() {
         int eventsCompleted = 0;
         System.out.println("[FireIncident] Waiting for acknowledgments...");
         while (true) {
