@@ -32,45 +32,25 @@ public class Scheduler implements Runnable {
         this.toDrone = toDrone;
     }
 
-    /**
-     * Main loop:
-     * - read fire events
-     * - respond to drone readiness
-     * - forward completions back to Fire Incident
-     */
     @Override
     public void run() {
         System.out.println("[Scheduler] Started.");
 
         try {
             while (true) {
-                Message msg = fromSubsystems.get();
-                if (msg.getType() == Message.Type.FIRE_EVENT ||
-                    msg.getType() == Message.Type.SHUTDOWN) {
-                    handleFireIncidentMessage(msg);
-                } else {
-                    handleDroneMessage(msg);
+                // Read the next incoming message.
+                Message msg = readNextMessage();
+                // Route it to the Fire Incident or Drone handler.
+                routeMessage(msg);
+                // Dispatch a pending event if the drone is ready.
+                if (hasPendingDispatch()) {
+                    dispatchNextEvent();
                 }
-
-                if (droneReady && !pending.isEmpty()) {
-                    FireEvent next = pending.poll();
-                    toDrone.put(Message.droneAssignment(next));
-                    droneReady = false;
-                    System.out.println("[Scheduler] Dispatched to drone: " + next);
-                }
-
-                boolean allDone = fireIncidentDone && pending.isEmpty() && completed == totalEvents;
-                if (allDone && !shutdownSentToDrone) {
-                    toDrone.put(Message.shutdown());
-                    shutdownSentToDrone = true;
-                    System.out.println("[Scheduler] Sent shutdown to Drone.");
-                }
-                if (allDone && !shutdownSentToFire) {
-                    toFireIncident.put(Message.shutdown());
-                    shutdownSentToFire = true;
-                    System.out.println("[Scheduler] Sent shutdown to Fire Incident.");
-                }
-                if (allDone && shutdownSentToDrone && shutdownSentToFire) {
+                // Send shutdowns once all work is complete.
+                sendShutdownToDroneIfNeeded();
+                sendShutdownToFireIfNeeded();
+                // Exit after both subsystems are shut down.
+                if (shouldTerminate()) {
                     break;
                 }
             }
@@ -80,6 +60,78 @@ public class Scheduler implements Runnable {
         }
 
         System.out.println("[Scheduler] Finished.");
+    }
+
+    /**
+     * Reads one message from the shared buffer.
+     */
+    Message readNextMessage() throws InterruptedException {
+        return fromSubsystems.get();
+    }
+
+    /**
+     * Routes a message to the correct handler.
+     */
+    void routeMessage(Message msg) throws InterruptedException {
+        if (msg.getType() == Message.Type.FIRE_EVENT ||
+                msg.getType() == Message.Type.SHUTDOWN) {
+            handleFireIncidentMessage(msg);
+        } else {
+            handleDroneMessage(msg);
+        }
+    }
+
+    /**
+     * Checks if the scheduler can dispatch a pending event.
+     */
+    boolean hasPendingDispatch() {
+        return droneReady && !pending.isEmpty();
+    }
+
+    /**
+     * Dispatches the next pending event to the drone.
+     */
+    void dispatchNextEvent() throws InterruptedException {
+        FireEvent next = pending.poll();
+        toDrone.put(Message.droneAssignment(next));
+        droneReady = false;
+        System.out.println("[Scheduler] Dispatched to drone: " + next);
+    }
+
+    /**
+     * Sends shutdown to Drone subsystem if conditions are met.
+     */
+    void sendShutdownToDroneIfNeeded() throws InterruptedException {
+        if (isAllDone() && !shutdownSentToDrone) {
+            toDrone.put(Message.shutdown());
+            shutdownSentToDrone = true;
+            System.out.println("[Scheduler] Sent shutdown to Drone.");
+        }
+    }
+
+    /**
+     * Sends shutdown to Fire Incident subsystem if conditions are met.
+     */
+    void sendShutdownToFireIfNeeded() throws InterruptedException {
+        if (isAllDone() && !shutdownSentToFire) {
+            toFireIncident.put(Message.shutdown());
+            shutdownSentToFire = true;
+            System.out.println("[Scheduler] Sent shutdown to Fire Incident.");
+        }
+    }
+
+    /**
+     * Checks whether all events are complete and queues are empty.
+     */
+    boolean isAllDone() {
+        return fireIncidentDone && pending.isEmpty() && completed == totalEvents;
+    }
+
+    /**
+     * Checks whether the scheduler should terminate.
+     */
+    boolean shouldTerminate() {
+        return isAllDone() && shutdownSentToDrone && shutdownSentToFire;
     }
 
     /**

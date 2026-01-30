@@ -18,36 +18,25 @@ public class DroneSubsystem implements Runnable {
         this.fromScheduler = fromScheduler;
     }
 
-    /**
-     * Main loop:
-     * - announce readiness
-     * - accept an assignment
-     * - simulate servicing
-     * - report completion
-     */
     @Override
     public void run() {
         int completed = 0;
         System.out.println("[Drone] Ready.");
 
         try {
-            toScheduler.put(Message.droneReady());
+            // Announce initial readiness to the Scheduler.
+            announceReady();
             while (true) {
-                Message reply = fromScheduler.get();
-
-                if (reply.getType() == Message.Type.SHUTDOWN) {
+                // Wait for the next message from the Scheduler.
+                Message reply = readNextMessage();
+                // Stop cleanly when a shutdown message is received.
+                if (isShutdownMessage(reply)) {
                     break;
                 }
-
-                if (reply.getType() == Message.Type.DRONE_ASSIGNMENT) {
-                    FireEvent event = reply.getEvent();
-                    System.out.println("[Drone] Assigned: " + event);
-
-                    simulateService(event);
-                    toScheduler.put(Message.droneCompleted(event));
+                // Handle assignments and report completion.
+                if (isAssignmentMessage(reply)) {
+                    handleAssignment(reply);
                     completed++;
-                    System.out.println("[Drone] Ready.");
-                    toScheduler.put(Message.droneReady());
                 }
             }
         } catch (InterruptedException e) {
@@ -56,6 +45,54 @@ public class DroneSubsystem implements Runnable {
         }
 
         System.out.println("[Drone] Finished. Completed: " + completed);
+    }
+
+    /**
+     * Announce readiness to the Scheduler.
+     */
+    void announceReady() throws InterruptedException {
+        toScheduler.put(Message.droneReady());
+    }
+
+    /**
+     * Reads one message from the Scheduler.
+     */
+    Message readNextMessage() throws InterruptedException {
+        return fromScheduler.get();
+    }
+
+    /**
+     * Checks if a message is a shutdown signal.
+     */
+    boolean isShutdownMessage(Message reply) {
+        return reply.getType() == Message.Type.SHUTDOWN;
+    }
+
+    /**
+     * Checks if a message is an assignment.
+     */
+    boolean isAssignmentMessage(Message reply) {
+        return reply.getType() == Message.Type.DRONE_ASSIGNMENT;
+    }
+
+    /**
+     * Handle an assignment from the Scheduler.
+     */
+    void handleAssignment(Message reply) throws InterruptedException {
+        FireEvent event = reply.getEvent();
+        System.out.println("[Drone] Assigned: " + event);
+
+        simulateService(event);
+        reportCompletion(event);
+        System.out.println("[Drone] Ready.");
+        announceReady();
+    }
+
+    /**
+     * Reports completion of an event to the Scheduler.
+     */
+    void reportCompletion(FireEvent event) throws InterruptedException {
+        toScheduler.put(Message.droneCompleted(event));
     }
 
     /**
