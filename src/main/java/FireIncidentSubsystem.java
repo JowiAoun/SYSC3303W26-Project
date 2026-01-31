@@ -39,7 +39,7 @@ public class FireIncidentSubsystem implements Runnable {
         List<FireEvent> events = loadEventsFromCsv();
         int eventsSent = sendEventsToScheduler(events);
         notifySchedulerInputComplete();
-        int eventsCompleted = awaitAcknowledgments();
+        int eventsCompleted = awaitAcknowledgements();
         System.out.println("[FireIncident] Finished. Completed: " + eventsCompleted + "/" + eventsSent);
     }
 
@@ -135,12 +135,12 @@ public class FireIncidentSubsystem implements Runnable {
      * Waits for completion acknowledgments or shutdown.
      * @return number of completed events
      */
-    public int awaitAcknowledgments() {
+    public int awaitAcknowledgements() {
         int eventsCompleted = 0;
         System.out.println("[FireIncident] Waiting for acknowledgments...");
         while (true) {
             try {
-                Message msg = fromScheduler.get();
+                Message msg = receiveMessage();
                 if (msg.getType() == Message.Type.FIRE_ACK) {
                     eventsCompleted++;
                     System.out.println("[FireIncident] Acknowledged: " + msg.getEvent());
