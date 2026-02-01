@@ -58,15 +58,19 @@ SETUP INSTRUCTIONS
 2. Mark 'src' as Sources Root if not already detected.
 3. Ensure 'src/main/resources' is marked as Resources Root.
 
-TESTING INSTRUCTIONS
+UNIT TESTING
 --------------------------------------------------------------------------------
-The system will run automatically upon start.
-1. The FireIncidentSubsystem reads events from 'events.csv'.
-2. Observe the console output. You should see logs indicating:
-   - FireIncidentSubsystem sending events to Scheduler.
-   - Scheduler receiving events and forwarding/scheduling.
-   - DroneSubsystem receiving tasks.
-3. The program concludes after processing all events in the file.
+JUnit 5 was used as the testing framework.
+Unit tests written for the project can be found in src/test/java/MainTest.java.
+To run all tests in one-shot, in IntelliJ IDEA, right click on "MainTest.java", and click "Run 'MainTest'".
+
+Test 1a: Verify FireIncidentSubsystem properly reads and handles valid input events
+Test 1b: Verify FireIncidentSubsystem properly reads and handles invalid input events
+Test 2: Verify FireIncidentSubsystem sends valid input to Scheduler
+Test 3a: Verify DroneSubsystem contacts Scheduler and handles NO tasks/fires to put out properly
+Test 3b: Verify DroneSubsystem contacts Scheduler and handles HAS tasks/fires to put out properly
+Test 4a: Verify Scheduler reads messages from FireIncidentSubsystem and forwards to DroneSubsystem
+Test 4b: Verify Scheduler reads messages from DroneSubsystem and forwards to FireIncidentSubsystem
 
 BREAKDOWN OF RESPONSIBILITIES
 --------------------------------------------------------------------------------
