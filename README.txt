@@ -12,12 +12,14 @@ Jowi Aoun - 101272429
 
 PROJECT DESCRIPTION
 --------------------------------------------------------------------------------
-This project implements a Firefighting Drone System as specified in the SYSC 3033A
+This project implements a Firefighting Drone System as specified in the SYSC 3303A
 Winter 2026 Project Specification.
 Iteration 1 focuses on establishing clear communication between three main subsystems:
 1. Fire Incident Subsystem (Producer/Client)
 2. Scheduler (Server/Mediator)
 3. Drone Subsystem (Consumer/Client)
+
+UML Diagrams for Iteration 1 can be found in Diagrams.pdf.
 
 FILES INCLUDED
 --------------------------------------------------------------------------------
