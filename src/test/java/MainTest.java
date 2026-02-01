@@ -181,7 +181,6 @@ public class MainTest {
     @Order(7)
     public void test_4b() throws InterruptedException {
         System.out.println("Test 4b: Verify Scheduler reads messages from DS and forwards to FIS");
-        // TODO:
         fireIncident.setInputCsvPath("./src/test/resources/data/valid_fire_event.csv");
         List<FireEvent> events = fireIncident.loadEventsFromCsv();
         drone.sendReadySignal();
