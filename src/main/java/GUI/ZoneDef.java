@@ -2,6 +2,12 @@ package GUI;
 
 import java.awt.Color;
 
+/**
+ * ZoneDef.java
+ *
+ * Data object defining a rectangular fire zone.
+ * Includes dimensions, position, and visual theme.
+ */
 public class ZoneDef {
     public final int id;
     public final int startCol, startRow;

@@ -5,6 +5,12 @@ import javax.swing.border.Border;
 import java.awt.*;
 import java.util.List;
 
+/**
+ * ZoneCell.java
+ *
+ * Represents a single cell in the simulation grid.
+ * Can display fire, drone positions, and zone color coding.
+ */
 public class ZoneCell extends JLabel {
     private final int col, row;
     private final ZoneDef zone;

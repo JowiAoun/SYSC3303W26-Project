@@ -5,6 +5,12 @@ import java.awt.*;
 import java.util.ArrayList;
 import java.util.List;
 
+/**
+ * FireDroneGUI.java
+ *
+ * Main window for the firefighting drone simulation.
+ * Displays a grid of zones and a sidebar with simulation status.
+ */
 public class FireDroneGUI extends JFrame {
     private static final int COLS = 24;
     private static final int ROWS = 14;
