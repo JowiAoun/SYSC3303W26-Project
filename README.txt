@@ -42,6 +42,11 @@ docs/
   - diagrams/: UML Class and Sequence diagrams.
   - Diagrams.pdf: Rendered diagrams.
 
+SETUP INSTRUCTIONS
+--------------------------------------------------------------------------------
+1. Ensure Java SDK is properly configured in Project Structure.
+2. Unzip this directory with 'unzip L3G1_milestone_*.zip'
+
 HOW TO RUN (IntelliJ IDEA)
 --------------------------------------------------------------------------------
 1. Open the project in IntelliJ IDEA.
@@ -51,12 +56,6 @@ HOW TO RUN (IntelliJ IDEA)
 4. Click the green "Play" button.
 
 Alternatively, right-click 'Main.java' in the Project view and select "Run 'Main'".
-
-SETUP INSTRUCTIONS
---------------------------------------------------------------------------------
-1. Ensure Java SDK is properly configured in Project Structure.
-2. Mark 'src' as Sources Root if not already detected.
-3. Ensure 'src/main/resources' is marked as Resources Root.
 
 UNIT TESTING
 --------------------------------------------------------------------------------
