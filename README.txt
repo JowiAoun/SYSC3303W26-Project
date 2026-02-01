@@ -23,19 +23,24 @@ FILES INCLUDED
 --------------------------------------------------------------------------------
 src/main/java/
   - Main.java: Entry point. Starts all subsystem threads.
-  - FireIncidentSubsystem.java: Reads fire events from input and sends to Scheduler.
+  - FireIncidentSubsystem.java: Reads fire events from CSV and sends to Scheduler.
   - Scheduler.java: Receives events and coordinates with Drones.
-  - DroneSubsystem.java: Simulates drone operations.
-  - FireEvent.java: Data structure representing a fire event.
-  - Message*.java: Communication helpers.
-  - GUI/*.java: Initial GUI structure components.
+  - DroneSubsystem.java: Simulates drone operations and reports completion.
+  - FireEvent.java: Data structure representing a fire event with severity/type.
+  - Message.java: Envelope class for inter-subsystem communication.
+  - MessageBuffer.java: Thread-safe FIFO buffer for message passing.
+  - GUI/*.java: Initial GUI structure components (FireDroneGUI, ZoneCell, ZoneDef).
 
 src/main/resources/data/
   - events.csv: Input file containing fire detected and drone request events.
 
+src/test/java/
+  - MainTest.java: Unit tests for subsystem communication and event processing.
+
 docs/
   - project-specification.pdf: Project requirements.
   - diagrams/: UML Class and Sequence diagrams.
+  - Diagrams.pdf: Rendered diagrams.
 
 HOW TO RUN (IntelliJ IDEA)
 --------------------------------------------------------------------------------
