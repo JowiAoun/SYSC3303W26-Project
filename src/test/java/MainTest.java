@@ -194,11 +194,10 @@ public class MainTest {
             scheduler.dispatchPendingEvent();
         }
         msg = drone.receiveMessage();
+        // 1. DS sends a message to Scheduler
         if (drone.isAssignment(msg)) {
             drone.processAssignment(msg);
         }
-        // 1. DS sends a message to Scheduler
-        drone.processAssignment(msg);
         // 2. Scheduler sends message to FIS
         msg = scheduler.receiveSubsystemMessage();
         scheduler.handleIncomingMessage(msg);
