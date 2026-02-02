@@ -7,6 +7,12 @@
 public class DroneSubsystem implements Runnable {
     private final MessageBuffer toScheduler;
     private final MessageBuffer fromScheduler;
+    private static final int MAX_CAPACITY_LITERS = 15;
+    private static final double TRAVEL_SPEED_MPS = 15.0;
+    private static final int METERS_PER_ZONE = 10;
+    private static final double DROP_SECONDS_PER_LITER = 0.5;
+    private static final int BASE_ZONE_ID = 0;
+    private int remainingLiters = MAX_CAPACITY_LITERS;
 
     /**
      * @param toScheduler queue used to send messages to Scheduler
@@ -100,20 +106,33 @@ public class DroneSubsystem implements Runnable {
      * Simulate service time based on severity (placeholder timing).
      */
     private void simulateService(FireEvent event) throws InterruptedException {
-        int sleepMs;
-        switch (event.getSeverity()) {
-            case LOW:
-                sleepMs = 300;
-                break;
-            case MODERATE:
-                sleepMs = 600;
-                break;
-            case HIGH:
-                sleepMs = 900;
-                break;
-            default:
-                sleepMs = 400;
+        int remainingRequired = event.getRequiredLiters();
+        double travelSeconds = estimateTravelSeconds(event.getZoneId());
+
+        while (remainingRequired > 0) {
+            if (remainingLiters == 0) {
+                System.out.println("[Drone] Refilling to max capacity before dispatch.");
+                remainingLiters = MAX_CAPACITY_LITERS;
+            }
+
+            int toDrop = Math.min(remainingLiters, remainingRequired);
+            double dropSeconds = toDrop * DROP_SECONDS_PER_LITER;
+            double totalSeconds = (2 * travelSeconds) + dropSeconds;
+            long sleepMs = Math.round(totalSeconds * 1000);
+
+            System.out.println("[Drone] Travel seconds: " + travelSeconds +
+                    ", drop seconds: " + dropSeconds +
+                    ", total seconds: " + totalSeconds);
+
+            Thread.sleep(sleepMs);
+            remainingLiters -= toDrop;
+            remainingRequired -= toDrop;
+            System.out.println("[Drone] Remaining agent (L): " + remainingLiters);
         }
-        Thread.sleep(sleepMs);
+    }
+
+    private double estimateTravelSeconds(int zoneId) {
+        int distanceMeters = 50;
+        return distanceMeters / TRAVEL_SPEED_MPS;
     }
 }
