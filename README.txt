@@ -81,4 +81,11 @@ Iteration 1
 Zachary: Graphical user interface
 Amir: Source code
 Thanos: Testing
-Jowi: Documentation and diagrams
+Jowi: Documentation and Diagrams
+
+Iteration 2
+-----------
+Zachary: Testing
+Amir: GUI
+Thanos: Documentation and Diagrams
+Jowi: Source code
