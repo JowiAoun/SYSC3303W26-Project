@@ -32,7 +32,7 @@ public class MainTest {
         // Build subsystems
         fireIncident = new FireIncidentSubsystem(inputPath, toScheduler, schedulerToFire);
         drone = new DroneSubsystem(toScheduler, schedulerToDrone);
-        scheduler = new Scheduler(toScheduler, schedulerToFire, schedulerToDrone);
+        scheduler = new Scheduler(toScheduler, schedulerToFire, schedulerToDrone, null);
 
         // Launch threads.
         fireThread = new Thread(fireIncident, "FireIncidentSubsystem");
