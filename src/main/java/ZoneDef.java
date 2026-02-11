@@ -1,5 +1,3 @@
-package GUI;
-
 import java.awt.Color;
 
 /**

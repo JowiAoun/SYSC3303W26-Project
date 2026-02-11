@@ -1,4 +1,3 @@
-package GUI;
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
 import java.awt.*;
@@ -215,6 +214,80 @@ public class FireDroneGUI extends JFrame {
         if (row >= 0 && row < ROWS && col >= 0 && col < COLS) {
             gridCells[row][col].setText(text);
         }
+    }
+
+    private ZoneDef getZoneById(int id) {
+        for (ZoneDef z : zones) {
+            if (z.id == id) return z;
+        }
+        return null; // Zone 0 (Base) might not be in the list or has strict handling
+    }
+
+    /**
+     * Updates the GUI based on the drone's status.
+     * Thread-safe.
+     */
+    public void updateDroneStatus(DroneStatus status) {
+        SwingUtilities.invokeLater(() -> {
+            // Update Sidebar (TODO: Make a dedicated DroneList component)
+            // For now, simpler update of the status bar or a label
+            // (There is no easy public access to sidebar labels yet without refactoring)
+            
+            // Map DroneState to CellState for the target Zone
+            ZoneDef zone = getZoneById(status.getZoneId());
+            if (zone != null) {
+                // Determine cell state based on drone state
+                CellState cellState = CellState.EMPTY;
+                String text = "";
+                
+                switch (status.getState()) {
+                    case EN_ROUTE:
+                        cellState = CellState.DRONE_OUTBOUND;
+                        text = ">>>";
+                        break;
+                    case EXTINGUISHING:
+                        cellState = CellState.DRONE_EXTINGUISHED;
+                        text = "FIGHT";
+                        break;
+                    case RETURNING:
+                        // If returning, the fire at previous zone is likely out.
+                        // We might want to leave it as EXTINGUISHED.
+                        // But this method receives "current zone" which might be base (0) or the fire zone.
+                        // If returning to 0, status.getZoneId() is 0.
+                        if (status.getZoneId() == 0) {
+                            // Drone is valid, but Zone 0 might not be on map.
+                            // We can just update the status bar.
+                        }
+                        cellState = CellState.DRONE_RETURNING;
+                        break;
+                    case REFILLING:
+                    case IDLE:
+                        // At base
+                        break;
+                }
+
+                // If we are at a valid map zone, update its top-left cell
+                if (status.getZoneId() != 0 && cellState != CellState.EMPTY) {
+                   setCellState(zone.startCol, zone.startRow, cellState);
+                   setCellText(zone.startCol, zone.startRow, text);
+                }
+            }
+            
+            // Also update a global status label if we had one accessibly.
+        });
+    }
+
+    /**
+     * Updates a zone's fire state (e.g. when a new fire is detected).
+     */
+    public void setZoneFire(int zoneId, boolean active) {
+        SwingUtilities.invokeLater(() -> {
+            ZoneDef zone = getZoneById(zoneId);
+            if (zone != null) {
+                setCellState(zone.startCol, zone.startRow, active ? CellState.ACTIVE_FIRE : CellState.EXTINGUISHED);
+                setCellText(zone.startCol, zone.startRow, active ? "FIRE" : "SAFE");
+            }
+        });
     }
 
     public static void main(String[] args) {

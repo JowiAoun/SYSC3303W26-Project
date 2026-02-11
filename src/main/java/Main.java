@@ -20,10 +20,15 @@ public class Main {
         MessageBuffer schedulerToFire = new MessageBuffer();
         MessageBuffer schedulerToDrone = new MessageBuffer();
 
+        // Build GUI (on EDT)
+        FireDroneGUI gui = new FireDroneGUI();
+        javax.swing.SwingUtilities.invokeLater(() -> gui.setVisible(true));
+
         // Build subsystems.
         FireIncidentSubsystem fireIncident = new FireIncidentSubsystem(inputPath, toScheduler, schedulerToFire);
         DroneSubsystem drone = new DroneSubsystem(toScheduler, schedulerToDrone);
-        Scheduler scheduler = new Scheduler(toScheduler, schedulerToFire, schedulerToDrone);
+        // Pass GUI to Scheduler
+        Scheduler scheduler = new Scheduler(toScheduler, schedulerToFire, schedulerToDrone, gui);
 
         // Launch threads.
         Thread fireThread = new Thread(fireIncident, "FireIncidentSubsystem");
