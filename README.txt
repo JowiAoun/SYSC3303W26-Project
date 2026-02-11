@@ -14,30 +14,45 @@ PROJECT DESCRIPTION
 --------------------------------------------------------------------------------
 This project implements a Firefighting Drone System as specified in the SYSC 3303A
 Winter 2026 Project Specification.
-Iteration 1 focuses on establishing clear communication between three main subsystems:
-1. Fire Incident Subsystem (Producer/Client)
-2. Scheduler (Server/Mediator)
-3. Drone Subsystem (Consumer/Client)
 
-UML Diagrams for Iteration 1 can be found in Diagrams.pdf.
+Iteration 2 builds upon the communication infrastructure of Iteration 1 by implementing:
+1. Core Scheduling Logic: The Scheduler now intelligentally dispatches orders based on drone availability.
+2. Drone State Machine: The Drone Subsystem implements a full state machine (IDLE, EN_ROUTE, EXTINGUISHING, RETURNING, REFILLING, FAULTED).
+3. GUI Integration: The GUI now visualizes the drone's status and location in real-time.
 
 FILES INCLUDED
 --------------------------------------------------------------------------------
 src/main/java/
-  - Main.java: Entry point. Starts all subsystem threads.
+  - Main.java: Entry point. Starts all subsystem threads and the GUI.
   - FireIncidentSubsystem.java: Reads fire events from CSV and sends to Scheduler.
-  - Scheduler.java: Receives events and coordinates with Drones.
-  - DroneSubsystem.java: Simulates drone operations and reports completion.
+  - Scheduler.java: Receives events, tracks drone status, and dispatches assignments.
+  - DroneSubsystem.java: Simulates drone operations (travel, fight, refill) using a state machine.
+  - DroneState.java: Enum defining possible drone states.
+  - DroneStatus.java: Immutable snapshot of drone data (ID, state, location, battery/water).
   - FireEvent.java: Data structure representing a fire event with severity/type.
   - Message.java: Envelope class for inter-subsystem communication.
   - MessageBuffer.java: Thread-safe FIFO buffer for message passing.
-  - GUI/*.java: Initial GUI structure components (FireDroneGUI, ZoneCell, ZoneDef).
+  - FireDroneGUI.java: Main GUI window displaying the zone grid and status.
+  - ZoneCell.java: GUI component representing a single cell in the grid.
+  - ZoneDef.java: Data structure defining the layout of zones on the grid.
 
-src/main/resources/data/
-  - events.csv: Input file containing fire detected and drone request events.
+HOW IT WORKS
+--------------------------------------------------------------------------------
+The system operates using three parallel threads and a Swing GUI:
 
-src/test/java/
-  - MainTest.java: Unit tests for subsystem communication and event processing.
+1. **Fire Incident Subsystem**: Reads events from `events.csv` (e.g., FIRE_DETECTED, DRONE_REQUEST) and sends them to the Scheduler.
+2. **Scheduler**: Acts as the central brain.
+   - Maintains a queue of pending fire events.
+   - Tracks the status of the drone (e.g., Is it IDLE? Does it have water?).
+   - When the drone is IDLE and there is a pending event, the Scheduler dispatches the drone.
+3. **Drone Subsystem**: Simulates the physical drone.
+   - **State Machine**: Transitions between states like EN_ROUTE (traveling), EXTINGUISHING (fighting fire), and REFILLING (at base).
+   - **Simulation**: Simulates time taken to travel and extinguish fires based on severity and water capacity (15L).
+   - **Refilling**: Automatically returns to base to refill when water runs out or between tasks if needed.
+4. **GUI**:
+   - Updates in real-time based on messages processed by the Scheduler.
+   - Shows active fires (RED cells).
+   - Shows drone position and action (e.g., ">>>" for moving, "FIGHT" for extinguishing).
 
 docs/
   - project-specification.pdf: Project requirements.
