@@ -24,14 +24,18 @@ public class DroneSubsystem implements Runnable {
         this.fromScheduler = fromScheduler;
     }
 
+    private static final int DRONE_ID = 1;
+
     @Override
     public void run() {
         int completed = 0;
         System.out.println("[Drone] Ready.");
 
         try {
-            // Announce initial readiness to the Scheduler.
+            // Announce initial readiness and IDLE state.
             sendReadySignal();
+            sendUserIdlingUpdate();
+
             while (true) {
                 // Wait for the next message from the Scheduler.
                 Message reply = receiveMessage();
@@ -57,8 +61,14 @@ public class DroneSubsystem implements Runnable {
      * Announce readiness to the Scheduler.
      */
     void sendReadySignal() throws InterruptedException {
-        System.out.println("[Drone] Sending Ready Signal");
         toScheduler.put(Message.droneReady());
+    }
+    
+    /**
+     * Send an update that the drone is IDLE at base.
+     */
+    void sendUserIdlingUpdate() throws InterruptedException {
+        toScheduler.put(Message.droneStatus(new DroneStatus(DRONE_ID, DroneState.IDLE, BASE_ZONE_ID, remainingLiters)));
     }
 
     /**
@@ -91,8 +101,11 @@ public class DroneSubsystem implements Runnable {
 
         simulateService(event);
         sendCompletion(event);
-        System.out.println("[Drone] Ready.");
+        
+        // Return to IDLE state
+        System.out.println("[Drone] Task complete. Returning to Ready state.");
         sendReadySignal();
+        sendUserIdlingUpdate();
     }
 
     /**
@@ -103,32 +116,88 @@ public class DroneSubsystem implements Runnable {
     }
 
     /**
-     * Simulate service time based on severity (placeholder timing).
+     * Checks if a refill is needed and handles the refill process.
+     */
+    private void checkAndRefillIfNeeded() throws InterruptedException {
+        if (remainingLiters <= 0) {
+            System.out.println("[Drone] Tank empty. Returning to base for refill.");
+            
+            // Return to base
+            sendStatus(DroneState.RETURNING, BASE_ZONE_ID);
+            simulateTravel(BASE_ZONE_ID);
+            
+            // Refill
+            System.out.println("[Drone] Refilling...");
+            sendStatus(DroneState.REFILLING, BASE_ZONE_ID);
+            Thread.sleep(2000); // Simulate refill time
+            remainingLiters = MAX_CAPACITY_LITERS;
+            System.out.println("[Drone] Refilled. Capacity: " + remainingLiters);
+        }
+    }
+
+    /**
+     * Simulate service time based on severity.
      */
     private void simulateService(FireEvent event) throws InterruptedException {
         int remainingRequired = event.getRequiredLiters();
-        double travelSeconds = estimateTravelSeconds(event.getZoneId());
+        int targetZone = event.getZoneId();
 
+         // Check if we need to refill BEFORE heading out (if empty)
+        checkAndRefillIfNeeded();
+
+        // 1. Travel to Zone
+        System.out.println("[Drone] Flying to Zone " + targetZone);
+        sendStatus(DroneState.EN_ROUTE, targetZone);
+        simulateTravel(targetZone);
+
+        // 2. Extinguish
         while (remainingRequired > 0) {
-            if (remainingLiters == 0) {
-                System.out.println("[Drone] Refilling to max capacity before dispatch.");
-                remainingLiters = MAX_CAPACITY_LITERS;
+            checkAndRefillIfNeeded();
+            
+            // If we had to return to base, we need to travel back to the fire
+            if (remainingLiters == MAX_CAPACITY_LITERS) {
+                 System.out.println("[Drone] Returning to Zone " + targetZone);
+                 sendStatus(DroneState.EN_ROUTE, targetZone);
+                 simulateTravel(targetZone);
             }
 
+            System.out.println("[Drone] Extinguishing fire at Zone " + targetZone);
+            sendStatus(DroneState.EXTINGUISHING, targetZone);
+            
             int toDrop = Math.min(remainingLiters, remainingRequired);
             double dropSeconds = toDrop * DROP_SECONDS_PER_LITER;
-            double totalSeconds = (2 * travelSeconds) + dropSeconds;
-            long sleepMs = Math.round(totalSeconds * 1000);
-
-            System.out.println("[Drone] Travel seconds: " + travelSeconds +
-                    ", drop seconds: " + dropSeconds +
-                    ", total seconds: " + totalSeconds);
-
+            long sleepMs = Math.round(dropSeconds * 1000);
+            
             Thread.sleep(sleepMs);
+            
             remainingLiters -= toDrop;
             remainingRequired -= toDrop;
-            System.out.println("[Drone] Remaining agent (L): " + remainingLiters);
+            System.out.println("[Drone] Dropped " + toDrop + "L. Remaining in tank: " + remainingLiters + "L. Fire needs: " + remainingRequired + "L");
+            
+            // Update status after drop
+            sendStatus(DroneState.EXTINGUISHING, targetZone);
         }
+        
+        // 3. Return to Base (Optional optimization: stay if next task is close? 
+        // For now, let's just stay here until next assignment or forced return)
+        // But the prompt says "The drone either returns to base or proceeds to the next assignment."
+        // For simplicity in this iteration, we'll mark as IDLE at Current Zone or Return to Base?
+        // Let's Return to Base for consistency with Iteration 2 requirements
+        
+        System.out.println("[Drone] Fire extinguished. Returning to base.");
+        sendStatus(DroneState.RETURNING, BASE_ZONE_ID);
+        simulateTravel(BASE_ZONE_ID);
+    }
+    
+    private void sendStatus(DroneState state, int zoneId) throws InterruptedException {
+        toScheduler.put(Message.droneStatus(new DroneStatus(DRONE_ID, state, zoneId, remainingLiters)));
+    }
+    
+    private void simulateTravel(int zoneId) throws InterruptedException {
+        // Simple placeholder for travel time
+        // In real impl, calculate distance from current pos to zoneId
+        double travelSeconds = 2.0; // Fixed 2 seconds for now
+        Thread.sleep((long)(travelSeconds * 1000));
     }
 
     private double estimateTravelSeconds(int zoneId) {
