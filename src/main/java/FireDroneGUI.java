@@ -11,8 +11,8 @@ import java.util.List;
  * Displays a grid of zones and a sidebar with simulation status.
  */
 public class FireDroneGUI extends JFrame {
-    private static final int COLS = 24;
-    private static final int ROWS = 14;
+    private static final int COLS = 16;
+    private static final int ROWS = 16;
 
     // grid reference so caller can change cell states
     private ZoneCell[][] gridCells = new ZoneCell[ROWS][COLS];
@@ -35,19 +35,29 @@ public class FireDroneGUI extends JFrame {
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         setLayout(new BorderLayout());
 
-        //example zone layout, this can be modified
-        //Each ZoneDef: id, startCol, startRow, widthCols, heightRows, baseColor
-        zones.add(new ZoneDef(1, 0, 0, 8, 7, new Color(235, 245, 255)));
-        zones.add(new ZoneDef(2, 8, 0, 6, 7, new Color(235, 255, 235)));
-        zones.add(new ZoneDef(3, 14, 0, 10, 7, new Color(255, 245, 235)));
-        zones.add(new ZoneDef(4, 0, 7, 12, 7, new Color(245, 235, 255)));
-        zones.add(new ZoneDef(5, 12, 7, 6, 7, new Color(235, 250, 245)));
-        zones.add(new ZoneDef(6, 18, 7, 6, 7, new Color(250, 240, 235)));
+        // Zone Layout for 16x16 Grid
+        // Zone 0 (Base): Top-Left Corner
+        zones.add(new ZoneDef(0, 0, 0, 2, 2, new Color(220, 220, 220))); 
+        
+        // Top Strip
+        zones.add(new ZoneDef(1, 2, 0, 7, 4, new Color(235, 245, 255)));
+        zones.add(new ZoneDef(2, 9, 0, 7, 4, new Color(235, 255, 235)));
+        
+        // Middle Left Strip (Below Base)
+        zones.add(new ZoneDef(3, 0, 2, 2, 6, new Color(255, 245, 235))); 
+        
+        // Middle Center/Right
+        zones.add(new ZoneDef(4, 2, 4, 7, 4, new Color(245, 235, 255)));
+        zones.add(new ZoneDef(5, 9, 4, 7, 4, new Color(235, 250, 245)));
+        
+        // Bottom Half
+        zones.add(new ZoneDef(6, 0, 8, 8, 8, new Color(250, 240, 235)));
+        zones.add(new ZoneDef(7, 8, 8, 8, 8, new Color(255, 255, 235)));
 
         //grid panel showing the zones
         JPanel gridPanel = createGridPanel(COLS, ROWS);
         JScrollPane gridScroll = new JScrollPane(gridPanel);
-        gridScroll.getViewport().setPreferredSize(new Dimension(900, 700));
+        gridScroll.getViewport().setPreferredSize(new Dimension(800, 800));
 
         //sidebar with Zones, Drones, Events, Legend
         JPanel sidebar = createSidebar();
@@ -59,7 +69,7 @@ public class FireDroneGUI extends JFrame {
         add(createStatusBar(), BorderLayout.SOUTH);
 
         pack();
-        setMinimumSize(new Dimension(1000, 700));
+        setMinimumSize(new Dimension(1150, 850));
         setLocationRelativeTo(null);
     }
 
@@ -220,7 +230,7 @@ public class FireDroneGUI extends JFrame {
         for (ZoneDef z : zones) {
             if (z.id == id) return z;
         }
-        return null; // Zone 0 (Base) might not be in the list or has strict handling
+        return null; 
     }
 
     /**
@@ -250,27 +260,30 @@ public class FireDroneGUI extends JFrame {
                         text = "FIGHT";
                         break;
                     case RETURNING:
-                        // If returning, the fire at previous zone is likely out.
-                        // We might want to leave it as EXTINGUISHED.
-                        // But this method receives "current zone" which might be base (0) or the fire zone.
-                        // If returning to 0, status.getZoneId() is 0.
-                        if (status.getZoneId() == 0) {
-                            // Drone is valid, but Zone 0 might not be on map.
-                            // We can just update the status bar.
-                        }
                         cellState = CellState.DRONE_RETURNING;
+                        text = "<<<";
                         break;
                     case REFILLING:
+                        cellState = CellState.DRONE_RETURNING; // Use same color or new state? Let's treat REFILLING as visible.
+                        text = "FILL";
+                        break;
                     case IDLE:
-                        // At base
+                        // Show drone at base if IDLE there
+                        if (status.getZoneId() == 0) {
+                            cellState = CellState.DRONE_RETURNING; // Or a specific IDLE color?
+                            // Let's reuse DRONE_RETURNING color (purple) for now or add a new one.
+                            // Actually, IDLE usually means "Ready". 
+                            text = "IDLE";
+                        }
                         break;
                 }
 
-                // If we are at a valid map zone, update its top-left cell
-                if (status.getZoneId() != 0 && cellState != CellState.EMPTY) {
+                // Update the cell state
+                if (cellState != CellState.EMPTY) {
                    setCellState(zone.startCol, zone.startRow, cellState);
                    setCellText(zone.startCol, zone.startRow, text);
                 }
+
             }
             
             // Also update a global status label if we had one accessibly.
