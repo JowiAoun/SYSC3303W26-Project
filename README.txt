@@ -77,16 +77,27 @@ Alternatively, right-click 'Main.java' in the Project view and select "Run 'Main
 UNIT TESTING
 --------------------------------------------------------------------------------
 JUnit 5 was used as the testing framework.
-Unit tests written for the project can be found in src/test/java/MainTest.java.
-To run all tests in one-shot, in IntelliJ IDEA, right click on "MainTest.java", and click "Run 'MainTest'".
+Unit tests written for the project can be found in folder src/test/java/*.
+To run all tests in one-shot, in IntelliJ IDEA, right click on "src/test/java" folder, and click "Run 'All Test'".
 
-Test 1a: Verify FireIncidentSubsystem properly reads and handles valid input events
-Test 1b: Verify FireIncidentSubsystem properly reads and handles invalid input events
-Test 2: Verify FireIncidentSubsystem sends valid input to Scheduler
-Test 3a: Verify DroneSubsystem contacts Scheduler and handles NO tasks/fires to put out properly
-Test 3b: Verify DroneSubsystem contacts Scheduler and handles HAS tasks/fires to put out properly
-Test 4a: Verify Scheduler reads messages from FireIncidentSubsystem and forwards to DroneSubsystem
-Test 4b: Verify Scheduler reads messages from DroneSubsystem and forwards to FireIncidentSubsystem
+src/test/java/MainTest.java
+  - Test 1a: Verify FireIncidentSubsystem properly reads and handles valid input events
+  - Test 1b: Verify FireIncidentSubsystem properly reads and handles invalid
+  - Test 2: Verify FireIncidentSubsystem sends valid input to Scheduler
+  - Test 3a: Verify DroneSubsystem contacts Scheduler and handles NO tasks/fires to put out properly
+  - Test 3b: Verify DroneSubsystem contacts Scheduler and handles HAS tasks/fires to put out properly
+  - Test 4a: Verify Scheduler reads messages from FireIncidentSubsystem and forwards to DroneSubsystem
+  - Test 4b: Verify Scheduler reads messages from DroneSubsystem and forwards to FireIncidentSubsystem
+
+src/test/java/DroneStateMachineTest.java
+  - Test 1: Verify DroneSubsystem sends EN_ROUTE shortly after receiving an assignment
+  - Test 2: Verify when tank is empty, drone sends RETURNING then REFILLING
+  - Test 3: Verify drone eventually finishes an assignment by sending DRONE_COMPLETED or returning to IDLE
+
+src/test/java/SchedulerDispatchTest.java
+  - Test 1: Verify Scheduler does not dispatch a pending event when drone is not IDLE
+  - Test 2: Verify Scheduler dispatches when drone is IDLE and a pending event exists, and sends DRONE_ASSIGNMENT to drone buffer
+  - Test 3: Verify Scheduler dispatches a queued fire event after drone transitions from busy to IDLE
 
 BREAKDOWN OF RESPONSIBILITIES
 --------------------------------------------------------------------------------
