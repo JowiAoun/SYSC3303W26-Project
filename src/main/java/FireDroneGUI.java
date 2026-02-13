@@ -44,24 +44,7 @@ public class FireDroneGUI extends JFrame {
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         setLayout(new BorderLayout());
 
-        // Zone Layout for 16x16 Grid
-        // Zone 0 (Base): Top-Left Corner
-        zones.add(new ZoneDef(0, 0, 0, 2, 2, new Color(220, 220, 220))); 
-        
-        // Top Strip
-        zones.add(new ZoneDef(1, 2, 0, 7, 4, new Color(235, 245, 255)));
-        zones.add(new ZoneDef(2, 9, 0, 7, 4, new Color(235, 255, 235)));
-        
-        // Middle Left Strip (Below Base)
-        zones.add(new ZoneDef(3, 0, 2, 2, 6, new Color(255, 245, 235))); 
-        
-        // Middle Center/Right
-        zones.add(new ZoneDef(4, 2, 4, 7, 4, new Color(245, 235, 255)));
-        zones.add(new ZoneDef(5, 9, 4, 7, 4, new Color(235, 250, 245)));
-        
-        // Bottom Half
-        zones.add(new ZoneDef(6, 0, 8, 8, 8, new Color(250, 240, 235)));
-        zones.add(new ZoneDef(7, 8, 8, 8, 8, new Color(255, 255, 235)));
+        zones.addAll(ZoneLoader.loadZones("./src/main/resources/data/zones.csv", COLS, ROWS));
 
         //grid panel showing the zones
         JPanel gridPanel = createGridPanel(COLS, ROWS);
