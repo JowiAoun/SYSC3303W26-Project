@@ -293,7 +293,7 @@ public class FireDroneGUI extends JFrame {
     }
 
     /**
-     * Updates a zone's fire state (e.g. when a new fire is detected).
+     * update a zone's fire state and active count.
      */
     public void setZoneFire(int zoneId, boolean active) {
         runOnEdt(() -> {
@@ -315,6 +315,9 @@ public class FireDroneGUI extends JFrame {
         });
     }
 
+    /**
+     * append a line to the event log.
+     */
     public void appendEvent(String message) {
         runOnEdt(() -> {
             if (eventLog == null) {
@@ -325,6 +328,9 @@ public class FireDroneGUI extends JFrame {
         });
     }
 
+    /**
+     * update the displayed drone state label.
+     */
     public void setDroneState(int droneId, String state) {
         runOnEdt(() -> {
             int index = droneId - 1;
@@ -334,16 +340,25 @@ public class FireDroneGUI extends JFrame {
         });
     }
 
+    /**
+     * set the active fire count in the status bar.
+     */
     public void setActiveFires(int count) {
         this.activeFires = Math.max(0, count);
         updateStatusBar();
     }
 
+    /**
+     * set the active drone count in the status bar.
+     */
     public void setActiveDrones(int count) {
         this.activeDrones = Math.max(0, count);
         updateStatusBar();
     }
 
+    /**
+     * rebuild the status bar text.
+     */
     private void updateStatusBar() {
         runOnEdt(() -> {
             if (statusLeft != null) {
@@ -352,6 +367,9 @@ public class FireDroneGUI extends JFrame {
         });
     }
 
+    /**
+     * create the drone list panel.
+     */
     private JComponent createDroneList(int count) {
         JPanel p = new JPanel();
         p.setLayout(new BoxLayout(p, BoxLayout.Y_AXIS));
@@ -365,6 +383,9 @@ public class FireDroneGUI extends JFrame {
         return p;
     }
 
+    /**
+     * run a task on the swing event thread.
+     */
     private void runOnEdt(Runnable task) {
         if (SwingUtilities.isEventDispatchThread()) {
             task.run();

@@ -120,9 +120,10 @@ public class Scheduler implements Runnable {
                 lastDroneStatus != null ? lastDroneStatus.getRemainingLiters() : 15
         );
         
-        System.out.println("[Scheduler] Dispatched to drone: " + next);
+        String dispatchMsg = "[Scheduler] Dispatched to drone: " + next;
+        System.out.println(dispatchMsg);
         if (gui != null) {
-            gui.appendEvent("[Scheduler] Dispatched: " + next);
+            gui.appendEvent(dispatchMsg);
         }
     }
 
@@ -176,19 +177,21 @@ public class Scheduler implements Runnable {
             FireEvent event = message.getEvent();
             pending.add(event);
             totalEvents++;
-            System.out.println("[Scheduler] Received event: " + event);
+            String msg = "[Scheduler] Received event: " + event;
+            System.out.println(msg);
             
             // Update GUI: New Fire
             if (gui != null) {
                 gui.setZoneFire(event.getZoneId(), true);
-                gui.appendEvent("[Scheduler] Received: " + event);
+                gui.appendEvent(msg);
             }
             
         } else if (message.getType() == Message.Type.SHUTDOWN) {
             fireIncidentDone = true;
-            System.out.println("[Scheduler] Fire Incident input complete.");
+            String inputCompleteMsg = "[Scheduler] Fire Incident input complete.";
+            System.out.println(inputCompleteMsg);
             if (gui != null) {
-                gui.appendEvent("[Scheduler] Input complete.");
+                gui.appendEvent(inputCompleteMsg);
             }
         }
     }
@@ -199,32 +202,35 @@ public class Scheduler implements Runnable {
     private void handleDroneMessage(Message message) throws InterruptedException {
         switch (message.getType()) {
             case DRONE_READY:
-                System.out.println("[Scheduler] Received Drone Ready Signal");
+                String readyMsg = "[Scheduler] Received Drone Ready Signal";
+                System.out.println(readyMsg);
                 if (gui != null) {
-                    gui.appendEvent("[Scheduler] Drone ready.");
+                    gui.appendEvent(readyMsg);
                 }
                 break;
                 
             case DRONE_STATUS_UPDATE:
                 DroneStatus status = message.getStatus();
-                System.out.println("[Scheduler] Drone Status Update: " + status);
+                String statusMsg = "[Scheduler] Drone Status Update: " + status;
+                System.out.println(statusMsg);
                 this.lastDroneStatus = status;
                 
                 if (gui != null) {
                     gui.updateDroneStatus(status);
-                    gui.appendEvent("[Drone] " + status);
+                    gui.appendEvent(statusMsg);
                 }
                 break;
                 
             case DRONE_COMPLETED:
                 completed++;
                 toFireIncident.put(Message.fireAck(message.getEvent()));
-                System.out.println("[Scheduler] Completion ack forwarded: " + message.getEvent());
+                String completedMsg = "[Scheduler] Completion ack forwarded: " + message.getEvent();
+                System.out.println(completedMsg);
                 
                 // Update GUI: Fire Extinguished
                 if (gui != null) {
                     gui.setZoneFire(message.getEvent().getZoneId(), false);
-                    gui.appendEvent("[Scheduler] Completed: " + message.getEvent());
+                    gui.appendEvent(completedMsg);
                 }
                 break;
             default:
