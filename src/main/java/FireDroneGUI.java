@@ -2,7 +2,9 @@ import javax.swing.*;
 import javax.swing.border.EmptyBorder;
 import java.awt.*;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 /**
  * FireDroneGUI.java
@@ -29,6 +31,13 @@ public class FireDroneGUI extends JFrame {
 
     //zone definitions
     private final List<ZoneDef> zones = new ArrayList<>();
+    private final List<JLabel> droneLabels = new ArrayList<>();
+    private final Set<Integer> activeZoneIds = new HashSet<>();
+    private JTextArea eventLog;
+    private JLabel statusLeft;
+    private JLabel statusRight;
+    private int activeFires = 0;
+    private int activeDrones = 0;
 
     public FireDroneGUI() {
         super("Fire Drone GUI");
@@ -122,10 +131,9 @@ public class FireDroneGUI extends JFrame {
 
         side.add(createCard("Zones", createZonesList()));
         side.add(Box.createVerticalStrut(8));
-        side.add(createCard("Drones (todo)", createSimpleList(
-                "Drone 1 - Idle", "Drone 2 - Idle", "Drone 3 - Idle", "Drone 4 - Idle", "Drone 5 - Idle")));
+        side.add(createCard("Drones", createDroneList(1)));
         side.add(Box.createVerticalStrut(8));
-        side.add(createCard("Event Log (todo)", createEventPreview()));
+        side.add(createCard("Event Log", createEventPreview()));
         side.add(Box.createVerticalStrut(8));
         side.add(createCard("Legend", createLegendPanel()));
 
@@ -152,23 +160,14 @@ public class FireDroneGUI extends JFrame {
         return card;
     }
 
-    private JComponent createSimpleList(String... items) {
-        JPanel p = new JPanel();
-        p.setLayout(new BoxLayout(p, BoxLayout.Y_AXIS));
-        for (String s : items) {
-            JLabel lbl = new JLabel(s);
-            lbl.setBorder(new EmptyBorder(4,4,4,4));
-            p.add(lbl);
-        }
-        return p;
-    }
-
     private JComponent createEventPreview() {
-        JTextArea ta = new JTextArea();
-        ta.setEditable(false);
-        ta.setRows(8);
-        ta.setText("Logs here");
-        return new JScrollPane(ta);
+        eventLog = new JTextArea();
+        eventLog.setEditable(false);
+        eventLog.setRows(8);
+        eventLog.setLineWrap(true);
+        eventLog.setWrapStyleWord(true);
+        eventLog.setText("Logs here");
+        return new JScrollPane(eventLog);
     }
 
     // Legend uses small ZoneCell examples
@@ -207,23 +206,29 @@ public class FireDroneGUI extends JFrame {
     private JComponent createStatusBar() {
         JPanel status = new JPanel(new BorderLayout());
         status.setBorder(BorderFactory.createMatteBorder(1,0,0,0,new Color(200,200,200)));
-        status.add(new JLabel("Simulation: Stopped | Events: 0 | Active Drones: 0"), BorderLayout.WEST);
-        status.add(new JLabel("Time: 00:00:00", SwingConstants.RIGHT), BorderLayout.EAST);
+        statusLeft = new JLabel("Simulation: Stopped | Active Fires: 0 | Active Drones: 0");
+        statusRight = new JLabel("Time: 00:00:00", SwingConstants.RIGHT);
+        status.add(statusLeft, BorderLayout.WEST);
+        status.add(statusRight, BorderLayout.EAST);
         return status;
     }
 
     //update a specific cell's state
     public void setCellState(int col, int row, CellState state) {
-        if (row >= 0 && row < ROWS && col >= 0 && col < COLS) {
-            gridCells[row][col].setState(state);
-        }
+        runOnEdt(() -> {
+            if (row >= 0 && row < ROWS && col >= 0 && col < COLS) {
+                gridCells[row][col].setState(state);
+            }
+        });
     }
 
     //set a text on a cell
     public void setCellText(int col, int row, String text) {
-        if (row >= 0 && row < ROWS && col >= 0 && col < COLS) {
-            gridCells[row][col].setText(text);
-        }
+        runOnEdt(() -> {
+            if (row >= 0 && row < ROWS && col >= 0 && col < COLS) {
+                gridCells[row][col].setText(text);
+            }
+        });
     }
 
     private ZoneDef getZoneById(int id) {
@@ -238,11 +243,7 @@ public class FireDroneGUI extends JFrame {
      * Thread-safe.
      */
     public void updateDroneStatus(DroneStatus status) {
-        SwingUtilities.invokeLater(() -> {
-            // Update Sidebar (TODO: Make a dedicated DroneList component)
-            // For now, simpler update of the status bar or a label
-            // (There is no easy public access to sidebar labels yet without refactoring)
-            
+        runOnEdt(() -> {
             // Map DroneState to CellState for the target Zone
             ZoneDef zone = getZoneById(status.getZoneId());
             if (zone != null) {
@@ -285,8 +286,9 @@ public class FireDroneGUI extends JFrame {
                 }
 
             }
-            
-            // Also update a global status label if we had one accessibly.
+
+            setDroneState(status.getDroneId(), status.getState().name());
+            setActiveDrones(status.getState() == DroneState.IDLE ? 0 : 1);
         });
     }
 
@@ -294,13 +296,81 @@ public class FireDroneGUI extends JFrame {
      * Updates a zone's fire state (e.g. when a new fire is detected).
      */
     public void setZoneFire(int zoneId, boolean active) {
-        SwingUtilities.invokeLater(() -> {
+        runOnEdt(() -> {
             ZoneDef zone = getZoneById(zoneId);
             if (zone != null) {
                 setCellState(zone.startCol, zone.startRow, active ? CellState.ACTIVE_FIRE : CellState.EXTINGUISHED);
                 setCellText(zone.startCol, zone.startRow, active ? "FIRE" : "SAFE");
             }
+
+            if (active) {
+                if (activeZoneIds.add(zoneId)) {
+                    setActiveFires(activeZoneIds.size());
+                }
+            } else {
+                if (activeZoneIds.remove(zoneId)) {
+                    setActiveFires(activeZoneIds.size());
+                }
+            }
         });
+    }
+
+    public void appendEvent(String message) {
+        runOnEdt(() -> {
+            if (eventLog == null) {
+                return;
+            }
+            eventLog.append(message + "\n");
+            eventLog.setCaretPosition(eventLog.getDocument().getLength());
+        });
+    }
+
+    public void setDroneState(int droneId, String state) {
+        runOnEdt(() -> {
+            int index = droneId - 1;
+            if (index >= 0 && index < droneLabels.size()) {
+                droneLabels.get(index).setText("Drone " + droneId + " - " + state);
+            }
+        });
+    }
+
+    public void setActiveFires(int count) {
+        this.activeFires = Math.max(0, count);
+        updateStatusBar();
+    }
+
+    public void setActiveDrones(int count) {
+        this.activeDrones = Math.max(0, count);
+        updateStatusBar();
+    }
+
+    private void updateStatusBar() {
+        runOnEdt(() -> {
+            if (statusLeft != null) {
+                statusLeft.setText("Simulation: Running | Active Fires: " + activeFires + " | Active Drones: " + activeDrones);
+            }
+        });
+    }
+
+    private JComponent createDroneList(int count) {
+        JPanel p = new JPanel();
+        p.setLayout(new BoxLayout(p, BoxLayout.Y_AXIS));
+        droneLabels.clear();
+        for (int i = 1; i <= count; i++) {
+            JLabel lbl = new JLabel("Drone " + i + " - Idle");
+            lbl.setBorder(new EmptyBorder(4,4,4,4));
+            droneLabels.add(lbl);
+            p.add(lbl);
+        }
+        return p;
+    }
+
+    private void runOnEdt(Runnable task) {
+        if (SwingUtilities.isEventDispatchThread()) {
+            task.run();
+        } else {
+            SwingUtilities.invokeLater(task);
+        }
     }
 
     public static void main(String[] args) {

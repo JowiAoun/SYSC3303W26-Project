@@ -121,6 +121,9 @@ public class Scheduler implements Runnable {
         );
         
         System.out.println("[Scheduler] Dispatched to drone: " + next);
+        if (gui != null) {
+            gui.appendEvent("[Scheduler] Dispatched: " + next);
+        }
     }
 
     /**
@@ -178,11 +181,15 @@ public class Scheduler implements Runnable {
             // Update GUI: New Fire
             if (gui != null) {
                 gui.setZoneFire(event.getZoneId(), true);
+                gui.appendEvent("[Scheduler] Received: " + event);
             }
             
         } else if (message.getType() == Message.Type.SHUTDOWN) {
             fireIncidentDone = true;
             System.out.println("[Scheduler] Fire Incident input complete.");
+            if (gui != null) {
+                gui.appendEvent("[Scheduler] Input complete.");
+            }
         }
     }
 
@@ -193,6 +200,9 @@ public class Scheduler implements Runnable {
         switch (message.getType()) {
             case DRONE_READY:
                 System.out.println("[Scheduler] Received Drone Ready Signal");
+                if (gui != null) {
+                    gui.appendEvent("[Scheduler] Drone ready.");
+                }
                 break;
                 
             case DRONE_STATUS_UPDATE:
@@ -202,6 +212,7 @@ public class Scheduler implements Runnable {
                 
                 if (gui != null) {
                     gui.updateDroneStatus(status);
+                    gui.appendEvent("[Drone] " + status);
                 }
                 break;
                 
@@ -213,6 +224,7 @@ public class Scheduler implements Runnable {
                 // Update GUI: Fire Extinguished
                 if (gui != null) {
                     gui.setZoneFire(message.getEvent().getZoneId(), false);
+                    gui.appendEvent("[Scheduler] Completed: " + message.getEvent());
                 }
                 break;
             default:
