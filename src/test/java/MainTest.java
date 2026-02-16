@@ -122,7 +122,7 @@ public class MainTest {
         scheduler.handleIncomingMessage(scheduler.receiveSubsystemMessage());
         // 3. ASSERT Scheduler return message/bool: Has task for drone
         boolean actualValue = scheduler.canDispatchPendingEvent();
-        assertTrue(actualValue);
+        assertTrue(actualValue, "Scheduler should be able to dispatch pending even when drone is IDLE");
         System.out.printf("Expecting: true, got %s\n", actualValue);
     }
 
@@ -147,9 +147,8 @@ public class MainTest {
         msg = scheduler.receiveSubsystemMessage();
         scheduler.handleIncomingMessage(msg);
         // 3. Scheduler sends message to DS
-        if (scheduler.canDispatchPendingEvent()) {
-            scheduler.dispatchPendingEvent();
-        }
+        assertTrue(scheduler.canDispatchPendingEvent(), "Scheduler should be able to dispatch before attempting to dispatch");
+        scheduler.dispatchPendingEvent();
         // 4. ASSERT DS reception of forwarded message
         msg = drone.receiveMessage();
         boolean actualValue = drone.isAssignment(msg);
@@ -177,9 +176,8 @@ public class MainTest {
         Message msg = scheduler.receiveSubsystemMessage();
         scheduler.handleIncomingMessage(msg);
         // Scheduler dispatches to DroneSubsystem.
-        if (scheduler.canDispatchPendingEvent()) {
-            scheduler.dispatchPendingEvent();
-        }
+        assertTrue(scheduler.canDispatchPendingEvent(), "Scheduler should be able to dispatch before attempting to dispatch");
+        scheduler.dispatchPendingEvent();
         // DS receive assignment
         Message assignment = drone.receiveMessage();
         assertTrue(drone.isAssignment(assignment));
