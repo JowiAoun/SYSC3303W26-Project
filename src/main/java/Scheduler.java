@@ -54,6 +54,8 @@ public class Scheduler implements Runnable {
                 // Try to dispatch whenever state changes or new events arrive
                 if (canDispatchPendingEvent()) {
                     dispatchPendingEvent();
+                } else {
+                    checkAndSendReturnToBase();
                 }
                 
                 sendShutdownToDroneIfComplete();
@@ -108,7 +110,23 @@ public class Scheduler implements Runnable {
      * Dispatches the next pending event to the drone.
      */
     void dispatchPendingEvent() throws InterruptedException {
-        FireEvent next = pending.poll();
+        // Check if the drone has enough agent for the next event
+        FireEvent next = pending.peek();
+        if (next == null) return;
+
+        // If drone is at a remote zone (not base), check if it has enough agent
+        if (lastDroneStatus.getZoneId() != 0) {
+            if (lastDroneStatus.getRemainingLiters() < next.getRequiredLiters()) {
+                 // Not enough agent for this task.
+                 // We MUST return to base first.
+                 // Note: Ideally we'd look for a smaller task, but for now just return.
+                 sendReturnToBase();
+                 return;
+            }
+        }
+
+        // If we get here, we can dispatch
+        next = pending.poll(); // remove from queue
         toDrone.put(Message.droneAssignment(next));
         
         // Optimistically update status to prevent double dispatch
@@ -125,6 +143,43 @@ public class Scheduler implements Runnable {
         if (gui != null) {
             gui.appendEvent(dispatchMsg);
         }
+    }
+
+    /**
+     * Sends a command to the drone to return to base.
+     */
+    void sendReturnToBase() throws InterruptedException {
+        toDrone.put(Message.droneReturnToBase());
+        
+        // Optimistically update status
+        lastDroneStatus = new DroneStatus(
+                lastDroneStatus != null ? lastDroneStatus.getDroneId() : 1,
+                DroneState.RETURNING, 
+                0, 
+                lastDroneStatus != null ? lastDroneStatus.getRemainingLiters() : 0
+        );
+        
+        String rtbMsg = "[Scheduler] Commanding drone to Return to Base.";
+        System.out.println(rtbMsg);
+        if (gui != null) {
+            gui.appendEvent(rtbMsg);
+        }
+    }
+
+    /**
+     * Checks if the drone should return to base (Idle at remote zone + no work or no agent).
+     */
+    void checkAndSendReturnToBase() throws InterruptedException {
+         if (lastDroneStatus != null && 
+             lastDroneStatus.getState() == DroneState.IDLE && 
+             lastDroneStatus.getZoneId() != 0) {
+             
+             // Drone is idle at a remote zone.
+             // If no pending events, return to base.
+             if (pending.isEmpty()) {
+                 sendReturnToBase();
+             }
+         }
     }
 
     /**

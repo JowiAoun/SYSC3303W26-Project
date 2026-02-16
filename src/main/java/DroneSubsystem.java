@@ -47,6 +47,8 @@ public class DroneSubsystem implements Runnable {
                 if (isAssignment(reply)) {
                     processAssignment(reply);
                     completed++;
+                } else if (isReturnToBase(reply)) {
+                    handleReturnToBase();
                 }
             }
         } catch (InterruptedException e) {
@@ -72,6 +74,13 @@ public class DroneSubsystem implements Runnable {
     }
 
     /**
+     * Send an update that the drone is IDLE at a specific zone.
+     */
+    void sendUserIdlingUpdate(int zoneId) throws InterruptedException {
+        toScheduler.put(Message.droneStatus(new DroneStatus(DRONE_ID, DroneState.IDLE, zoneId, remainingLiters)));
+    }
+
+    /**
      * Reads one message from the Scheduler.
      */
     Message receiveMessage() throws InterruptedException {
@@ -93,6 +102,13 @@ public class DroneSubsystem implements Runnable {
     }
 
     /**
+     * Checks if a message is a return to base command.
+     */
+    boolean isReturnToBase(Message reply) {
+        return reply.getType() == Message.Type.DRONE_RETURN_TO_BASE;
+    }
+
+    /**
      * Handle an assignment from the Scheduler.
      */
     void processAssignment(Message reply) throws InterruptedException {
@@ -102,10 +118,11 @@ public class DroneSubsystem implements Runnable {
         simulateService(event);
         sendCompletion(event);
         
-        // Return to IDLE state
-        System.out.println("[Drone] Task complete. Returning to Ready state.");
+        // Return to IDLE state at CURRENT ZONE
+        System.out.println("[Drone] Task complete. Returning to Ready state at Zone " + event.getZoneId());
+        // We stay at the current zone. The scheduler will decide whether to send us more work or Return to Base.
         sendReadySignal();
-        sendUserIdlingUpdate();
+        sendUserIdlingUpdate(event.getZoneId());
     }
 
     /**
@@ -184,9 +201,8 @@ public class DroneSubsystem implements Runnable {
         // For simplicity in this iteration, we'll mark as IDLE at Current Zone or Return to Base?
         // Let's Return to Base for consistency with Iteration 2 requirements
         
-        System.out.println("[Drone] Fire extinguished. Returning to base.");
-        sendStatus(DroneState.RETURNING, BASE_ZONE_ID);
-        simulateTravel(BASE_ZONE_ID);
+        System.out.println("[Drone] Fire extinguished. Awaiting next command.");
+        // Removed automatic return to base. Scheduler will send DRONE_RETURN_TO_BASE if needed.
     }
     
     private void sendStatus(DroneState state, int zoneId) throws InterruptedException {
@@ -203,5 +219,27 @@ public class DroneSubsystem implements Runnable {
     private double estimateTravelSeconds(int zoneId) {
         int distanceMeters = 50;
         return distanceMeters / TRAVEL_SPEED_MPS;
+    }
+
+    /**
+     * Handles the explicit Return To Base command from Scheduler.
+     */
+    private void handleReturnToBase() throws InterruptedException {
+        System.out.println("[Drone] Received Return to Base command.");
+        
+        // Travel to base
+        sendStatus(DroneState.RETURNING, BASE_ZONE_ID);
+        simulateTravel(BASE_ZONE_ID);
+        
+        // Refill
+        System.out.println("[Drone] Refilling...");
+        sendStatus(DroneState.REFILLING, BASE_ZONE_ID);
+        Thread.sleep(2000); // Simulate refill time
+        remainingLiters = MAX_CAPACITY_LITERS;
+        System.out.println("[Drone] Refilled. Capacity: " + remainingLiters);
+        
+        // Back to IDLE at Base
+        sendReadySignal();
+        sendUserIdlingUpdate();
     }
 }

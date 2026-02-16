@@ -14,6 +14,7 @@ public class Message {
         DRONE_ASSIGNMENT,
         DRONE_COMPLETED,
         DRONE_STATUS_UPDATE,
+        DRONE_RETURN_TO_BASE,
         FIRE_ACK,
         SHUTDOWN
     }
@@ -50,6 +51,13 @@ public class Message {
      */
     public static Message droneAssignment(FireEvent event) {
         return new Message(Type.DRONE_ASSIGNMENT, event, null);
+    }
+    
+    /**
+     * Scheduler commands the Drone to return to base.
+     */
+    public static Message droneReturnToBase() {
+        return new Message(Type.DRONE_RETURN_TO_BASE, null, null);
     }
 
     /**

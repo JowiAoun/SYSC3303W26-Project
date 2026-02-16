@@ -16,7 +16,7 @@ This project implements a Firefighting Drone System as specified in the SYSC 330
 Winter 2026 Project Specification.
 
 Iteration 2 builds upon the communication infrastructure of Iteration 1 by implementing:
-1. Core Scheduling Logic: The Scheduler now intelligentally dispatches orders based on drone availability.
+1. Core Scheduling Logic: The Scheduler intelligently dispatches drones, allowing them to service multiple fires in sequence without returning to base if they have sufficient agent.
 2. Drone State Machine: The Drone Subsystem implements a full state machine (IDLE, EN_ROUTE, EXTINGUISHING, RETURNING, REFILLING, FAULTED).
 3. GUI Integration: The GUI now visualizes the drone's status and location in real-time.
 
@@ -44,11 +44,11 @@ The system operates using three parallel threads and a Swing GUI:
 2. **Scheduler**: Acts as the central brain.
    - Maintains a queue of pending fire events.
    - Tracks the status of the drone (e.g., Is it IDLE? Does it have water?).
-   - When the drone is IDLE and there is a pending event, the Scheduler dispatches the drone.
+   - When the drone is IDLE (at base or remote zone) and has sufficient agent, the Scheduler dispatches the next pending event.
 3. **Drone Subsystem**: Simulates the physical drone.
    - **State Machine**: Transitions between states like EN_ROUTE (traveling), EXTINGUISHING (fighting fire), and REFILLING (at base).
    - **Simulation**: Simulates time taken to travel and extinguish fires based on severity and water capacity (15L).
-   - **Refilling**: Automatically returns to base to refill when water runs out or between tasks if needed.
+   - **Refilling**: Returns to base only when explicitly commanded by the Scheduler (due to low agent or no pending tasks).
 4. **GUI**:
    - Updates in real-time based on messages processed by the Scheduler.
    - Shows active fires (RED cells).
