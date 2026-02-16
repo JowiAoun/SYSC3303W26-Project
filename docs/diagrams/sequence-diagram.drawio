@@ -88,8 +88,17 @@
                         <mxPoint x="450" y="660.0" as="targetPoint" />
                     </mxGeometry>
                 </mxCell>
-                <mxCell id="msg6-label" value="DRONE_READY" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;" parent="1" vertex="1">
-                    <mxGeometry x="530" y="635.0" width="120" height="20" as="geometry" />
+                <mxCell id="msg6-label" value="DRONE_STATUS_UPDATE(IDLE, Zone)" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;" parent="1" vertex="1">
+                    <mxGeometry x="480" y="635.0" width="220" height="20" as="geometry" />
+                </mxCell>
+                <mxCell id="msg10" value="" style="endArrow=classic;html=1;rounded=0;" parent="1" edge="1">
+                    <mxGeometry width="50" height="50" relative="1" as="geometry">
+                        <mxPoint x="450" y="710.0" as="sourcePoint" />
+                        <mxPoint x="730" y="710.0" as="targetPoint" />
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="msg10-label" value="DRONE_RETURN_TO_BASE" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;" parent="1" vertex="1">
+                    <mxGeometry x="500" y="685.0" width="180" height="20" as="geometry" />
                 </mxCell>
                 <mxCell id="alt-frame" value="alt [all events processed]" style="shape=umlFrame;whiteSpace=wrap;html=1;pointerEvents=0;width=160;height=25;" parent="1" vertex="1">
                     <mxGeometry x="100" y="750.0" width="660" height="200" as="geometry" />
