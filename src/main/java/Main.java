@@ -10,7 +10,7 @@ import java.nio.charset.StandardCharsets;
 
 public class Main {
     /**
-     * Usage: java Main <path-to-events.csv>
+     * Usage: java Main
      */
     public static void main(String[] args) {
         String inputPath = "./src/main/resources/data/events.csv";
