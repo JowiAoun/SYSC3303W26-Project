@@ -34,7 +34,7 @@ public class DroneStateMachineTest {
         FireEvent e = new FireEvent("00:00:01", 5, FireEvent.EventType.FIRE_DETECTED, FireEvent.Severity.LOW);
         Message assignment = Message.droneAssignment(e);
 
-        // 2. Run assignment processing in a thread (like your sample)
+        // 2. Run assignment processing in a thread
         Thread t = new Thread(() -> {
             try {
                 drone.processAssignment(assignment);
@@ -62,7 +62,7 @@ public class DroneStateMachineTest {
     public void test_2() throws Exception {
         System.out.println("Test 2: When empty tank, drone returns then refills");
 
-        // 1. Force remainingLiters = 0 (student-style reflection access)
+        // 1. Force remainingLiters = 0
         Field f = DroneSubsystem.class.getDeclaredField("remainingLiters");
         f.setAccessible(true);
         f.setInt(drone, 0);
