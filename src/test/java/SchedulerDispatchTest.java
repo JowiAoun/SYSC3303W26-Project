@@ -19,7 +19,7 @@ public class SchedulerDispatchTest {
         schedulerToFire = new MessageBuffer();
         schedulerToDrone = new MessageBuffer();
 
-        // Build scheduler (4th arg is whatever your project uses, keep null like yours)
+        // Build scheduler
         scheduler = new Scheduler(toScheduler, schedulerToFire, schedulerToDrone, null);
     }
 
@@ -132,12 +132,7 @@ public class SchedulerDispatchTest {
         scheduler.handleIncomingMessage(msg);
 
         // 2. Fire event arrives (Zone 6, needs 5L)
-        // Note: Severity LOW usually implies 10L, but let's assume Scheduler checks logic based on event.getRequiredLiters()
-        // We'll use a mocked FireEvent or just rely on standard severity if 10L is enough.
-        // If LOW requires 10L, and drone has 10L, it should be exact match.
         FireEvent e = new FireEvent("00:00:01", 6, FireEvent.EventType.FIRE_DETECTED, FireEvent.Severity.LOW);
-        // Assuming LOW = 10L? Let's check FireEvent.java if needed, or assume standard.
-        // If getRequiredLiters() <= 10, it should pass.
         
         toScheduler.put(Message.fireEvent(e));
         msg = scheduler.receiveSubsystemMessage();
@@ -146,8 +141,6 @@ public class SchedulerDispatchTest {
         // 3. Dispatch
         boolean canDispatch = scheduler.canDispatchPendingEvent();
         assertTrue(canDispatch, "Should dispatch because 10L (drone) >= 10L (required)"); 
-        // Note: This relies on strict inequality check? My code said: if (remaining < required) return to base.
-        // So 10 < 10 is false, so it proceeds to dispatch.
 
         scheduler.dispatchPendingEvent();
 
@@ -181,7 +174,7 @@ public class SchedulerDispatchTest {
         // 4. dispatchPendingEvent() checks capacity and should send RTB
         scheduler.dispatchPendingEvent();
 
-        // 5. Assert message -- should be RETURN_TO_BASE
+        // 5. Assert message
         Message toDrone = schedulerToDrone.get();
         assertEquals(Message.Type.DRONE_RETURN_TO_BASE, toDrone.getType());
     }
