@@ -13,6 +13,8 @@ public class DroneSubsystem implements Runnable {
     private static final double DROP_SECONDS_PER_LITER = 0.5;
     private static final int BASE_ZONE_ID = 0;
     private int remainingLiters = MAX_CAPACITY_LITERS;
+    private DroneState currentState = DroneState.IDLE;
+    private Message.Type lastMessage;
 
     /**
      * @param toScheduler queue used to send messages to Scheduler
@@ -39,24 +41,53 @@ public class DroneSubsystem implements Runnable {
             while (true) {
                 // Wait for the next message from the Scheduler.
                 Message reply = receiveMessage();
-                // Stop cleanly when a shutdown message is received.
-                if (isShutdown(reply)) {
-                    break;
+                Message.Type replyType = reply.getType();
+                switch (replyType) {
+                    // Stop cleanly when a shutdown message is received.
+                    case SHUTDOWN:
+                        System.out.println("[Drone] Finished. Completed: " + completed);
+                        return;
+                    // Handle assignments and report completion.
+                    case DRONE_ASSIGNMENT:
+                        processAssignment(reply);
+                        completed++;
+                        break;
+                    case DRONE_RETURN_TO_BASE:
+                        handleReturnToBase();
+                        break;
                 }
-                // Handle assignments and report completion.
-                if (isAssignment(reply)) {
-                    processAssignment(reply);
-                    completed++;
-                } else if (isReturnToBase(reply)) {
-                    handleReturnToBase();
-                }
+
+                // Old loop
+//                // Stop cleanly when a shutdown message is received.
+//                if (isShutdown(reply)) {
+//                    break;
+//                }
+//                // Handle assignments and report completion.
+//                if (isAssignment(reply)) {
+//                    processAssignment(reply);
+//                    completed++;
+//                } else if (isReturnToBase(reply)) {
+//                    handleReturnToBase();
+//                }
             }
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             throw new RuntimeException("[Drone] Interrupted.", e);
         }
+    }
 
-        System.out.println("[Drone] Finished. Completed: " + completed);
+    /**
+     * Get the currentState of the drone.
+     */
+    DroneState getCurrentState(DroneState droneState) {
+        return currentState;
+    }
+
+    /**
+     * Set the currentState of the drone.
+     */
+    void setCurrentState(DroneState droneState) {
+        currentState = droneState;
     }
 
     /**
@@ -71,6 +102,7 @@ public class DroneSubsystem implements Runnable {
      */
     void sendUserIdlingUpdate() throws InterruptedException {
         toScheduler.put(Message.droneStatus(new DroneStatus(DRONE_ID, DroneState.IDLE, BASE_ZONE_ID, remainingLiters)));
+        setCurrentState(DroneState.IDLE);
     }
 
     /**
@@ -78,6 +110,7 @@ public class DroneSubsystem implements Runnable {
      */
     void sendUserIdlingUpdate(int zoneId) throws InterruptedException {
         toScheduler.put(Message.droneStatus(new DroneStatus(DRONE_ID, DroneState.IDLE, zoneId, remainingLiters)));
+        setCurrentState(DroneState.IDLE);
     }
 
     /**
@@ -207,6 +240,7 @@ public class DroneSubsystem implements Runnable {
     
     private void sendStatus(DroneState state, int zoneId) throws InterruptedException {
         toScheduler.put(Message.droneStatus(new DroneStatus(DRONE_ID, state, zoneId, remainingLiters)));
+        setCurrentState(state);
     }
     
     private void simulateTravel(int zoneId) throws InterruptedException {
