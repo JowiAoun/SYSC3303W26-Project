@@ -2,8 +2,10 @@ import javax.swing.*;
 import javax.swing.border.EmptyBorder;
 import java.awt.*;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 /**
@@ -32,15 +34,25 @@ public class FireDroneGUI extends JFrame {
     //zone definitions
     private final List<ZoneDef> zones = new ArrayList<>();
     private final List<JLabel> droneLabels = new ArrayList<>();
+    private final List<JLabel> zoneLabels = new ArrayList<>();
     private final Set<Integer> activeZoneIds = new HashSet<>();
+    private final Map<Integer, Integer> droneLastZone = new HashMap<>();       // droneId → last zoneId
+    private final Set<Integer> activeDroneIds = new HashSet<>();               // non-idle drone IDs
+    private final Map<Integer, FireEvent.Severity> zoneSeverities = new HashMap<>(); // zoneId → severity
     private JTextArea eventLog;
     private JLabel statusLeft;
     private JLabel statusRight;
     private int activeFires = 0;
     private int activeDrones = 0;
+    private int droneCount;
 
     public FireDroneGUI() {
+        this(1);
+    }
+
+    public FireDroneGUI(int droneCount) {
         super("Fire Drone GUI");
+        this.droneCount = droneCount;
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         setLayout(new BorderLayout());
 
@@ -114,7 +126,7 @@ public class FireDroneGUI extends JFrame {
 
         side.add(createCard("Zones", createZonesList()));
         side.add(Box.createVerticalStrut(8));
-        side.add(createCard("Drones", createDroneList(1)));
+        side.add(createCard("Drones", createDroneList(droneCount)));
         side.add(Box.createVerticalStrut(8));
         side.add(createCard("Event Log", createEventPreview()));
         side.add(Box.createVerticalStrut(8));
@@ -126,13 +138,34 @@ public class FireDroneGUI extends JFrame {
     private JComponent createZonesList() {
         JPanel p = new JPanel();
         p.setLayout(new BoxLayout(p, BoxLayout.Y_AXIS));
+        zoneLabels.clear();
         for (ZoneDef z : zones) {
-            String desc = String.format("Zone %d — (%d,%d) size %dx%d", z.id, z.startCol, z.startRow, z.widthCols, z.heightRows);
+            String desc = String.format("Zone %d — (%d,%d) %dx%d", z.id, z.startCol, z.startRow, z.widthCols, z.heightRows);
             JLabel lbl = new JLabel(desc);
             lbl.setBorder(new EmptyBorder(4,4,4,4));
+            zoneLabels.add(lbl);
             p.add(lbl);
         }
         return p;
+    }
+
+    /**
+     * Update a zone's sidebar label to reflect current fire status and severity.
+     */
+    private void updateZoneLabel(int zoneId, boolean active, FireEvent.Severity severity) {
+        // zoneLabels are ordered by zones list index, find the matching one
+        for (int i = 0; i < zones.size(); i++) {
+            ZoneDef z = zones.get(i);
+            if (z.id == zoneId && i < zoneLabels.size()) {
+                String base = String.format("Zone %d — (%d,%d) %dx%d", z.id, z.startCol, z.startRow, z.widthCols, z.heightRows);
+                if (active) {
+                    String sevStr = severityShortLabel(severity);
+                    base += " [FIRE" + (sevStr.isEmpty() ? "" : " " + sevStr) + "]";
+                }
+                zoneLabels.get(i).setText(base);
+                break;
+            }
+        }
     }
 
     //Simple titled container used by the sidebar
@@ -223,67 +256,110 @@ public class FireDroneGUI extends JFrame {
 
     /**
      * Updates the GUI based on the drone's status.
+     * Tracks drone-to-zone assignment, clears stale cells, and updates sidebar.
      * Thread-safe.
      */
     public void updateDroneStatus(DroneStatus status) {
         runOnEdt(() -> {
-            // Map DroneState to CellState for the target Zone
-            ZoneDef zone = getZoneById(status.getZoneId());
+            int droneId = status.getDroneId();
+            int currentZoneId = status.getZoneId();
+            String dronePrefix = "D" + droneId + " ";
+
+            // Clear previous zone cell if the drone has moved to a different zone
+            Integer lastZoneId = droneLastZone.get(droneId);
+            if (lastZoneId != null && lastZoneId != currentZoneId) {
+                ZoneDef lastZone = getZoneById(lastZoneId);
+                if (lastZone != null) {
+                    // Revert to fire state if zone is still active, otherwise empty
+                    if (activeZoneIds.contains(lastZoneId)) {
+                        FireEvent.Severity sev = zoneSeverities.get(lastZoneId);
+                        setCellState(lastZone.startCol, lastZone.startRow, CellState.ACTIVE_FIRE);
+                        setCellText(lastZone.startCol, lastZone.startRow, "FIRE" + severityLabel(sev));
+                    } else {
+                        setCellState(lastZone.startCol, lastZone.startRow, CellState.EMPTY);
+                        setCellText(lastZone.startCol, lastZone.startRow, String.format("Z%d", lastZoneId));
+                    }
+                }
+            }
+
+            // Map DroneState to CellState for the target zone
+            ZoneDef zone = getZoneById(currentZoneId);
             if (zone != null) {
-                // Determine cell state based on drone state
                 CellState cellState = CellState.EMPTY;
                 String text = "";
-                
+
                 switch (status.getState()) {
                     case EN_ROUTE:
                         cellState = CellState.DRONE_OUTBOUND;
-                        text = ">>>";
+                        text = dronePrefix + ">>>";
                         break;
                     case EXTINGUISHING:
                         cellState = CellState.DRONE_EXTINGUISHED;
-                        text = "FIGHT";
+                        text = dronePrefix + "FIGHT";
                         break;
                     case RETURNING:
                         cellState = CellState.DRONE_RETURNING;
-                        text = "<<<";
+                        text = dronePrefix + "<<<";
                         break;
                     case REFILLING:
-                        cellState = CellState.DRONE_RETURNING; // Use same color or new state? Let's treat REFILLING as visible.
-                        text = "FILL";
+                        cellState = CellState.DRONE_RETURNING;
+                        text = dronePrefix + "FILL";
                         break;
                     case IDLE:
-                        // Show drone at base if IDLE there
-                        if (status.getZoneId() == 0) {
-                            cellState = CellState.DRONE_RETURNING; // Or a specific IDLE color?
-                            // Let's reuse DRONE_RETURNING color (purple) for now or add a new one.
-                            // Actually, IDLE usually means "Ready". 
-                            text = "IDLE";
+                        if (currentZoneId == 0) {
+                            cellState = CellState.DRONE_RETURNING;
+                            text = dronePrefix + "IDLE";
                         }
                         break;
                 }
 
-                // Update the cell state
                 if (cellState != CellState.EMPTY) {
-                   setCellState(zone.startCol, zone.startRow, cellState);
-                   setCellText(zone.startCol, zone.startRow, text);
+                    setCellState(zone.startCol, zone.startRow, cellState);
+                    setCellText(zone.startCol, zone.startRow, text);
                 }
-
             }
 
-            setDroneState(status.getDroneId(), status.getState().name());
-            setActiveDrones(status.getState() == DroneState.IDLE ? 0 : 1);
+            // Track drone's current zone
+            droneLastZone.put(droneId, currentZoneId);
+
+            // Track active drones via set
+            if (status.getState() == DroneState.IDLE) {
+                activeDroneIds.remove(droneId);
+            } else {
+                activeDroneIds.add(droneId);
+            }
+            setActiveDrones(activeDroneIds.size());
+
+            // Update sidebar label with zone + remaining liters
+            String zoneInfo = currentZoneId > 0 ? " → Zone " + currentZoneId : "";
+            String litersInfo = " (" + status.getRemainingLiters() + "L)";
+            setDroneState(droneId, status.getState().name() + zoneInfo + litersInfo);
         });
     }
 
     /**
-     * update a zone's fire state and active count.
+     * Update a zone's fire state and active count (backward-compatible, no severity).
      */
     public void setZoneFire(int zoneId, boolean active) {
+        setZoneFire(zoneId, active, null);
+    }
+
+    /**
+     * Update a zone's fire state, severity display, and active count.
+     */
+    public void setZoneFire(int zoneId, boolean active, FireEvent.Severity severity) {
         runOnEdt(() -> {
             ZoneDef zone = getZoneById(zoneId);
             if (zone != null) {
-                setCellState(zone.startCol, zone.startRow, active ? CellState.ACTIVE_FIRE : CellState.EXTINGUISHED);
-                setCellText(zone.startCol, zone.startRow, active ? "FIRE" : "SAFE");
+                if (active) {
+                    zoneSeverities.put(zoneId, severity);
+                    setCellState(zone.startCol, zone.startRow, CellState.ACTIVE_FIRE);
+                    setCellText(zone.startCol, zone.startRow, "FIRE" + severityLabel(severity));
+                } else {
+                    zoneSeverities.remove(zoneId);
+                    setCellState(zone.startCol, zone.startRow, CellState.EXTINGUISHED);
+                    setCellText(zone.startCol, zone.startRow, "SAFE");
+                }
             }
 
             if (active) {
@@ -295,7 +371,35 @@ public class FireDroneGUI extends JFrame {
                     setActiveFires(activeZoneIds.size());
                 }
             }
+
+            updateZoneLabel(zoneId, active, severity);
         });
+    }
+
+    /**
+     * Returns a severity suffix for cell text, e.g. " (H)", " (M)", " (L)".
+     */
+    private String severityLabel(FireEvent.Severity severity) {
+        if (severity == null) return "";
+        switch (severity) {
+            case HIGH:     return " (H)";
+            case MODERATE: return " (M)";
+            case LOW:      return " (L)";
+            default:       return "";
+        }
+    }
+
+    /**
+     * Returns a short severity label for sidebar, e.g. "H", "M", "L".
+     */
+    private String severityShortLabel(FireEvent.Severity severity) {
+        if (severity == null) return "";
+        switch (severity) {
+            case HIGH:     return "H";
+            case MODERATE: return "M";
+            case LOW:      return "L";
+            default:       return "";
+        }
     }
 
     /**

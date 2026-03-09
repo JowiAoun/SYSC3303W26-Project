@@ -265,9 +265,9 @@ public class Scheduler implements Runnable {
             String msg = "[Scheduler] Received event: " + event;
             System.out.println(msg);
 
-            // Update GUI: New Fire
+            // Update GUI: New Fire with severity
             if (gui != null) {
-                gui.setZoneFire(event.getZoneId(), true);
+                gui.setZoneFire(event.getZoneId(), true, event.getSeverity());
                 gui.appendEvent(msg);
             }
 
