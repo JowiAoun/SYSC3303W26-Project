@@ -55,6 +55,8 @@ public class DroneSubsystem implements Runnable {
                     case DRONE_RETURN_TO_BASE:
                         handleReturnToBase();
                         break;
+                    default:
+                        System.out.println("[Drone] Unknown message type: " + replyType);
                 }
 
                 // Old loop
