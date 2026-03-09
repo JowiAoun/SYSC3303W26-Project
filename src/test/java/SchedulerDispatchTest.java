@@ -48,6 +48,11 @@ public class SchedulerDispatchTest {
         boolean actualValue = scheduler.canDispatchPendingEvent();
         assertFalse(actualValue);
         System.out.printf("Expecting: false, got %s\n", actualValue);
+
+        // 4. Evaluate transition — should be AWAITING_DRONE (pending + drone busy)
+        scheduler.evaluateTransition();
+        assertEquals(SchedulerState.AWAITING_DRONE, scheduler.getCurrentState());
+        System.out.printf("Expecting state: AWAITING_DRONE, got %s\n", scheduler.getCurrentState());
     }
 
     @Test
@@ -80,6 +85,11 @@ public class SchedulerDispatchTest {
 
         System.out.printf("Expecting msg type: DRONE_ASSIGNMENT, got %s\n", toDrone.getType());
         System.out.printf("Expecting zoneId: 7, got %d\n", toDrone.getEvent().getZoneId());
+
+        // 5. After dispatch, drone is EN_ROUTE (optimistic update) -> DRONE_ACTIVE
+        scheduler.evaluateTransition();
+        assertEquals(SchedulerState.DRONE_ACTIVE, scheduler.getCurrentState());
+        System.out.printf("Expecting state: DRONE_ACTIVE, got %s\n", scheduler.getCurrentState());
     }
 
 
@@ -120,6 +130,10 @@ public class SchedulerDispatchTest {
 
         System.out.printf("Expecting msg type: DRONE_ASSIGNMENT, got %s\n", toDrone.getType());
         System.out.printf("Expecting zoneId: 8, got %d\n", toDrone.getEvent().getZoneId());
+
+        // After dispatch, drone is EN_ROUTE -> DRONE_ACTIVE
+        scheduler.evaluateTransition();
+        assertEquals(SchedulerState.DRONE_ACTIVE, scheduler.getCurrentState());
     }
     @Test
     @Order(4)
@@ -133,14 +147,14 @@ public class SchedulerDispatchTest {
 
         // 2. Fire event arrives (Zone 6, needs 5L)
         FireEvent e = new FireEvent("00:00:01", 6, FireEvent.EventType.FIRE_DETECTED, FireEvent.Severity.LOW);
-        
+
         toScheduler.put(Message.fireEvent(e));
         msg = scheduler.receiveSubsystemMessage();
         scheduler.handleIncomingMessage(msg);
 
         // 3. Dispatch
         boolean canDispatch = scheduler.canDispatchPendingEvent();
-        assertTrue(canDispatch, "Should dispatch because 10L (drone) >= 10L (required)"); 
+        assertTrue(canDispatch, "Should dispatch because 10L (drone) >= 10L (required)");
 
         scheduler.dispatchPendingEvent();
 
@@ -177,5 +191,9 @@ public class SchedulerDispatchTest {
         // 5. Assert message
         Message toDrone = schedulerToDrone.get();
         assertEquals(Message.Type.DRONE_RETURN_TO_BASE, toDrone.getType());
+
+        // 6. After RTB, drone is RETURNING — should be AWAITING_DRONE (still have pending)
+        scheduler.evaluateTransition();
+        assertEquals(SchedulerState.AWAITING_DRONE, scheduler.getCurrentState());
     }
 }

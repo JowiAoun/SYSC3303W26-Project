@@ -1,8 +1,8 @@
 /**
  * DroneSubsystem.java
  *
- * Represents the drone client for Iteration 1.
- * It repeatedly asks the Scheduler for work and reports completion.
+ * State-machine-driven drone client.
+ * The run() loop switches on currentState; each handler advances the state.
  */
 public class DroneSubsystem implements Runnable {
     private final MessageBuffer toScheduler;
@@ -14,7 +14,11 @@ public class DroneSubsystem implements Runnable {
     private static final int BASE_ZONE_ID = 0;
     private int remainingLiters = MAX_CAPACITY_LITERS;
     private DroneState currentState = DroneState.IDLE;
-    private Message.Type lastMessage;
+
+    // State-machine context
+    private FireEvent currentAssignment = null;
+    private int remainingRequired = 0;
+    private int currentZoneId = BASE_ZONE_ID;
 
     /**
      * @param toScheduler queue used to send messages to Scheduler
@@ -36,46 +40,169 @@ public class DroneSubsystem implements Runnable {
         try {
             // Announce initial readiness and IDLE state.
             sendReadySignal();
-            sendUserIdlingUpdate();
+            sendStatus(DroneState.IDLE, BASE_ZONE_ID);
 
-            while (true) {
-                // Wait for the next message from the Scheduler.
-                Message reply = receiveMessage();
-                Message.Type replyType = reply.getType();
-                switch (replyType) {
-                    // Stop cleanly when a shutdown message is received.
-                    case SHUTDOWN:
-                        System.out.println("[Drone] Finished. Completed: " + completed);
-                        return;
-                    // Handle assignments and report completion.
-                    case DRONE_ASSIGNMENT:
-                        processAssignment(reply);
-                        completed++;
+            boolean running = true;
+            while (running) {
+                switch (currentState) {
+                    case IDLE:
+                        running = handleIdle();
                         break;
-                    case DRONE_RETURN_TO_BASE:
-                        handleReturnToBase();
+                    case EN_ROUTE:
+                        handleEnRoute();
+                        break;
+                    case EXTINGUISHING:
+                        handleExtinguishing();
+                        if (currentState == DroneState.IDLE) {
+                            completed++;
+                        }
+                        break;
+                    case RETURNING:
+                        handleReturning();
+                        break;
+                    case REFILLING:
+                        handleRefilling();
+                        break;
+                    case FAULTED:
+                        handleFaulted();
                         break;
                     default:
-                        System.out.println("[Drone] Unknown message type: " + replyType);
+                        System.out.println("[Drone] Unknown state: " + currentState);
+                        running = false;
+                        break;
                 }
-
-                // Old loop
-//                // Stop cleanly when a shutdown message is received.
-//                if (isShutdown(reply)) {
-//                    break;
-//                }
-//                // Handle assignments and report completion.
-//                if (isAssignment(reply)) {
-//                    processAssignment(reply);
-//                    completed++;
-//                } else if (isReturnToBase(reply)) {
-//                    handleReturnToBase();
-//                }
             }
+
+            System.out.println("[Drone] Finished. Completed: " + completed);
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             throw new RuntimeException("[Drone] Interrupted.", e);
         }
+    }
+
+    // ── State handlers ──────────────────────────────────────────────
+
+    /**
+     * IDLE — blocks on fromScheduler.get() waiting for the next command.
+     * @return false when the drone should exit the run loop (SHUTDOWN received)
+     */
+    private boolean handleIdle() throws InterruptedException {
+        Message reply = receiveMessage();
+        switch (reply.getType()) {
+            case DRONE_ASSIGNMENT:
+                currentAssignment = reply.getEvent();
+                remainingRequired = currentAssignment.getRequiredLiters();
+                System.out.println("[Drone] Assigned: " + currentAssignment);
+
+                if (remainingLiters <= 0) {
+                    sendStatus(DroneState.RETURNING, BASE_ZONE_ID);
+                } else {
+                    sendStatus(DroneState.EN_ROUTE, currentAssignment.getZoneId());
+                }
+                break;
+
+            case DRONE_RETURN_TO_BASE:
+                System.out.println("[Drone] Received Return to Base command.");
+                currentAssignment = null;
+                sendStatus(DroneState.RETURNING, BASE_ZONE_ID);
+                break;
+
+            case SHUTDOWN:
+                return false;
+
+            default:
+                System.out.println("[Drone] Unknown message type in IDLE: " + reply.getType());
+                break;
+        }
+        return true;
+    }
+
+    /**
+     * EN_ROUTE — simulate travel to the fire zone, then begin extinguishing.
+     */
+    private void handleEnRoute() throws InterruptedException {
+        int targetZone = currentAssignment.getZoneId();
+        System.out.println("[Drone] Flying to Zone " + targetZone);
+        simulateTravel(targetZone);
+        currentZoneId = targetZone;
+        sendStatus(DroneState.EXTINGUISHING, targetZone);
+    }
+
+    /**
+     * EXTINGUISHING — drop water on the fire.
+     * Transitions: fire done -> IDLE, tank empty -> RETURNING, otherwise stays EXTINGUISHING.
+     */
+    private void handleExtinguishing() throws InterruptedException {
+        int targetZone = currentAssignment.getZoneId();
+        System.out.println("[Drone] Extinguishing fire at Zone " + targetZone);
+
+        int toDrop = Math.min(remainingLiters, remainingRequired);
+        double dropSeconds = toDrop * DROP_SECONDS_PER_LITER;
+        long sleepMs = Math.round(dropSeconds * 1000);
+        Thread.sleep(sleepMs);
+
+        remainingLiters -= toDrop;
+        remainingRequired -= toDrop;
+        System.out.println("[Drone] Dropped " + toDrop + "L. Remaining in tank: "
+                + remainingLiters + "L. Fire needs: " + remainingRequired + "L");
+
+        if (remainingRequired <= 0) {
+            System.out.println("[Drone] Fire extinguished. Awaiting next command.");
+            sendCompletion(currentAssignment);
+            currentAssignment = null;
+            sendReadySignal();
+            currentZoneId = targetZone;
+            sendStatus(DroneState.IDLE, targetZone);
+        } else if (remainingLiters <= 0) {
+            System.out.println("[Drone] Tank empty. Returning to base for refill.");
+            sendStatus(DroneState.RETURNING, BASE_ZONE_ID);
+        }
+        // else: stay in EXTINGUISHING, next loop iteration drops more
+    }
+
+    /**
+     * RETURNING — simulate travel back to base, then refill.
+     */
+    private void handleReturning() throws InterruptedException {
+        simulateTravel(BASE_ZONE_ID);
+        currentZoneId = BASE_ZONE_ID;
+        sendStatus(DroneState.REFILLING, BASE_ZONE_ID);
+    }
+
+    /**
+     * REFILLING — refill the tank.
+     * If there's an active assignment, go back EN_ROUTE; otherwise go IDLE.
+     */
+    private void handleRefilling() throws InterruptedException {
+        System.out.println("[Drone] Refilling...");
+        Thread.sleep(2000);
+        remainingLiters = MAX_CAPACITY_LITERS;
+        System.out.println("[Drone] Refilled. Capacity: " + remainingLiters);
+
+        if (currentAssignment != null) {
+            System.out.println("[Drone] Returning to Zone " + currentAssignment.getZoneId());
+            sendStatus(DroneState.EN_ROUTE, currentAssignment.getZoneId());
+        } else {
+            sendReadySignal();
+            sendStatus(DroneState.IDLE, BASE_ZONE_ID);
+        }
+    }
+
+    /**
+     * FAULTED — placeholder for iteration 4.
+     */
+    private void handleFaulted() throws InterruptedException {
+        System.out.println("[Drone] FAULTED state — awaiting recovery (not yet implemented).");
+        Thread.sleep(5000);
+    }
+
+    // ── Helpers ─────────────────────────────────────────────────────
+
+    /**
+     * Get the currentState of the drone.
+     */
+    DroneState getCurrentState() {
+        return currentState;
     }
 
     /**
@@ -98,21 +225,19 @@ public class DroneSubsystem implements Runnable {
     void sendReadySignal() throws InterruptedException {
         toScheduler.put(Message.droneReady());
     }
-    
+
     /**
      * Send an update that the drone is IDLE at base.
      */
     void sendUserIdlingUpdate() throws InterruptedException {
-        toScheduler.put(Message.droneStatus(new DroneStatus(DRONE_ID, DroneState.IDLE, BASE_ZONE_ID, remainingLiters)));
-        setCurrentState(DroneState.IDLE);
+        sendStatus(DroneState.IDLE, BASE_ZONE_ID);
     }
 
     /**
      * Send an update that the drone is IDLE at a specific zone.
      */
     void sendUserIdlingUpdate(int zoneId) throws InterruptedException {
-        toScheduler.put(Message.droneStatus(new DroneStatus(DRONE_ID, DroneState.IDLE, zoneId, remainingLiters)));
-        setCurrentState(DroneState.IDLE);
+        sendStatus(DroneState.IDLE, zoneId);
     }
 
     /**
@@ -152,7 +277,7 @@ public class DroneSubsystem implements Runnable {
 
         simulateService(event);
         sendCompletion(event);
-        
+
         // Return to IDLE state at CURRENT ZONE
         System.out.println("[Drone] Task complete. Returning to Ready state at Zone " + event.getZoneId());
         // We stay at the current zone. The scheduler will decide whether to send us more work or Return to Base.
@@ -173,11 +298,11 @@ public class DroneSubsystem implements Runnable {
     private void checkAndRefillIfNeeded() throws InterruptedException {
         if (remainingLiters <= 0) {
             System.out.println("[Drone] Tank empty. Returning to base for refill.");
-            
+
             // Return to base
             sendStatus(DroneState.RETURNING, BASE_ZONE_ID);
             simulateTravel(BASE_ZONE_ID);
-            
+
             // Refill
             System.out.println("[Drone] Refilling...");
             sendStatus(DroneState.REFILLING, BASE_ZONE_ID);
@@ -205,7 +330,7 @@ public class DroneSubsystem implements Runnable {
         // 2. Extinguish
         while (remainingRequired > 0) {
             checkAndRefillIfNeeded();
-            
+
             // If we had to return to base, we need to travel back to the fire
             if (remainingLiters == MAX_CAPACITY_LITERS) {
                  System.out.println("[Drone] Returning to Zone " + targetZone);
@@ -215,36 +340,32 @@ public class DroneSubsystem implements Runnable {
 
             System.out.println("[Drone] Extinguishing fire at Zone " + targetZone);
             sendStatus(DroneState.EXTINGUISHING, targetZone);
-            
+
             int toDrop = Math.min(remainingLiters, remainingRequired);
             double dropSeconds = toDrop * DROP_SECONDS_PER_LITER;
             long sleepMs = Math.round(dropSeconds * 1000);
-            
+
             Thread.sleep(sleepMs);
-            
+
             remainingLiters -= toDrop;
             remainingRequired -= toDrop;
             System.out.println("[Drone] Dropped " + toDrop + "L. Remaining in tank: " + remainingLiters + "L. Fire needs: " + remainingRequired + "L");
-            
+
             // Update status after drop
             sendStatus(DroneState.EXTINGUISHING, targetZone);
         }
-        
-        // 3. Return to Base (Optional optimization: stay if next task is close? 
-        // For now, let's just stay here until next assignment or forced return)
-        // But the prompt says "The drone either returns to base or proceeds to the next assignment."
-        // For simplicity in this iteration, we'll mark as IDLE at Current Zone or Return to Base?
-        // Let's Return to Base for consistency with Iteration 2 requirements
-        
+
         System.out.println("[Drone] Fire extinguished. Awaiting next command.");
-        // Removed automatic return to base. Scheduler will send DRONE_RETURN_TO_BASE if needed.
     }
-    
+
+    /**
+     * Single transition point: updates currentState and sends status to Scheduler.
+     */
     private void sendStatus(DroneState state, int zoneId) throws InterruptedException {
+        this.currentState = state;
         toScheduler.put(Message.droneStatus(new DroneStatus(DRONE_ID, state, zoneId, remainingLiters)));
-        setCurrentState(state);
     }
-    
+
     private void simulateTravel(int zoneId) throws InterruptedException {
         // Simple placeholder for travel time
         // In real impl, calculate distance from current pos to zoneId
@@ -262,20 +383,20 @@ public class DroneSubsystem implements Runnable {
      */
     private void handleReturnToBase() throws InterruptedException {
         System.out.println("[Drone] Received Return to Base command.");
-        
+
         // Travel to base
         sendStatus(DroneState.RETURNING, BASE_ZONE_ID);
         simulateTravel(BASE_ZONE_ID);
-        
+
         // Refill
         System.out.println("[Drone] Refilling...");
         sendStatus(DroneState.REFILLING, BASE_ZONE_ID);
         Thread.sleep(2000); // Simulate refill time
         remainingLiters = MAX_CAPACITY_LITERS;
         System.out.println("[Drone] Refilled. Capacity: " + remainingLiters);
-        
+
         // Back to IDLE at Base
         sendReadySignal();
-        sendUserIdlingUpdate();
+        sendStatus(DroneState.IDLE, BASE_ZONE_ID);
     }
 }

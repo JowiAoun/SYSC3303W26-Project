@@ -3,7 +3,7 @@ import java.util.Queue;
 /**
  * Scheduler.java
  *
- * Pass-through coordinator for Iteration 1.
+ * State-machine-driven coordinator.
  * It buffers incoming fire events and assigns them to the drone on request.
  */
 public class Scheduler implements Runnable {
@@ -21,8 +21,11 @@ public class Scheduler implements Runnable {
     // Track the single drone's status.
     // Initially null until first ready/status message received.
     private DroneStatus lastDroneStatus = null;
-    
+
     private final FireDroneGUI gui;
+
+    // State machine
+    private SchedulerState currentState = SchedulerState.IDLE;
 
     /**
      * @param fromSubsystems shared buffer of incoming messages
@@ -42,27 +45,27 @@ public class Scheduler implements Runnable {
 
     public int getTotalEvents() { return totalEvents; }
 
+    SchedulerState getCurrentState() { return currentState; }
+
     @Override
     public void run() {
         System.out.println("[Scheduler] Started.");
 
         try {
-            while (true) {
+            while (currentState != SchedulerState.SHUTTING_DOWN) {
                 Message msg = receiveSubsystemMessage();
                 handleIncomingMessage(msg);
-                
+
                 // Try to dispatch whenever state changes or new events arrive
                 if (canDispatchPendingEvent()) {
                     dispatchPendingEvent();
                 } else {
                     checkAndSendReturnToBase();
                 }
-                
+
                 sendShutdownToDroneIfComplete();
                 sendShutdownToFireIfComplete();
-                if (shouldTerminate()) {
-                    break;
-                }
+                evaluateTransition();
             }
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
@@ -71,6 +74,33 @@ public class Scheduler implements Runnable {
 
         System.out.println("[Scheduler] Finished.");
     }
+
+    // ── State machine ───────────────────────────────────────────────
+
+    /**
+     * Centralized transition logic. Called after every message is processed.
+     * Determines next state based on: drone status, pending queue, completion flags.
+     */
+    void evaluateTransition() {
+        if (shouldTerminate()) {
+            currentState = SchedulerState.SHUTTING_DOWN;
+            System.out.println("[Scheduler] State -> SHUTTING_DOWN");
+            return;
+        }
+
+        boolean droneIdle = lastDroneStatus != null && lastDroneStatus.getState() == DroneState.IDLE;
+        boolean hasPending = !pending.isEmpty();
+
+        if (hasPending && !droneIdle) {
+            currentState = SchedulerState.AWAITING_DRONE;
+        } else if (!droneIdle) {
+            currentState = SchedulerState.DRONE_ACTIVE;
+        } else {
+            currentState = SchedulerState.IDLE;
+        }
+    }
+
+    // ── Message processing ──────────────────────────────────────────
 
     /**
      * Reads one message from the shared buffer.
@@ -128,16 +158,16 @@ public class Scheduler implements Runnable {
         // If we get here, we can dispatch
         next = pending.poll(); // remove from queue
         toDrone.put(Message.droneAssignment(next));
-        
+
         // Optimistically update status to prevent double dispatch
         // The drone will confirm with EN_ROUTE shortly
         lastDroneStatus = new DroneStatus(
                 lastDroneStatus != null ? lastDroneStatus.getDroneId() : 1,
-                DroneState.EN_ROUTE, 
-                next.getZoneId(), 
+                DroneState.EN_ROUTE,
+                next.getZoneId(),
                 lastDroneStatus != null ? lastDroneStatus.getRemainingLiters() : 15
         );
-        
+
         String dispatchMsg = "[Scheduler] Dispatched to drone: " + next;
         System.out.println(dispatchMsg);
         if (gui != null) {
@@ -150,15 +180,15 @@ public class Scheduler implements Runnable {
      */
     void sendReturnToBase() throws InterruptedException {
         toDrone.put(Message.droneReturnToBase());
-        
+
         // Optimistically update status
         lastDroneStatus = new DroneStatus(
                 lastDroneStatus != null ? lastDroneStatus.getDroneId() : 1,
-                DroneState.RETURNING, 
-                0, 
+                DroneState.RETURNING,
+                0,
                 lastDroneStatus != null ? lastDroneStatus.getRemainingLiters() : 0
         );
-        
+
         String rtbMsg = "[Scheduler] Commanding drone to Return to Base.";
         System.out.println(rtbMsg);
         if (gui != null) {
@@ -170,10 +200,10 @@ public class Scheduler implements Runnable {
      * Checks if the drone should return to base (Idle at remote zone + no work or no agent).
      */
     void checkAndSendReturnToBase() throws InterruptedException {
-         if (lastDroneStatus != null && 
-             lastDroneStatus.getState() == DroneState.IDLE && 
+         if (lastDroneStatus != null &&
+             lastDroneStatus.getState() == DroneState.IDLE &&
              lastDroneStatus.getZoneId() != 0) {
-             
+
              // Drone is idle at a remote zone.
              // If no pending events, return to base.
              if (pending.isEmpty()) {
@@ -234,13 +264,13 @@ public class Scheduler implements Runnable {
             totalEvents++;
             String msg = "[Scheduler] Received event: " + event;
             System.out.println(msg);
-            
+
             // Update GUI: New Fire
             if (gui != null) {
                 gui.setZoneFire(event.getZoneId(), true);
                 gui.appendEvent(msg);
             }
-            
+
         } else if (message.getType() == Message.Type.SHUTDOWN) {
             fireIncidentDone = true;
             String inputCompleteMsg = "[Scheduler] Fire Incident input complete.";
@@ -263,25 +293,25 @@ public class Scheduler implements Runnable {
                     gui.appendEvent(readyMsg);
                 }
                 break;
-                
+
             case DRONE_STATUS_UPDATE:
                 DroneStatus status = message.getStatus();
                 String statusMsg = "[Scheduler] Drone Status Update: " + status;
                 System.out.println(statusMsg);
                 this.lastDroneStatus = status;
-                
+
                 if (gui != null) {
                     gui.updateDroneStatus(status);
                     gui.appendEvent(statusMsg);
                 }
                 break;
-                
+
             case DRONE_COMPLETED:
                 completed++;
                 toFireIncident.put(Message.fireAck(message.getEvent()));
                 String completedMsg = "[Scheduler] Completion ack forwarded: " + message.getEvent();
                 System.out.println(completedMsg);
-                
+
                 // Update GUI: Fire Extinguished
                 if (gui != null) {
                     gui.setZoneFire(message.getEvent().getZoneId(), false);
