@@ -2,6 +2,7 @@ import static org.junit.jupiter.api.Assertions.*;
 import org.junit.jupiter.api.*;
 
 import java.lang.reflect.Field;
+import java.net.SocketException;
 
 @TestMethodOrder(MethodOrderer.OrderAnnotation.class)
 public class DroneStateMachineTest {
@@ -17,11 +18,16 @@ public class DroneStateMachineTest {
     public void setup() {
         toScheduler = new MessageBuffer();
         schedulerToDrone = new MessageBuffer();
-        drone = new DroneSubsystem(toScheduler, schedulerToDrone);
+        try {
+            drone = new DroneSubsystem(toScheduler, schedulerToDrone);
+        } catch (SocketException e) {
+            throw new RuntimeException(e);
+        }
     }
 
     @AfterEach
-    public void spacing() {
+    public void teardown() {
+        drone.closeSocket();
         System.out.println();
     }
 

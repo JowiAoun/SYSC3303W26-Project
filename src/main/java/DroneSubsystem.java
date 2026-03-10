@@ -1,3 +1,6 @@
+import java.net.DatagramSocket;
+import java.net.SocketException;
+
 /**
  * DroneSubsystem.java
  *
@@ -14,6 +17,7 @@ public class DroneSubsystem implements Runnable {
     private static final int BASE_ZONE_ID = 0;
     private int remainingLiters = MAX_CAPACITY_LITERS;
     private DroneState currentState = DroneState.IDLE;
+    private final DatagramSocket socket;
 
     // State-machine context
     private FireEvent currentAssignment = null;
@@ -25,12 +29,15 @@ public class DroneSubsystem implements Runnable {
      * @param fromScheduler queue used to receive assignments from Scheduler
      */
     public DroneSubsystem(MessageBuffer toScheduler,
-                          MessageBuffer fromScheduler) {
+                          MessageBuffer fromScheduler) throws SocketException {
         this.toScheduler = toScheduler;
         this.fromScheduler = fromScheduler;
+        this.socket = new DatagramSocket();
     }
 
     private static final int DRONE_ID = 1;
+
+    public void closeSocket() { socket.close(); }
 
     @Override
     public void run() {

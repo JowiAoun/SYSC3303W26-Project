@@ -1,6 +1,8 @@
 import static org.junit.jupiter.api.Assertions.*;
 import org.junit.jupiter.api.*;
 
+import java.net.SocketException;
+
 @TestMethodOrder(MethodOrderer.OrderAnnotation.class)
 public class SchedulerDispatchTest {
 
@@ -13,7 +15,7 @@ public class SchedulerDispatchTest {
     private Scheduler scheduler;
 
     @BeforeEach
-    public void setup() {
+    public void setup() throws SocketException {
         // Message buffers
         toScheduler = new MessageBuffer();
         schedulerToFire = new MessageBuffer();
@@ -24,7 +26,8 @@ public class SchedulerDispatchTest {
     }
 
     @AfterEach
-    public void spacing() {
+    public void teardown() {
+        scheduler.closeSocket();
         System.out.println();
     }
 

@@ -6,6 +6,7 @@
 import java.io.BufferedReader;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.net.SocketException;
 import java.nio.charset.StandardCharsets;
 
 public class Main {
@@ -25,10 +26,25 @@ public class Main {
         javax.swing.SwingUtilities.invokeLater(() -> gui.setVisible(true));
 
         // Build subsystems.
-        FireIncidentSubsystem fireIncident = new FireIncidentSubsystem(inputPath, toScheduler, schedulerToFire);
-        DroneSubsystem drone = new DroneSubsystem(toScheduler, schedulerToDrone);
+        FireIncidentSubsystem fireIncident = null;
+        try {
+            fireIncident = new FireIncidentSubsystem(inputPath, toScheduler, schedulerToFire);
+        } catch (SocketException e) {
+            throw new RuntimeException(e);
+        }
+        DroneSubsystem drone = null;
+        try {
+            drone = new DroneSubsystem(toScheduler, schedulerToDrone);
+        } catch (SocketException e) {
+            throw new RuntimeException(e);
+        }
         // Pass GUI to Scheduler
-        Scheduler scheduler = new Scheduler(toScheduler, schedulerToFire, schedulerToDrone, gui);
+        Scheduler scheduler = null;
+        try {
+            scheduler = new Scheduler(toScheduler, schedulerToFire, schedulerToDrone, gui);
+        } catch (SocketException e) {
+            throw new RuntimeException(e);
+        }
 
         // Launch threads.
         Thread fireThread = new Thread(fireIncident, "FireIncidentSubsystem");
@@ -46,5 +62,8 @@ public class Main {
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
         }
+        fireIncident.closeSocket();
+        drone.closeSocket();
+        scheduler.closeSocket();
     }
 }

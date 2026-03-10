@@ -1,3 +1,5 @@
+import java.net.DatagramSocket;
+import java.net.SocketException;
 import java.util.ArrayDeque;
 import java.util.Queue;
 /**
@@ -10,6 +12,7 @@ public class Scheduler implements Runnable {
     private final MessageBuffer fromSubsystems;
     private final MessageBuffer toFireIncident;
     private final MessageBuffer toDrone;
+    private final DatagramSocket socket;
 
     private final Queue<FireEvent> pending = new ArrayDeque<>();
     private int totalEvents = 0;
@@ -36,16 +39,19 @@ public class Scheduler implements Runnable {
     public Scheduler(MessageBuffer fromSubsystems,
                      MessageBuffer toFireIncident,
                      MessageBuffer toDrone,
-                     FireDroneGUI gui) {
+                     FireDroneGUI gui) throws SocketException {
         this.fromSubsystems = fromSubsystems;
         this.toFireIncident = toFireIncident;
         this.toDrone = toDrone;
         this.gui = gui;
+        this.socket = new DatagramSocket(SwarmNetwork.SCHEDULER_PORT);
     }
 
     public int getTotalEvents() { return totalEvents; }
 
     SchedulerState getCurrentState() { return currentState; }
+
+    public void closeSocket() { socket.close(); }
 
     @Override
     public void run() {

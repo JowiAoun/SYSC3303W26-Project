@@ -1,6 +1,8 @@
 import java.io.BufferedReader;
 import java.io.FileReader;
 import java.io.IOException;
+import java.net.DatagramSocket;
+import java.net.SocketException;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -15,6 +17,7 @@ public class FireIncidentSubsystem implements Runnable {
     private final MessageBuffer toScheduler;
     private final MessageBuffer fromScheduler;
     public final boolean readInputEvent;
+    private final DatagramSocket socket;
 
     /**
      * @param inputCsvPath path to the input CSV file
@@ -23,16 +26,19 @@ public class FireIncidentSubsystem implements Runnable {
      */
     public FireIncidentSubsystem(String inputCsvPath,
                                  MessageBuffer toScheduler,
-                                 MessageBuffer fromScheduler) {
+                                 MessageBuffer fromScheduler) throws SocketException {
         this.inputCsvPath = inputCsvPath;
         this.toScheduler = toScheduler;
         this.fromScheduler = fromScheduler;
         this.readInputEvent = hasAtLeastOneValidEvent();
+        this.socket = new DatagramSocket(SwarmNetwork.FIS_PORT);
     }
 
     public void setInputCsvPath(String inputCsvPath) {
         this.inputCsvPath = inputCsvPath;
     }
+
+    public void closeSocket() { socket.close(); }
 
     @Override
     public void run() {

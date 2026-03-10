@@ -1,5 +1,7 @@
 import static org.junit.jupiter.api.Assertions.*;
 import org.junit.jupiter.api.*;
+
+import java.net.SocketException;
 import java.util.List;
 
 @TestMethodOrder(MethodOrderer.OrderAnnotation.class)
@@ -16,7 +18,7 @@ public class MainTest {
     private Scheduler scheduler;
 
     @BeforeEach
-    public void setup() {
+    public void setup() throws SocketException {
         inputPath = "./src/test/resources/data/events.csv";
 
         toScheduler = new MessageBuffer();
@@ -29,7 +31,10 @@ public class MainTest {
     }
 
     @AfterEach
-    public void spacing() {
+    public void teardown() {
+        fireIncident.closeSocket();
+        drone.closeSocket();
+        scheduler.closeSocket();
         System.out.println();
     }
 
