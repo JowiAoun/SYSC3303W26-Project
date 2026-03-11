@@ -10,6 +10,36 @@ public class SwarmNetwork {
     public static final String LOCALHOST = "localhost";
     private static final int BUF_SIZE = 2048;
 
+    /**
+     * Wrapper class for a received message plus its sender address/port.
+     */
+    public static class ReceivedMessage {
+        private final Message message;
+        private final InetAddress address;
+        private final int port;
+
+        public ReceivedMessage(Message message, InetAddress address, int port) {
+            this.message = message;
+            this.address = address;
+            this.port = port;
+        }
+
+        public Message getMessage() {
+            return message;
+        }
+
+        public InetAddress getAddress() {
+            return address;
+        }
+
+        public int getPort() {
+            return port;
+        }
+    }
+
+    /**
+     * Shared packet-print helper.
+     */
     private static void printPacket(String prefix, String action, String peerLabel, DatagramPacket p, String containing, byte[] rawBytes) {
         System.out.println("\n" + prefix + " " + action);
         System.out.println(prefix + " " + peerLabel + ": " + p.getAddress() + ":" + p.getPort());
@@ -18,60 +48,58 @@ public class SwarmNetwork {
         System.out.println(prefix + " Bytes: " + Arrays.toString(rawBytes));
     }
 
-    // Drone Subsystem (Client) - Send request packet
-    public static void sendReq(DatagramSocket socket, InetAddress addr, int port, Message msg) throws Exception {
+    /**
+     * Generic send helper.
+     * Example calls:
+     * sendMessage(socket, addr, port, msg, "[Drone]", "Sent", "to Scheduler");
+     * sendMessage(socket, addr, port, msg, "[Scheduler]", "Forwarded", "to Drone");
+     */
+    public static void sendMessage(DatagramSocket socket, InetAddress addr, int port, Message msg, String prefix, String action, String peerLabel) throws Exception {
         byte[] msgBytes = msg.toBytes();
         DatagramPacket packet = new DatagramPacket(msgBytes, msgBytes.length, addr, port);
-        printPacket("[Drone]", "Request", "to Scheduler", packet, new String(msgBytes, StandardCharsets.UTF_8), msgBytes);
+        printPacket(prefix, action, peerLabel, packet, new String(msgBytes, StandardCharsets.UTF_8), msgBytes);
         socket.send(packet);
     }
 
-    // Scheduler (Host) - Forward request from Drone to FIS
-    public static void forwardReq(DatagramSocket socket, InetAddress addr, int port, Message msg) throws Exception {
-        byte[] msgBytes = msg.toBytes();
-        DatagramPacket packet = new DatagramPacket(msgBytes, msgBytes.length, addr, port);
-        printPacket("[Scheduler]", "Forwarded", "to FIS", packet, new String(msgBytes, StandardCharsets.UTF_8), msgBytes);
-        socket.send(packet);
-    }
+    /**
+     * Receive and return only the decoded Message.
+     * Example call:
+     * Message msg = receiveMessage(socket, "[Scheduler]", "from Drone");
+     */
+    public static Message receiveMessage(
+            DatagramSocket socket,
+            String prefix,
+            String peerLabel) throws Exception {
 
-    // Drone/Scheduler/FIS - Receive sent/forwarded packets
-    public static Message receiveMsg(DatagramSocket socket, String dstId, String srcId) throws Exception {
         byte[] buf = new byte[BUF_SIZE];
         DatagramPacket packet = new DatagramPacket(buf, buf.length);
         socket.receive(packet);
-        byte[] msgBytes = Arrays.copyOfRange(
-                packet.getData(),
-                packet.getOffset(),
-                packet.getOffset()+ packet.getLength());
+
+        byte[] msgBytes = Arrays.copyOfRange(packet.getData(), packet.getOffset(), packet.getOffset() + packet.getLength());
         Message msg = Message.fromBytes(msgBytes, msgBytes.length);
-        printPacket("[" + dstId + "]", "Received", "from " + srcId, packet, new String(msgBytes, StandardCharsets.UTF_8), msgBytes);
+        printPacket(prefix, "Received", peerLabel, packet, new String(msgBytes, StandardCharsets.UTF_8), msgBytes);
+
         return msg;
     }
 
-    // Fire Incident Subsystem (Server) - send response packet to Scheduler
-    public static void sendResp(DatagramSocket socket, InetAddress addr, int port, Message respMsg) throws Exception {
-        byte[] msgBytes = respMsg.toBytes();
-        DatagramPacket packet = new DatagramPacket(msgBytes, msgBytes.length, addr, port);
-        printPacket("[FIS]", "Response", "to Scheduler", packet, new String(msgBytes, StandardCharsets.UTF_8), msgBytes);
-        socket.send(packet);
+    /**
+     * Receive and return both the decoded Message and sender info.
+     * Useful for Scheduler to know who sent the packet.
+     */
+    public static ReceivedMessage receiveMessageWithSource(
+            DatagramSocket socket,
+            String prefix,
+            String peerLabel) throws Exception {
+
+        byte[] buf = new byte[BUF_SIZE];
+        DatagramPacket packet = new DatagramPacket(buf, buf.length);
+        socket.receive(packet);
+
+        byte[] msgBytes = Arrays.copyOfRange(packet.getData(), packet.getOffset(), packet.getOffset() + packet.getLength());
+        Message msg = Message.fromBytes(msgBytes, msgBytes.length);
+        printPacket(prefix, "Received", peerLabel, packet, new String(msgBytes, StandardCharsets.UTF_8), msgBytes);
+
+        return new ReceivedMessage(msg, packet.getAddress(), packet.getPort());
     }
-
-    // Scheduler - Forward response from FIS to Drone
-    public static void forwardResp(DatagramSocket socket, InetAddress addr, int port, Message msg) throws Exception {
-        byte[] msgBytes = msg.toBytes();
-        DatagramPacket packet = new DatagramPacket(msgBytes, msgBytes.length, addr, port);
-        printPacket("[Scheduler]", "Forwarded", "to Drone", packet, new String(msgBytes, StandardCharsets.UTF_8), msgBytes);
-        socket.send(packet);
-    }
-
-    // FIS - handle a request packet
-    public static String handleReq(String reqStr) {
-        reqStr = reqStr.trim();
-        // TODO: 'if (reqStr.startsWith(DroneState))' code blocks
-
-        return "DEBUG: " + reqStr;
-//        return "ERROR: INVALID_REQUEST";
-    }
-
 
 }
