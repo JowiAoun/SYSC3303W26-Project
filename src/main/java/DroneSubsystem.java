@@ -1,5 +1,7 @@
 import java.net.DatagramSocket;
+import java.net.InetAddress;
 import java.net.SocketException;
+import java.net.UnknownHostException;
 
 /**
  * DroneSubsystem.java
@@ -18,6 +20,7 @@ public class DroneSubsystem implements Runnable {
     private int remainingLiters = MAX_CAPACITY_LITERS;
     private DroneState currentState = DroneState.IDLE;
     private final DatagramSocket socket;
+    private final InetAddress schedulerAddr;
 
     // State-machine context
     private FireEvent currentAssignment = null;
@@ -29,13 +32,20 @@ public class DroneSubsystem implements Runnable {
      * @param fromScheduler queue used to receive assignments from Scheduler
      */
     public DroneSubsystem(MessageBuffer toScheduler,
-                          MessageBuffer fromScheduler) throws SocketException {
+                          MessageBuffer fromScheduler) throws SocketException, UnknownHostException {
         this.toScheduler = toScheduler;
         this.fromScheduler = fromScheduler;
         this.socket = new DatagramSocket();
+        // localAddress is localhost for now
+//        this.localAddress = InetAddress.getByName(SwarmNetwork.LOCALHOST);
+        this.schedulerAddr = InetAddress.getByName(SwarmNetwork.LOCALHOST);
     }
 
     private static final int DRONE_ID = 1;
+
+    public DatagramSocket getSocket() { return socket; }
+
+    public int getPort() { return socket.getPort(); }
 
     public void closeSocket() { socket.close(); }
 
@@ -81,7 +91,7 @@ public class DroneSubsystem implements Runnable {
             }
 
             System.out.println("[Drone] Finished. Completed: " + completed);
-        } catch (InterruptedException e) {
+        } catch (Exception e) {
             Thread.currentThread().interrupt();
             throw new RuntimeException("[Drone] Interrupted.", e);
         }
@@ -93,7 +103,7 @@ public class DroneSubsystem implements Runnable {
      * IDLE — blocks on fromScheduler.get() waiting for the next command.
      * @return false when the drone should exit the run loop (SHUTDOWN received)
      */
-    private boolean handleIdle() throws InterruptedException {
+    private boolean handleIdle() throws Exception {
         Message reply = receiveMessage();
         switch (reply.getType()) {
             case DRONE_ASSIGNMENT:
@@ -127,7 +137,7 @@ public class DroneSubsystem implements Runnable {
     /**
      * EN_ROUTE — simulate travel to the fire zone, then begin extinguishing.
      */
-    private void handleEnRoute() throws InterruptedException {
+    private void handleEnRoute() throws Exception {
         int targetZone = currentAssignment.getZoneId();
         System.out.println("[Drone] Flying to Zone " + targetZone);
         simulateTravel(targetZone);
@@ -139,7 +149,7 @@ public class DroneSubsystem implements Runnable {
      * EXTINGUISHING — drop water on the fire.
      * Transitions: fire done -> IDLE, tank empty -> RETURNING, otherwise stays EXTINGUISHING.
      */
-    private void handleExtinguishing() throws InterruptedException {
+    private void handleExtinguishing() throws Exception {
         int targetZone = currentAssignment.getZoneId();
         System.out.println("[Drone] Extinguishing fire at Zone " + targetZone);
 
@@ -170,7 +180,7 @@ public class DroneSubsystem implements Runnable {
     /**
      * RETURNING — simulate travel back to base, then refill.
      */
-    private void handleReturning() throws InterruptedException {
+    private void handleReturning() throws Exception {
         simulateTravel(BASE_ZONE_ID);
         currentZoneId = BASE_ZONE_ID;
         sendStatus(DroneState.REFILLING, BASE_ZONE_ID);
@@ -180,7 +190,7 @@ public class DroneSubsystem implements Runnable {
      * REFILLING — refill the tank.
      * If there's an active assignment, go back EN_ROUTE; otherwise go IDLE.
      */
-    private void handleRefilling() throws InterruptedException {
+    private void handleRefilling() throws Exception {
         System.out.println("[Drone] Refilling...");
         Thread.sleep(2000);
         remainingLiters = MAX_CAPACITY_LITERS;
@@ -229,29 +239,31 @@ public class DroneSubsystem implements Runnable {
     /**
      * Announce readiness to the Scheduler.
      */
-    void sendReadySignal() throws InterruptedException {
-        toScheduler.put(Message.droneReady());
+    void sendReadySignal() throws Exception {
+        // toScheduler.put(Message.droneReady());
+        SwarmNetwork.sendMessage(socket, schedulerAddr, SwarmNetwork.SCHEDULER_PORT, Message.droneReady(), "[Drone]", "sent Ready", "to Scheduler");
     }
 
     /**
      * Send an update that the drone is IDLE at base.
      */
-    void sendUserIdlingUpdate() throws InterruptedException {
+    void sendUserIdlingUpdate() throws Exception {
         sendStatus(DroneState.IDLE, BASE_ZONE_ID);
     }
 
     /**
      * Send an update that the drone is IDLE at a specific zone.
      */
-    void sendUserIdlingUpdate(int zoneId) throws InterruptedException {
+    void sendUserIdlingUpdate(int zoneId) throws Exception {
         sendStatus(DroneState.IDLE, zoneId);
     }
 
     /**
      * Reads one message from the Scheduler.
      */
-    Message receiveMessage() throws InterruptedException {
-        return fromScheduler.get();
+    Message receiveMessage() throws Exception {
+        // return fromScheduler.get();
+        return SwarmNetwork.receiveMessage(socket);
     }
 
     /**
@@ -278,7 +290,7 @@ public class DroneSubsystem implements Runnable {
     /**
      * Handle an assignment from the Scheduler.
      */
-    void processAssignment(Message reply) throws InterruptedException {
+    void processAssignment(Message reply) throws Exception {
         FireEvent event = reply.getEvent();
         System.out.println("[Drone] Assigned: " + event);
 
@@ -295,14 +307,15 @@ public class DroneSubsystem implements Runnable {
     /**
      * Reports completion of an event to the Scheduler.
      */
-    void sendCompletion(FireEvent event) throws InterruptedException {
-        toScheduler.put(Message.droneCompleted(event));
+    void sendCompletion(FireEvent event) throws Exception {
+        // toScheduler.put(Message.droneCompleted(event));
+        SwarmNetwork.sendMessage(socket, schedulerAddr, SwarmNetwork.SCHEDULER_PORT, Message.droneCompleted(event), "[Drone]", "sent Completion", "to Scheduler");
     }
 
     /**
      * Checks if a refill is needed and handles the refill process.
      */
-    private void checkAndRefillIfNeeded() throws InterruptedException {
+    private void checkAndRefillIfNeeded() throws Exception {
         if (remainingLiters <= 0) {
             System.out.println("[Drone] Tank empty. Returning to base for refill.");
 
@@ -322,7 +335,7 @@ public class DroneSubsystem implements Runnable {
     /**
      * Simulate service time based on severity.
      */
-    private void simulateService(FireEvent event) throws InterruptedException {
+    private void simulateService(FireEvent event) throws Exception {
         int remainingRequired = event.getRequiredLiters();
         int targetZone = event.getZoneId();
 
@@ -368,9 +381,11 @@ public class DroneSubsystem implements Runnable {
     /**
      * Single transition point: updates currentState and sends status to Scheduler.
      */
-    private void sendStatus(DroneState state, int zoneId) throws InterruptedException {
+    private void sendStatus(DroneState state, int zoneId) throws Exception {
         this.currentState = state;
-        toScheduler.put(Message.droneStatus(new DroneStatus(DRONE_ID, state, zoneId, remainingLiters)));
+        // toScheduler.put(Message.droneStatus(new DroneStatus(DRONE_ID, state, zoneId, remainingLiters)));
+        SwarmNetwork.sendMessage(socket, schedulerAddr, SwarmNetwork.SCHEDULER_PORT, Message.droneStatus(new DroneStatus(DRONE_ID, state, zoneId, remainingLiters)),
+                "[Drone]", "sent Drone Status", "to Scheduler");
     }
 
     private void simulateTravel(int zoneId) throws InterruptedException {
@@ -388,7 +403,7 @@ public class DroneSubsystem implements Runnable {
     /**
      * Handles the explicit Return To Base command from Scheduler.
      */
-    private void handleReturnToBase() throws InterruptedException {
+    private void handleReturnToBase() throws Exception {
         System.out.println("[Drone] Received Return to Base command.");
 
         // Travel to base

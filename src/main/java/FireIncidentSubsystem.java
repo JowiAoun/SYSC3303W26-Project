@@ -2,7 +2,9 @@ import java.io.BufferedReader;
 import java.io.FileReader;
 import java.io.IOException;
 import java.net.DatagramSocket;
+import java.net.InetAddress;
 import java.net.SocketException;
+import java.net.UnknownHostException;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -18,6 +20,7 @@ public class FireIncidentSubsystem implements Runnable {
     private final MessageBuffer fromScheduler;
     public final boolean readInputEvent;
     private final DatagramSocket socket;
+    private final InetAddress schedulerAddr;
 
     /**
      * @param inputCsvPath path to the input CSV file
@@ -26,12 +29,13 @@ public class FireIncidentSubsystem implements Runnable {
      */
     public FireIncidentSubsystem(String inputCsvPath,
                                  MessageBuffer toScheduler,
-                                 MessageBuffer fromScheduler) throws SocketException {
+                                 MessageBuffer fromScheduler) throws SocketException, UnknownHostException {
         this.inputCsvPath = inputCsvPath;
         this.toScheduler = toScheduler;
         this.fromScheduler = fromScheduler;
         this.readInputEvent = hasAtLeastOneValidEvent();
         this.socket = new DatagramSocket(SwarmNetwork.FIS_PORT);
+        this.schedulerAddr = InetAddress.getByName(SwarmNetwork.LOCALHOST);
     }
 
     public void setInputCsvPath(String inputCsvPath) {
@@ -43,8 +47,17 @@ public class FireIncidentSubsystem implements Runnable {
     @Override
     public void run() {
         List<FireEvent> events = loadEventsFromCsv();
-        int eventsSent = sendEventsToScheduler(events);
-        notifySchedulerInputComplete();
+        int eventsSent = 0;
+        try {
+            eventsSent = sendEventsToScheduler(events);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+        try {
+            notifySchedulerInputComplete();
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
         int eventsCompleted = awaitAcknowledgements();
         System.out.println("[FireIncident] Finished. Completed: " + eventsCompleted + "/" + eventsSent);
     }
@@ -113,10 +126,13 @@ public class FireIncidentSubsystem implements Runnable {
      * Sends events to the Scheduler.
      * @return number of events sent
      */
-    int sendEventsToScheduler(List<FireEvent> events) {
+    int sendEventsToScheduler(List<FireEvent> events) throws Exception {
         int eventsSent = 0;
         for (FireEvent event : events) {
-            toScheduler.put(Message.fireEvent(event));
+            // retaining old method for now
+            // toScheduler.put(Message.fireEvent(event));
+            // NEW: UDP sendMessage
+            SwarmNetwork.sendMessage(socket, schedulerAddr, SwarmNetwork.SCHEDULER_PORT, Message.fireEvent(event), "[FireIncident]", "sent Event", "to Scheduler");
             eventsSent++;
             System.out.println("[FireIncident] Sent event: " + event);
         }
@@ -126,15 +142,17 @@ public class FireIncidentSubsystem implements Runnable {
     /**
      * Reads one message from the Scheduler.
      */
-    Message receiveMessage() throws InterruptedException {
-        return fromScheduler.get();
+    Message receiveMessage() throws Exception {
+        // return fromScheduler.get();
+        return SwarmNetwork.receiveMessage(socket);
     }
 
     /**
      * Sends the shutdown signal to the Scheduler.
      */
-    void notifySchedulerInputComplete() {
-        toScheduler.put(Message.shutdown());
+    void notifySchedulerInputComplete() throws Exception {
+        // toScheduler.put(Message.shutdown());
+        SwarmNetwork.sendMessage(socket, schedulerAddr, SwarmNetwork.SCHEDULER_PORT, Message.shutdown(), "[FireIncident]", "sent Shutdown", "to Scheduler");
     }
 
     /**
@@ -153,7 +171,7 @@ public class FireIncidentSubsystem implements Runnable {
                 } else if (msg.getType() == Message.Type.SHUTDOWN) {
                     break;
                 }
-            } catch (InterruptedException e) {
+            } catch (Exception e) {
                 Thread.currentThread().interrupt();
                 break;
             }

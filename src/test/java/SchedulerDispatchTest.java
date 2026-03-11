@@ -1,6 +1,7 @@
 import static org.junit.jupiter.api.Assertions.*;
 import org.junit.jupiter.api.*;
 
+import java.net.InetAddress;
 import java.net.SocketException;
 
 @TestMethodOrder(MethodOrderer.OrderAnnotation.class)
@@ -38,14 +39,19 @@ public class SchedulerDispatchTest {
 
         // 1. Send fire event (becomes pending)
         FireEvent e = new FireEvent("00:00:01", 4, FireEvent.EventType.FIRE_DETECTED, FireEvent.Severity.LOW);
-        toScheduler.put(Message.fireEvent(e));
-        Message msg = scheduler.receiveSubsystemMessage();
-        scheduler.handleIncomingMessage(msg);
+        // toScheduler.put(Message.fireEvent(e));
+        SwarmNetwork.sendMessage(scheduler.getSocket(), InetAddress.getByName(SwarmNetwork.LOCALHOST), SwarmNetwork.SCHEDULER_PORT,
+                Message.fireEvent(e), "[FireIncident]", "sent FireEvent", "to Scheduler");
+        SwarmNetwork.ReceivedMessage rm = scheduler.receiveSubsystemMessage();
+        scheduler.handleIncomingMessage(rm);
 
         // 2. Send drone status: busy (EN_ROUTE)
-        toScheduler.put(Message.droneStatus(new DroneStatus(1, DroneState.EN_ROUTE, 4, 15)));
-        msg = scheduler.receiveSubsystemMessage();
-        scheduler.handleIncomingMessage(msg);
+        // toScheduler.put(Message.droneStatus(new DroneStatus(1, DroneState.EN_ROUTE, 4, 15)));
+        SwarmNetwork.sendMessage(scheduler.getSocket(), InetAddress.getByName(SwarmNetwork.LOCALHOST), SwarmNetwork.SCHEDULER_PORT,
+                Message.droneStatus(new DroneStatus(1, DroneState.EN_ROUTE, 4, 15)),
+                "[FireIncident]", "sent FireEvent", "to Scheduler");
+        rm = scheduler.receiveSubsystemMessage();
+        scheduler.handleIncomingMessage(rm);
 
         // 3. Assert cannot dispatch
         boolean actualValue = scheduler.canDispatchPendingEvent();
@@ -64,15 +70,20 @@ public class SchedulerDispatchTest {
         System.out.println("Test 2: Scheduler dispatches when drone is IDLE and pending event exists");
 
         // 1. Drone is IDLE
-        toScheduler.put(Message.droneStatus(new DroneStatus(1, DroneState.IDLE, 0, 15)));
-        Message msg = scheduler.receiveSubsystemMessage();
-        scheduler.handleIncomingMessage(msg);
+        // toScheduler.put(Message.droneStatus(new DroneStatus(1, DroneState.IDLE, 0, 15)));
+        SwarmNetwork.sendMessage(scheduler.getSocket(), InetAddress.getByName(SwarmNetwork.LOCALHOST), SwarmNetwork.SCHEDULER_PORT,
+                Message.droneStatus(new DroneStatus(1, DroneState.IDLE, 0, 15)),
+                "[FireIncident]", "sent FireEvent", "to Scheduler");
+        SwarmNetwork.ReceivedMessage rm = scheduler.receiveSubsystemMessage();
+        scheduler.handleIncomingMessage(rm);
 
         // 2. Fire event arrives
-        FireEvent e = new FireEvent("00:00:01", 7, FireEvent.EventType.FIRE_DETECTED, FireEvent.Severity.LOW);
-        toScheduler.put(Message.fireEvent(e));
-        msg = scheduler.receiveSubsystemMessage();
-        scheduler.handleIncomingMessage(msg);
+         FireEvent e = new FireEvent("00:00:01", 7, FireEvent.EventType.FIRE_DETECTED, FireEvent.Severity.LOW);
+        // toScheduler.put(Message.fireEvent(e));
+        SwarmNetwork.sendMessage(scheduler.getSocket(), InetAddress.getByName(SwarmNetwork.LOCALHOST), SwarmNetwork.SCHEDULER_PORT,
+                Message.fireEvent(e), "[FireIncident]", "sent FireEvent", "to Scheduler");
+        rm = scheduler.receiveSubsystemMessage();
+        scheduler.handleIncomingMessage(rm);
 
         // 3. Dispatch
         boolean canDispatch = scheduler.canDispatchPendingEvent();
@@ -82,7 +93,8 @@ public class SchedulerDispatchTest {
         scheduler.dispatchPendingEvent();
 
         // 4) Assert message went to drone buffer
-        Message toDrone = schedulerToDrone.get();
+        // Message toDrone = schedulerToDrone.get();
+        Message toDrone = SwarmNetwork.receiveMessage(scheduler.getSocket());
         assertEquals(Message.Type.DRONE_ASSIGNMENT, toDrone.getType());
         assertEquals(7, toDrone.getEvent().getZoneId());
 
@@ -103,23 +115,31 @@ public class SchedulerDispatchTest {
 
         // 1. Fire comes first (pending)
         FireEvent e = new FireEvent("00:00:01", 8, FireEvent.EventType.FIRE_DETECTED, FireEvent.Severity.LOW);
-        toScheduler.put(Message.fireEvent(e));
-        Message msg = scheduler.receiveSubsystemMessage();
-        scheduler.handleIncomingMessage(msg);
+        // toScheduler.put(Message.fireEvent(e));
+        SwarmNetwork.sendMessage(scheduler.getSocket(), InetAddress.getByName(SwarmNetwork.LOCALHOST), SwarmNetwork.SCHEDULER_PORT,
+                Message.fireEvent(e), "[FireIncident]", "sent FireEvent", "to Scheduler");
+        SwarmNetwork.ReceivedMessage rm = scheduler.receiveSubsystemMessage();
+        scheduler.handleIncomingMessage(rm);
 
         // 2. Drone is busy -> should not dispatch yet
-        toScheduler.put(Message.droneStatus(new DroneStatus(1, DroneState.EN_ROUTE, 8, 15)));
-        msg = scheduler.receiveSubsystemMessage();
-        scheduler.handleIncomingMessage(msg);
+        // toScheduler.put(Message.droneStatus(new DroneStatus(1, DroneState.EN_ROUTE, 8, 15)));
+        SwarmNetwork.sendMessage(scheduler.getSocket(), InetAddress.getByName(SwarmNetwork.LOCALHOST), SwarmNetwork.SCHEDULER_PORT,
+                Message.droneStatus(new DroneStatus(1, DroneState.EN_ROUTE, 8, 15)),
+                "[FireIncident]", "sent FireEvent", "to Scheduler");
+        rm = scheduler.receiveSubsystemMessage();
+        scheduler.handleIncomingMessage(rm);
 
         boolean canDispatchNow = scheduler.canDispatchPendingEvent();
         assertFalse(canDispatchNow);
         System.out.printf("Expecting canDispatch: false, got %s\n", canDispatchNow);
 
         // 3. Drone becomes IDLE -> now it should dispatch
-        toScheduler.put(Message.droneStatus(new DroneStatus(1, DroneState.IDLE, 0, 15)));
-        msg = scheduler.receiveSubsystemMessage();
-        scheduler.handleIncomingMessage(msg);
+        // toScheduler.put(Message.droneStatus(new DroneStatus(1, DroneState.IDLE, 0, 15)));
+        SwarmNetwork.sendMessage(scheduler.getSocket(), InetAddress.getByName(SwarmNetwork.LOCALHOST), SwarmNetwork.SCHEDULER_PORT,
+                Message.droneStatus(new DroneStatus(1, DroneState.IDLE, 0, 15)),
+                "[FireIncident]", "sent FireEvent", "to Scheduler");
+        rm = scheduler.receiveSubsystemMessage();
+        scheduler.handleIncomingMessage(rm);
 
         boolean canDispatchLater = scheduler.canDispatchPendingEvent();
         assertTrue(canDispatchLater);
@@ -127,7 +147,8 @@ public class SchedulerDispatchTest {
 
         scheduler.dispatchPendingEvent();
 
-        Message toDrone = schedulerToDrone.get();
+        // Message toDrone = schedulerToDrone.get();
+        Message toDrone = SwarmNetwork.receiveMessage(scheduler.getSocket());
         assertEquals(Message.Type.DRONE_ASSIGNMENT, toDrone.getType());
         assertEquals(8, toDrone.getEvent().getZoneId());
 
@@ -144,16 +165,20 @@ public class SchedulerDispatchTest {
         System.out.println("Test 4: Scheduler dispatches next task to drone at remote zone if agent sufficient");
 
         // 1. Drone is IDLE at Zone 5 with 10L remaining
-        toScheduler.put(Message.droneStatus(new DroneStatus(1, DroneState.IDLE, 5, 10)));
-        Message msg = scheduler.receiveSubsystemMessage();
-        scheduler.handleIncomingMessage(msg);
+        // toScheduler.put(Message.droneStatus(new DroneStatus(1, DroneState.IDLE, 5, 10)));
+        SwarmNetwork.sendMessage(scheduler.getSocket(), InetAddress.getByName(SwarmNetwork.LOCALHOST), SwarmNetwork.SCHEDULER_PORT,
+                Message.droneStatus(new DroneStatus(1, DroneState.IDLE, 5, 10)),
+                "[FireIncident]", "sent FireEvent", "to Scheduler");
+        SwarmNetwork.ReceivedMessage rm = scheduler.receiveSubsystemMessage();
+        scheduler.handleIncomingMessage(rm);
 
         // 2. Fire event arrives (Zone 6, needs 5L)
         FireEvent e = new FireEvent("00:00:01", 6, FireEvent.EventType.FIRE_DETECTED, FireEvent.Severity.LOW);
-
-        toScheduler.put(Message.fireEvent(e));
-        msg = scheduler.receiveSubsystemMessage();
-        scheduler.handleIncomingMessage(msg);
+        // toScheduler.put(Message.fireEvent(e));
+        SwarmNetwork.sendMessage(scheduler.getSocket(), InetAddress.getByName(SwarmNetwork.LOCALHOST), SwarmNetwork.SCHEDULER_PORT,
+                Message.fireEvent(e), "[FireIncident]", "sent FireEvent", "to Scheduler");
+        rm = scheduler.receiveSubsystemMessage();
+        scheduler.handleIncomingMessage(rm);
 
         // 3. Dispatch
         boolean canDispatch = scheduler.canDispatchPendingEvent();
@@ -162,7 +187,8 @@ public class SchedulerDispatchTest {
         scheduler.dispatchPendingEvent();
 
         // 4. Assert message went to drone buffer
-        Message toDrone = schedulerToDrone.get();
+        // Message toDrone = schedulerToDrone.get();
+        Message toDrone = SwarmNetwork.receiveMessage(scheduler.getSocket());
         assertEquals(Message.Type.DRONE_ASSIGNMENT, toDrone.getType());
         assertEquals(6, toDrone.getEvent().getZoneId());
     }
@@ -173,15 +199,20 @@ public class SchedulerDispatchTest {
         System.out.println("Test 5: Scheduler commands Return to Base if agent insufficient for next task");
 
         // 1. Drone is IDLE at Zone 5 with 5L remaining
-        toScheduler.put(Message.droneStatus(new DroneStatus(1, DroneState.IDLE, 5, 5)));
-        Message msg = scheduler.receiveSubsystemMessage();
-        scheduler.handleIncomingMessage(msg);
+        // toScheduler.put(Message.droneStatus(new DroneStatus(1, DroneState.IDLE, 5, 5)));
+        SwarmNetwork.sendMessage(scheduler.getSocket(), InetAddress.getByName(SwarmNetwork.LOCALHOST), SwarmNetwork.SCHEDULER_PORT,
+                Message.droneStatus(new DroneStatus(1, DroneState.IDLE, 5, 5)),
+                "[FireIncident]", "sent FireEvent", "to Scheduler");
+        SwarmNetwork.ReceivedMessage rm = scheduler.receiveSubsystemMessage();
+        scheduler.handleIncomingMessage(rm);
 
         // 2. Fire event arrives (Zone 6, needs 10L - LOW)
         FireEvent e = new FireEvent("00:00:01", 6, FireEvent.EventType.FIRE_DETECTED, FireEvent.Severity.LOW);
-        toScheduler.put(Message.fireEvent(e));
-        msg = scheduler.receiveSubsystemMessage();
-        scheduler.handleIncomingMessage(msg); // process fire event
+        // toScheduler.put(Message.fireEvent(e));
+        SwarmNetwork.sendMessage(scheduler.getSocket(), InetAddress.getByName(SwarmNetwork.LOCALHOST), SwarmNetwork.SCHEDULER_PORT,
+                Message.fireEvent(e), "[FireIncident]", "sent FireEvent", "to Scheduler");
+        rm = scheduler.receiveSubsystemMessage();
+        scheduler.handleIncomingMessage(rm); // process fire event
 
         // 3. Try to dispatch
         // canDispatchPendingEvent() checks if IDLE and pending exists. It returns TRUE.
@@ -192,7 +223,8 @@ public class SchedulerDispatchTest {
         scheduler.dispatchPendingEvent();
 
         // 5. Assert message
-        Message toDrone = schedulerToDrone.get();
+        // Message toDrone = schedulerToDrone.get();
+        Message toDrone = SwarmNetwork.receiveMessage(scheduler.getSocket());
         assertEquals(Message.Type.DRONE_RETURN_TO_BASE, toDrone.getType());
 
         // 6. After RTB, drone is RETURNING — should be AWAITING_DRONE (still have pending)

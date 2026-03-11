@@ -1,5 +1,7 @@
 import java.net.DatagramSocket;
+import java.net.InetAddress;
 import java.net.SocketException;
+import java.net.UnknownHostException;
 import java.util.ArrayDeque;
 import java.util.Queue;
 /**
@@ -13,8 +15,8 @@ public class Scheduler implements Runnable {
     private final MessageBuffer toFireIncident;
     private final MessageBuffer toDrone;
     private final DatagramSocket socket;
-
     private final Queue<FireEvent> pending = new ArrayDeque<>();
+
     private int totalEvents = 0;
     private int completed = 0;
     private boolean fireIncidentDone = false;
@@ -24,6 +26,8 @@ public class Scheduler implements Runnable {
     // Track the single drone's status.
     // Initially null until first ready/status message received.
     private DroneStatus lastDroneStatus = null;
+    private InetAddress lastDroneAddr;
+    private int lastDronePort = -1;
 
     private final FireDroneGUI gui;
 
@@ -51,6 +55,8 @@ public class Scheduler implements Runnable {
 
     SchedulerState getCurrentState() { return currentState; }
 
+    public DatagramSocket getSocket() { return socket; }
+
     public void closeSocket() { socket.close(); }
 
     @Override
@@ -59,7 +65,8 @@ public class Scheduler implements Runnable {
 
         try {
             while (currentState != SchedulerState.SHUTTING_DOWN) {
-                Message msg = receiveSubsystemMessage();
+                // Message msg = receiveSubsystemMessage();
+                SwarmNetwork.ReceivedMessage msg = receiveSubsystemMessage();
                 handleIncomingMessage(msg);
 
                 // Try to dispatch whenever state changes or new events arrive
@@ -73,7 +80,7 @@ public class Scheduler implements Runnable {
                 sendShutdownToFireIfComplete();
                 evaluateTransition();
             }
-        } catch (InterruptedException e) {
+        } catch (Exception e) {
             Thread.currentThread().interrupt();
             throw new RuntimeException("[Scheduler] Interrupted.", e);
         }
@@ -111,27 +118,38 @@ public class Scheduler implements Runnable {
     /**
      * Reads one message from the shared buffer.
      */
-    Message receiveSubsystemMessage() throws InterruptedException {
-        return fromSubsystems.get();
+    SwarmNetwork.ReceivedMessage receiveSubsystemMessage() throws Exception {
+        //return fromSubsystems.get();
+        return SwarmNetwork.receiveMessageWithSource(socket);
     }
 
     /**
      * Handles a message from either subsystem.
      */
-    void handleIncomingMessage(Message msg) throws InterruptedException {
+    void handleIncomingMessage(SwarmNetwork.ReceivedMessage rm) throws Exception {
+        Message msg = rm.getMessage();
         switch (msg.getType()) {
             case FIRE_EVENT:
             case SHUTDOWN:
                 handleFireIncidentMessage(msg);
                 break;
             case DRONE_READY:
+                saveLastDroneInfo(rm.getAddress(), rm.getPort());
             case DRONE_COMPLETED:
+                saveLastDroneInfo(rm.getAddress(), rm.getPort());
             case DRONE_STATUS_UPDATE:
+                saveLastDroneInfo(rm.getAddress(), rm.getPort());
                 handleDroneMessage(msg);
                 break;
             default:
                 System.out.println("[Scheduler] Unknown message type: " + msg.getType());
         }
+    }
+
+    void saveLastDroneInfo(InetAddress addr, int port) {
+        lastDroneAddr = addr;
+        lastDronePort = port;
+        System.out.println("[Scheduler] - Last Drone info saved - Addr: " + lastDroneAddr + ", Port: " + lastDronePort);
     }
 
     /**
@@ -145,7 +163,7 @@ public class Scheduler implements Runnable {
     /**
      * Dispatches the next pending event to the drone.
      */
-    void dispatchPendingEvent() throws InterruptedException {
+    void dispatchPendingEvent() throws Exception {
         // Check if the drone has enough agent for the next event
         FireEvent next = pending.peek();
         if (next == null) return;
@@ -162,8 +180,14 @@ public class Scheduler implements Runnable {
         }
 
         // If we get here, we can dispatch
-        next = pending.poll(); // remove from queue
-        toDrone.put(Message.droneAssignment(next));
+        // Check if we have valid lastDroneAddr and lastDronePort before removing from queue and sending Message
+        if (lastDroneAddr != null && lastDronePort != -1) {
+            next = pending.poll(); // remove from queue
+            // toDrone.put(Message.droneAssignment(next));
+            SwarmNetwork.sendMessage(socket, lastDroneAddr, lastDronePort, Message.droneAssignment(next), "[Scheduler]", "sent Assignment", "to Drone");
+        } else {
+            System.err.println("[Scheduler] - ERROR: Could not send Message to Drone - lastDroneAddr: " + lastDroneAddr + ", lastDronePort: " + lastDronePort);
+        }
 
         // Optimistically update status to prevent double dispatch
         // The drone will confirm with EN_ROUTE shortly
@@ -184,8 +208,13 @@ public class Scheduler implements Runnable {
     /**
      * Sends a command to the drone to return to base.
      */
-    void sendReturnToBase() throws InterruptedException {
-        toDrone.put(Message.droneReturnToBase());
+    void sendReturnToBase() throws Exception {
+        if (lastDroneAddr != null && lastDronePort != -1) {
+            // toDrone.put(Message.droneReturnToBase());
+            SwarmNetwork.sendMessage(socket, lastDroneAddr, lastDronePort, Message.droneReturnToBase(), "[Scheduler]", "sent RTB", "to Drone");
+        } else {
+            System.err.println("[Scheduler] - ERROR: Could not send Message to Drone - lastDroneAddr: " + lastDroneAddr + ", lastDronePort: " + lastDronePort);
+        }
 
         // Optimistically update status
         lastDroneStatus = new DroneStatus(
@@ -205,7 +234,7 @@ public class Scheduler implements Runnable {
     /**
      * Checks if the drone should return to base (Idle at remote zone + no work or no agent).
      */
-    void checkAndSendReturnToBase() throws InterruptedException {
+    void checkAndSendReturnToBase() throws Exception {
          if (lastDroneStatus != null &&
              lastDroneStatus.getState() == DroneState.IDLE &&
              lastDroneStatus.getZoneId() != 0) {
@@ -221,9 +250,15 @@ public class Scheduler implements Runnable {
     /**
      * Sends shutdown to Drone subsystem if conditions are met.
      */
-    void sendShutdownToDroneIfComplete() throws InterruptedException {
+    void sendShutdownToDroneIfComplete() throws Exception {
         if (isProcessingComplete() && !shutdownSentToDrone) {
-            toDrone.put(Message.shutdown());
+            if (lastDroneAddr != null && lastDronePort != -1) {
+                // toDrone.put(Message.shutdown());
+                SwarmNetwork.sendMessage(socket, lastDroneAddr, lastDronePort, Message.shutdown(), "[Scheduler]", "sent RTB", "to Drone");
+            } else {
+                System.err.println("[Scheduler] - ERROR: Could not send Message to Drone - lastDroneAddr: " + lastDroneAddr + ", lastDronePort: " + lastDronePort);
+            }
+
             shutdownSentToDrone = true;
             System.out.println("[Scheduler] Sent shutdown to Drone.");
         }
@@ -232,9 +267,15 @@ public class Scheduler implements Runnable {
     /**
      * Sends shutdown to Fire Incident subsystem if conditions are met.
      */
-    void sendShutdownToFireIfComplete() throws InterruptedException {
+    void sendShutdownToFireIfComplete() throws Exception {
         if (isProcessingComplete() && !shutdownSentToFire) {
-            toFireIncident.put(Message.shutdown());
+            if (InetAddress.getByName(SwarmNetwork.LOCALHOST) != null) {
+                // toFireIncident.put(Message.shutdown());
+                SwarmNetwork.sendMessage(socket, InetAddress.getByName(SwarmNetwork.LOCALHOST), SwarmNetwork.FIS_PORT, Message.shutdown(), "[Scheduler]", "sent RTB", "to Drone");
+            } else {
+                System.err.println("[Scheduler] - ERROR: Could not send Message to FireIncidentSubsystem - FIS Address: " + InetAddress.getByName(SwarmNetwork.LOCALHOST) + ", FIS Port: " + SwarmNetwork.FIS_PORT);
+            }
+
             shutdownSentToFire = true;
             System.out.println("[Scheduler] Sent shutdown to Fire Incident.");
         }
@@ -290,7 +331,7 @@ public class Scheduler implements Runnable {
     /**
      * Handle messages from the Drone subsystem.
      */
-    private void handleDroneMessage(Message message) throws InterruptedException {
+    private void handleDroneMessage(Message message) throws Exception {
         switch (message.getType()) {
             case DRONE_READY:
                 String readyMsg = "[Scheduler] Received Drone Ready Signal";
@@ -314,7 +355,13 @@ public class Scheduler implements Runnable {
 
             case DRONE_COMPLETED:
                 completed++;
-                toFireIncident.put(Message.fireAck(message.getEvent()));
+                if (InetAddress.getByName(SwarmNetwork.LOCALHOST) != null) {
+                    // toFireIncident.put(Message.fireAck(message.getEvent()));
+                    SwarmNetwork.sendMessage(socket, InetAddress.getByName(SwarmNetwork.LOCALHOST), SwarmNetwork.FIS_PORT, Message.fireAck(message.getEvent()), "[Scheduler]", "sent RTB", "to Drone");
+                } else {
+                    System.err.println("[Scheduler] - ERROR: Could not send Message to FireIncidentSubsystem - FIS Address: " + InetAddress.getByName(SwarmNetwork.LOCALHOST) + ", FIS Port: " + SwarmNetwork.FIS_PORT);
+                }
+
                 String completedMsg = "[Scheduler] Completion ack forwarded: " + message.getEvent();
                 System.out.println(completedMsg);
 

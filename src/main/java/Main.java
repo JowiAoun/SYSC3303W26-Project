@@ -7,6 +7,7 @@ import java.io.BufferedReader;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.net.SocketException;
+import java.net.UnknownHostException;
 import java.nio.charset.StandardCharsets;
 
 public class Main {
@@ -29,13 +30,13 @@ public class Main {
         FireIncidentSubsystem fireIncident = null;
         try {
             fireIncident = new FireIncidentSubsystem(inputPath, toScheduler, schedulerToFire);
-        } catch (SocketException e) {
+        } catch (SocketException | UnknownHostException e) {
             throw new RuntimeException(e);
         }
         DroneSubsystem drone = null;
         try {
             drone = new DroneSubsystem(toScheduler, schedulerToDrone);
-        } catch (SocketException e) {
+        } catch (SocketException | UnknownHostException e) {
             throw new RuntimeException(e);
         }
         // Pass GUI to Scheduler

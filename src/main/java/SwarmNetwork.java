@@ -66,18 +66,14 @@ public class SwarmNetwork {
      * Example call:
      * Message msg = receiveMessage(socket, "[Scheduler]", "from Drone");
      */
-    public static Message receiveMessage(
-            DatagramSocket socket,
-            String prefix,
-            String peerLabel) throws Exception {
-
+    public static Message receiveMessage(DatagramSocket socket) throws Exception {
         byte[] buf = new byte[BUF_SIZE];
         DatagramPacket packet = new DatagramPacket(buf, buf.length);
         socket.receive(packet);
 
         byte[] msgBytes = Arrays.copyOfRange(packet.getData(), packet.getOffset(), packet.getOffset() + packet.getLength());
         Message msg = Message.fromBytes(msgBytes, msgBytes.length);
-        printPacket(prefix, "Received", peerLabel, packet, new String(msgBytes, StandardCharsets.UTF_8), msgBytes);
+//        printPacket(prefix, "Received", peerLabel, packet, new String(msgBytes, StandardCharsets.UTF_8), msgBytes);
 
         return msg;
     }
@@ -86,18 +82,14 @@ public class SwarmNetwork {
      * Receive and return both the decoded Message and sender info.
      * Useful for Scheduler to know who sent the packet.
      */
-    public static ReceivedMessage receiveMessageWithSource(
-            DatagramSocket socket,
-            String prefix,
-            String peerLabel) throws Exception {
-
+    public static ReceivedMessage receiveMessageWithSource(DatagramSocket socket) throws Exception {
         byte[] buf = new byte[BUF_SIZE];
         DatagramPacket packet = new DatagramPacket(buf, buf.length);
         socket.receive(packet);
 
         byte[] msgBytes = Arrays.copyOfRange(packet.getData(), packet.getOffset(), packet.getOffset() + packet.getLength());
         Message msg = Message.fromBytes(msgBytes, msgBytes.length);
-        printPacket(prefix, "Received", peerLabel, packet, new String(msgBytes, StandardCharsets.UTF_8), msgBytes);
+//        printPacket(prefix, "Received", peerLabel, packet, new String(msgBytes, StandardCharsets.UTF_8), msgBytes);
 
         return new ReceivedMessage(msg, packet.getAddress(), packet.getPort());
     }

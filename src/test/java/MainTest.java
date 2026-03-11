@@ -1,7 +1,9 @@
 import static org.junit.jupiter.api.Assertions.*;
 import org.junit.jupiter.api.*;
 
+import java.net.InetAddress;
 import java.net.SocketException;
+import java.net.UnknownHostException;
 import java.util.List;
 
 @TestMethodOrder(MethodOrderer.OrderAnnotation.class)
@@ -18,7 +20,7 @@ public class MainTest {
     private Scheduler scheduler;
 
     @BeforeEach
-    public void setup() throws SocketException {
+    public void setup() throws SocketException, UnknownHostException {
         inputPath = "./src/test/resources/data/events.csv";
 
         toScheduler = new MessageBuffer();
@@ -64,7 +66,7 @@ public class MainTest {
     // Test 2: Verify FIS sends valid input to Scheduler
     @Test
     @Order(3)
-    public void test_2() throws InterruptedException {
+    public void test_2() throws Exception {
         System.out.println("Test 2: Verify FIS sends valid input to Scheduler");
 
         // 1. FIS reads fire event from test input data (or we can rig the FIS to read a set fire event, might be easier)
@@ -76,8 +78,8 @@ public class MainTest {
         // 3. Scheduler reads, handles the sent fire event data
         System.out.printf("Total events BEFORE receiving message: %d\n", scheduler.getTotalEvents());
 
-        Message msg = scheduler.receiveSubsystemMessage();
-        scheduler.handleIncomingMessage(msg);
+        SwarmNetwork.ReceivedMessage rm = scheduler.receiveSubsystemMessage();
+        scheduler.handleIncomingMessage(rm);
         // 4. ASSERT that Scheduler handled the sent data correctly, maybe check some variable/state change?
         System.out.printf("Total events AFTER receiving message: %d\n", scheduler.getTotalEvents());
         assertEquals(1, scheduler.getTotalEvents());
@@ -88,7 +90,7 @@ public class MainTest {
     // Test 3a: Verify Drone Subsystem contacts Scheduler - Handles NO tasks/fires to put out properly
     @Test
     @Order(4)
-    public void test_3a() throws InterruptedException {
+    public void test_3a() throws Exception {
         System.out.println("Test 3a: Verify Drone Subsystem contacts Scheduler - Handles NO tasks/fires to put out properly");
         fireIncident.setInputCsvPath("./src/test/resources/data/blank_data.csv");
 
@@ -109,14 +111,14 @@ public class MainTest {
     // Test 3b: Verify Drone Subsystem contacts Scheduler - Handles HAS tasks/fires to put out properly
     @Test
     @Order(5)
-    public void test_3b() throws InterruptedException {
+    public void test_3b() throws Exception {
         System.out.println("Test 3b: Verify Drone Subsystem contacts Scheduler - Handles HAS tasks/fires to put out properly");
         fireIncident.setInputCsvPath("./src/test/resources/data/valid_fire_event.csv");
         List<FireEvent> events = fireIncident.loadEventsFromCsv();
         int eventsSent = fireIncident.sendEventsToScheduler(events);
         System.out.printf("eventsSent: %d\n", eventsSent);
-        Message msg = scheduler.receiveSubsystemMessage();
-        scheduler.handleIncomingMessage(msg);
+        SwarmNetwork.ReceivedMessage rm = scheduler.receiveSubsystemMessage();
+        scheduler.handleIncomingMessage(rm);
 
         // 1. DS contacts Scheduler
         drone.sendReadySignal();
@@ -134,13 +136,13 @@ public class MainTest {
     // Test 4a: Verify Scheduler reads messages from FIS and forwards to DS
     @Test
     @Order(6)
-    public void test_4a() throws InterruptedException {
+    public void test_4a() throws Exception {
         System.out.println("Test 4a: Verify Scheduler reads messages from FIS and forwards to DS");
         fireIncident.setInputCsvPath("./src/test/resources/data/valid_fire_event.csv");
         List<FireEvent> events = fireIncident.loadEventsFromCsv();
         drone.sendReadySignal();
-        Message msg = scheduler.receiveSubsystemMessage();
-        scheduler.handleIncomingMessage(msg);
+        SwarmNetwork.ReceivedMessage rm = scheduler.receiveSubsystemMessage();
+        scheduler.handleIncomingMessage(rm);
 
         // 1. Scheduler dispatch requires an IDLE status update from the drone.
         drone.sendUserIdlingUpdate();
@@ -149,13 +151,13 @@ public class MainTest {
         // 2. FIS sends a message to Scheduler
         int eventsSent = fireIncident.sendEventsToScheduler(events);
         System.out.printf("eventsSent: %d\n", eventsSent);
-        msg = scheduler.receiveSubsystemMessage();
-        scheduler.handleIncomingMessage(msg);
+        rm = scheduler.receiveSubsystemMessage();
+        scheduler.handleIncomingMessage(rm);
         // 3. Scheduler sends message to DS
         assertTrue(scheduler.canDispatchPendingEvent(), "Scheduler should be able to dispatch before attempting to dispatch");
         scheduler.dispatchPendingEvent();
         // 4. ASSERT DS reception of forwarded message
-        msg = drone.receiveMessage();
+        Message msg = drone.receiveMessage();
         boolean actualValue = drone.isAssignment(msg);
         assertTrue(actualValue);
         System.out.printf("Expecting: true, got %s\n", actualValue);
@@ -164,7 +166,7 @@ public class MainTest {
     // Test 4b: Scheduler reads completion and forwards FIRE_ACK to FIS
     @Test
     @Order(7)
-    public void test_4b() throws InterruptedException {
+    public void test_4b() throws Exception {
         System.out.println("Test 4b: Scheduler forwards DS completion to FIS (FIRE_ACK)");
 
         fireIncident.setInputCsvPath("./src/test/resources/data/valid_fire_event.csv");
@@ -178,8 +180,8 @@ public class MainTest {
         // FIS sends event to Scheduler
         fireIncident.sendEventsToScheduler(events);
         // Scheduler receives the fire event
-        Message msg = scheduler.receiveSubsystemMessage();
-        scheduler.handleIncomingMessage(msg);
+        SwarmNetwork.ReceivedMessage rm = scheduler.receiveSubsystemMessage();
+        scheduler.handleIncomingMessage(rm);
         // Scheduler dispatches to DroneSubsystem.
         assertTrue(scheduler.canDispatchPendingEvent(), "Scheduler should be able to dispatch before attempting to dispatch");
         scheduler.dispatchPendingEvent();
@@ -187,10 +189,13 @@ public class MainTest {
         Message assignment = drone.receiveMessage();
         assertTrue(drone.isAssignment(assignment));
         FireEvent completedEvent = assignment.getEvent();
-        toScheduler.put(Message.droneCompleted(completedEvent));
+
+        // toScheduler.put(Message.droneCompleted(completedEvent));
+        SwarmNetwork.sendMessage(drone.getSocket(), InetAddress.getByName(SwarmNetwork.LOCALHOST), SwarmNetwork.SCHEDULER_PORT, Message.droneCompleted(completedEvent), "[Drone]", "sent Completion", "to Scheduler");
+
         // Scheduler receives completion and should forward FIRE_ACK to FIS
-        msg = scheduler.receiveSubsystemMessage();
-        scheduler.handleIncomingMessage(msg);
+        rm = scheduler.receiveSubsystemMessage();
+        scheduler.handleIncomingMessage(rm);
 
         Message ack = fireIncident.receiveMessage();
         assertEquals(Message.Type.FIRE_ACK, ack.getType());
