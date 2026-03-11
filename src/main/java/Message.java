@@ -1,3 +1,5 @@
+import java.nio.charset.StandardCharsets;
+
 /**
  * Message.java
  *
@@ -24,9 +26,9 @@ public class Message {
     private final DroneStatus status;
 
     /**
-     * Private constructor to force use of factory methods.
+     * Constructor to force use of factory methods.
      */
-    private Message(Type type, FireEvent event, DroneStatus status) {
+    public Message(Type type, FireEvent event, DroneStatus status) {
         this.type = type;
         this.event = event;
         this.status = status;
@@ -108,6 +110,75 @@ public class Message {
      */
     public DroneStatus getStatus() {
         return status;
+    }
+
+    /**
+     * Convert Message data into bytes.
+     */
+    public byte[] toBytes() {
+        String[] fields = new String[9];
+        fields[0] = type.name();
+
+        if (event != null) {
+            fields[1] = event.getTime();
+            fields[2] = Integer.toString(event.getZoneId());
+            fields[3] = event.getEventType().name();
+            fields[4] = event.getSeverity().name();
+        } else {
+            fields[1] = "";
+            fields[2] = "";
+            fields[3] = "";
+            fields[4] = "";
+        }
+
+        if (status != null) {
+            fields[5] = Integer.toString(status.getDroneId());
+            fields[6] = status.getState().name();
+            fields[7] = Integer.toString(status.getZoneId());
+            fields[8] = Integer.toString(status.getRemainingLiters());
+        } else {
+            fields[5] = "";
+            fields[6] = "";
+            fields[7] = "";
+            fields[8] = "";
+        }
+
+        String wire = String.join("|", fields);
+        return wire.getBytes(StandardCharsets.UTF_8);
+    }
+
+    /**
+     * Decode bytes into Message data.
+     */
+    public static Message fromBytes(byte[] data, int length) {
+        String wire = new String(data, 0, length, StandardCharsets.UTF_8);
+        String[] parts = wire.split("\\|", -1); // keep empty fields
+
+        if (parts.length != 9) {
+            throw new IllegalArgumentException("Invalid message format: " + wire);
+        }
+
+        Type type = Type.valueOf(parts[0]);
+
+        FireEvent event = null;
+        if (!parts[1].isEmpty()) {
+            String time = parts[1];
+            int zoneId = Integer.parseInt(parts[2]);
+            FireEvent.EventType eventType = FireEvent.EventType.valueOf(parts[3]);
+            FireEvent.Severity severity = FireEvent.Severity.valueOf(parts[4]);
+            event = new FireEvent(time, zoneId, eventType, severity);
+        }
+
+        DroneStatus status = null;
+        if (!parts[5].isEmpty()) {
+            int droneId = Integer.parseInt(parts[5]);
+            DroneState droneState = DroneState.valueOf(parts[6]);
+            int zoneId = Integer.parseInt(parts[7]);
+            int remainingLiters = Integer.parseInt(parts[8]);
+            status = new DroneStatus(droneId, droneState, zoneId, remainingLiters);
+        }
+
+        return new Message(type, event, status);
     }
 
 }

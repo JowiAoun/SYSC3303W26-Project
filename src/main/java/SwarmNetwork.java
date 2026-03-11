@@ -19,23 +19,23 @@ public class SwarmNetwork {
     }
 
     // Drone Subsystem (Client) - Send request packet
-    public static void sendReq(DatagramSocket socket, InetAddress addr, int port, String msg) throws Exception {
-        byte[] msgBytes = msg.getBytes(StandardCharsets.UTF_8);
+    public static void sendReq(DatagramSocket socket, InetAddress addr, int port, Message msg) throws Exception {
+        byte[] msgBytes = msg.toBytes();
         DatagramPacket packet = new DatagramPacket(msgBytes, msgBytes.length, addr, port);
-        printPacket("[Drone]", "Request", "to Scheduler", packet, msg, msgBytes);
+        printPacket("[Drone]", "Request", "to Scheduler", packet, new String(msgBytes, StandardCharsets.UTF_8), msgBytes);
         socket.send(packet);
     }
 
     // Scheduler (Host) - Forward request from Drone to FIS
-    public static void forwardReq(DatagramSocket socket, InetAddress addr, int port, String msg) throws Exception {
-        byte[] msgBytes = msg.getBytes(StandardCharsets.UTF_8);
+    public static void forwardReq(DatagramSocket socket, InetAddress addr, int port, Message msg) throws Exception {
+        byte[] msgBytes = msg.toBytes();
         DatagramPacket packet = new DatagramPacket(msgBytes, msgBytes.length, addr, port);
-        printPacket("[Scheduler]", "Forwarded", "to FIS", packet, msg, msgBytes);
+        printPacket("[Scheduler]", "Forwarded", "to FIS", packet, new String(msgBytes, StandardCharsets.UTF_8), msgBytes);
         socket.send(packet);
     }
 
     // Drone/Scheduler/FIS - Receive sent/forwarded packets
-    public static String receiveMsg(DatagramSocket socket, String dstId, String srcId) throws Exception {
+    public static Message receiveMsg(DatagramSocket socket, String dstId, String srcId) throws Exception {
         byte[] buf = new byte[BUF_SIZE];
         DatagramPacket packet = new DatagramPacket(buf, buf.length);
         socket.receive(packet);
@@ -43,24 +43,24 @@ public class SwarmNetwork {
                 packet.getData(),
                 packet.getOffset(),
                 packet.getOffset()+ packet.getLength());
-        String msgStr = new String(msgBytes, StandardCharsets.UTF_8).trim();
-        printPacket("[" + dstId + "]", "Received", "from " + srcId, packet, msgStr, msgBytes);
-        return msgStr;
+        Message msg = Message.fromBytes(msgBytes, msgBytes.length);
+        printPacket("[" + dstId + "]", "Received", "from " + srcId, packet, new String(msgBytes, StandardCharsets.UTF_8), msgBytes);
+        return msg;
     }
 
     // Fire Incident Subsystem (Server) - send response packet to Scheduler
-    public static void sendResp(DatagramSocket socket, InetAddress addr, int port, String respStr) throws Exception {
-        byte[] msgBytes = respStr.getBytes(StandardCharsets.UTF_8);
+    public static void sendResp(DatagramSocket socket, InetAddress addr, int port, Message respMsg) throws Exception {
+        byte[] msgBytes = respMsg.toBytes();
         DatagramPacket packet = new DatagramPacket(msgBytes, msgBytes.length, addr, port);
-        printPacket("[FIS]", "Response", "to Scheduler", packet, respStr, msgBytes);
+        printPacket("[FIS]", "Response", "to Scheduler", packet, new String(msgBytes, StandardCharsets.UTF_8), msgBytes);
         socket.send(packet);
     }
 
     // Scheduler - Forward response from FIS to Drone
-    public static void forwardResp(DatagramSocket socket, InetAddress addr, int port, String msg) throws Exception {
-        byte[] msgBytes = msg.getBytes(StandardCharsets.UTF_8);
+    public static void forwardResp(DatagramSocket socket, InetAddress addr, int port, Message msg) throws Exception {
+        byte[] msgBytes = msg.toBytes();
         DatagramPacket packet = new DatagramPacket(msgBytes, msgBytes.length, addr, port);
-        printPacket("[Scheduler]", "Forwarded", "to Drone", packet, msg, msgBytes);
+        printPacket("[Scheduler]", "Forwarded", "to Drone", packet, new String(msgBytes, StandardCharsets.UTF_8), msgBytes);
         socket.send(packet);
     }
 
