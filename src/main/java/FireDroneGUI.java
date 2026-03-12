@@ -39,6 +39,7 @@ public class FireDroneGUI extends JFrame {
     private final Map<Integer, Integer> droneLastZone = new HashMap<>();       // droneId → last zoneId
     private final Set<Integer> activeDroneIds = new HashSet<>();               // non-idle drone IDs
     private final Map<Integer, FireEvent.Severity> zoneSeverities = new HashMap<>(); // zoneId → severity
+    private final Map<Integer, DroneStatus> droneCurrentStatuses = new HashMap<>();  // droneId → latest status
     private JTextArea eventLog;
     private JLabel statusLeft;
     private JLabel statusRight;
@@ -257,70 +258,20 @@ public class FireDroneGUI extends JFrame {
 
     /**
      * Updates the GUI based on the drone's status.
-     * Tracks drone-to-zone assignment, clears stale cells, and updates sidebar.
+     * Tracks drone-to-zone assignment, recomputes cells for old and new zones
+     * so that multiple drones sharing a zone are all visible.
      * Thread-safe.
      */
     public void updateDroneStatus(DroneStatus status) {
         runOnEdt(() -> {
             int droneId = status.getDroneId();
             int currentZoneId = status.getZoneId();
-            String dronePrefix = "D" + droneId + " ";
 
-            // Clear previous zone cell if the drone has moved to a different zone
+            // Save the old zone before updating
             Integer lastZoneId = droneLastZone.get(droneId);
-            if (lastZoneId != null && lastZoneId != currentZoneId) {
-                ZoneDef lastZone = getZoneById(lastZoneId);
-                if (lastZone != null) {
-                    // Revert to fire state if zone is still active, otherwise empty
-                    if (activeZoneIds.contains(lastZoneId)) {
-                        FireEvent.Severity sev = zoneSeverities.get(lastZoneId);
-                        setCellState(lastZone.startCol, lastZone.startRow, CellState.ACTIVE_FIRE);
-                        setCellText(lastZone.startCol, lastZone.startRow, "FIRE" + severityLabel(sev));
-                    } else {
-                        setCellState(lastZone.startCol, lastZone.startRow, CellState.EMPTY);
-                        setCellText(lastZone.startCol, lastZone.startRow, "");
-                    }
-                }
-            }
 
-            // Map DroneState to CellState for the target zone
-            ZoneDef zone = getZoneById(currentZoneId);
-            if (zone != null) {
-                CellState cellState = CellState.EMPTY;
-                String text = "";
-
-                switch (status.getState()) {
-                    case EN_ROUTE:
-                        cellState = CellState.DRONE_OUTBOUND;
-                        text = dronePrefix + ">>>";
-                        break;
-                    case EXTINGUISHING:
-                        cellState = CellState.DRONE_EXTINGUISHED;
-                        text = dronePrefix + "FIGHT";
-                        break;
-                    case RETURNING:
-                        cellState = CellState.DRONE_RETURNING;
-                        text = dronePrefix + "<<<";
-                        break;
-                    case REFILLING:
-                        cellState = CellState.DRONE_RETURNING;
-                        text = dronePrefix + "FILL";
-                        break;
-                    case IDLE:
-                        if (currentZoneId == 0) {
-                            cellState = CellState.DRONE_RETURNING;
-                            text = dronePrefix + "IDLE";
-                        }
-                        break;
-                }
-
-                if (cellState != CellState.EMPTY) {
-                    setCellState(zone.startCol, zone.startRow, cellState);
-                    setCellText(zone.startCol, zone.startRow, text);
-                }
-            }
-
-            // Track drone's current zone
+            // Update tracking maps
+            droneCurrentStatuses.put(droneId, status);
             droneLastZone.put(droneId, currentZoneId);
 
             // Track active drones via set
@@ -331,11 +282,128 @@ public class FireDroneGUI extends JFrame {
             }
             setActiveDrones(activeDroneIds.size());
 
+            // Recompute the old zone cell (drone left it)
+            if (lastZoneId != null && lastZoneId != currentZoneId) {
+                recomputeZoneCell(lastZoneId);
+            }
+
+            // Recompute the new zone cell (drone arrived or updated state)
+            recomputeZoneCell(currentZoneId);
+
             // Update sidebar label with zone + remaining liters
-            String zoneInfo = currentZoneId > 0 ? " → Zone " + currentZoneId : "";
+            String zoneInfo = currentZoneId > 0 ? " \u2192 Zone " + currentZoneId : "";
             String litersInfo = " (" + status.getRemainingLiters() + "L)";
             setDroneState(droneId, status.getState().name() + zoneInfo + litersInfo);
         });
+    }
+
+    /**
+     * Recomputes a zone cell's text and state based on all drones currently at that zone.
+     * If no drones are present, reverts to fire or empty state.
+     */
+    private void recomputeZoneCell(int zoneId) {
+        ZoneDef zone = getZoneById(zoneId);
+        if (zone == null) return;
+
+        // Collect all drones currently at this zone
+        List<DroneStatus> dronesHere = new ArrayList<>();
+        for (Map.Entry<Integer, Integer> entry : droneLastZone.entrySet()) {
+            if (entry.getValue() == zoneId) {
+                DroneStatus ds = droneCurrentStatuses.get(entry.getKey());
+                if (ds != null) {
+                    dronesHere.add(ds);
+                }
+            }
+        }
+
+        // Filter to drones that should actually be displayed on the cell
+        // (IDLE drones at non-base zones are not displayed)
+        List<DroneStatus> visibleDrones = new ArrayList<>();
+        for (DroneStatus ds : dronesHere) {
+            if (ds.getState() == DroneState.IDLE && zoneId != 0) {
+                continue; // IDLE at remote zone — not rendered on grid
+            }
+            if (ds.getState() == DroneState.IDLE && zoneId == 0) {
+                visibleDrones.add(ds);
+            } else if (ds.getState() != DroneState.IDLE) {
+                visibleDrones.add(ds);
+            }
+        }
+
+        if (visibleDrones.isEmpty()) {
+            // No drones to display — revert to fire or empty
+            if (activeZoneIds.contains(zoneId)) {
+                FireEvent.Severity sev = zoneSeverities.get(zoneId);
+                setCellState(zone.startCol, zone.startRow, CellState.ACTIVE_FIRE);
+                setCellText(zone.startCol, zone.startRow, "FIRE" + severityLabel(sev));
+            } else {
+                setCellState(zone.startCol, zone.startRow, CellState.EMPTY);
+                setCellText(zone.startCol, zone.startRow, "");
+            }
+            return;
+        }
+
+        // Determine the highest-priority cell state and build text for all drones
+        CellState bestState = CellState.EMPTY;
+        StringBuilder htmlBuilder = new StringBuilder("<html><center>");
+        for (int i = 0; i < visibleDrones.size(); i++) {
+            DroneStatus ds = visibleDrones.get(i);
+            String label = droneShortLabel(ds);
+            CellState cs = droneCellState(ds);
+
+            if (statePriority(cs) > statePriority(bestState)) {
+                bestState = cs;
+            }
+
+            if (i > 0) htmlBuilder.append("<br>");
+            htmlBuilder.append(label);
+        }
+        htmlBuilder.append("</center></html>");
+
+        setCellState(zone.startCol, zone.startRow, bestState);
+        setCellText(zone.startCol, zone.startRow, htmlBuilder.toString());
+    }
+
+    /**
+     * Returns a short display label for a drone status, e.g. "D1 >>>".
+     */
+    private String droneShortLabel(DroneStatus ds) {
+        String prefix = "D" + ds.getDroneId();
+        switch (ds.getState()) {
+            case EN_ROUTE:       return prefix + " &gt;&gt;&gt;";
+            case EXTINGUISHING:  return prefix + " FIGHT";
+            case RETURNING:      return prefix + " &lt;&lt;&lt;";
+            case REFILLING:      return prefix + " FILL";
+            case IDLE:           return prefix + " IDLE";
+            default:             return prefix;
+        }
+    }
+
+    /**
+     * Maps a DroneState to the corresponding CellState.
+     */
+    private CellState droneCellState(DroneStatus ds) {
+        switch (ds.getState()) {
+            case EN_ROUTE:      return CellState.DRONE_OUTBOUND;
+            case EXTINGUISHING: return CellState.DRONE_EXTINGUISHED;
+            case RETURNING:
+            case REFILLING:
+            case IDLE:          return CellState.DRONE_RETURNING;
+            default:            return CellState.EMPTY;
+        }
+    }
+
+    /**
+     * Returns a priority value for cell states so the most important state wins
+     * when multiple drones share a cell.
+     */
+    private int statePriority(CellState state) {
+        switch (state) {
+            case DRONE_EXTINGUISHED: return 3;
+            case DRONE_OUTBOUND:     return 2;
+            case DRONE_RETURNING:    return 1;
+            default:                 return 0;
+        }
     }
 
     /**
