@@ -97,31 +97,26 @@ public class ZoneCell extends JLabel {
                 break;
             case ACTIVE_FIRE:
                 setBackground(new Color(220, 80, 80));
-                setText("");
                 setFont(getFont().deriveFont(Font.BOLD, 11f));
                 setHorizontalAlignment(SwingConstants.CENTER);
                 break;
             case EXTINGUISHED:
                 setBackground(new Color(120, 200, 120));
-                setText("");
                 setFont(getFont().deriveFont(Font.BOLD, 11f));
                 setHorizontalAlignment(SwingConstants.CENTER);
                 break;
             case DRONE_OUTBOUND:
                 setBackground(new Color(250, 220, 110));
-                setText("D(n)");
                 setFont(getFont().deriveFont(Font.BOLD, 11f));
                 setHorizontalAlignment(SwingConstants.CENTER);
                 break;
             case DRONE_EXTINGUISHED:
                 setBackground(new Color(120, 200, 120));
-                setText("D(n)");
                 setFont(getFont().deriveFont(Font.BOLD, 11f));
                 setHorizontalAlignment(SwingConstants.CENTER);
                 break;
             case DRONE_RETURNING:
                 setBackground(new Color(210, 160, 240));
-                setText("D(n)");
                 setFont(getFont().deriveFont(Font.BOLD, 11f));
                 setHorizontalAlignment(SwingConstants.CENTER);
                 break;

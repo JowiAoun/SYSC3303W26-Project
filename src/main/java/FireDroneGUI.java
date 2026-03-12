@@ -87,9 +87,10 @@ public class FireDroneGUI extends JFrame {
                 ZoneDef zone = findZoneForCell(c, r);
                 ZoneCell cell;
                 if (zone != null) {
-                    boolean isTopLeft = (c == zone.startCol && r == zone.startRow);
-                    // top-left cell of the zone gets the zone label, others are blank
-                    if (isTopLeft) {
+                    boolean isBottomRight = (c == zone.startCol + zone.widthCols - 1
+                                          && r == zone.startRow + zone.heightRows - 1);
+                    // bottom-right cell of the zone gets the zone label, others are blank
+                    if (isBottomRight) {
                         cell = new ZoneCell(c, r, zone, String.format("Z%d", zone.id));
                     } else {
                         cell = new ZoneCell(c, r, zone, "");
@@ -277,7 +278,7 @@ public class FireDroneGUI extends JFrame {
                         setCellText(lastZone.startCol, lastZone.startRow, "FIRE" + severityLabel(sev));
                     } else {
                         setCellState(lastZone.startCol, lastZone.startRow, CellState.EMPTY);
-                        setCellText(lastZone.startCol, lastZone.startRow, String.format("Z%d", lastZoneId));
+                        setCellText(lastZone.startCol, lastZone.startRow, "");
                     }
                 }
             }
