@@ -16,6 +16,7 @@ public class Main {
      */
     public static void main(String[] args) {
         String inputPath = "./src/main/resources/data/events.csv";
+        int droneCount = 3;
 
         // Message buffers
         MessageBuffer toScheduler = new MessageBuffer();
@@ -23,7 +24,7 @@ public class Main {
         MessageBuffer schedulerToDrone = new MessageBuffer();
 
         // Build GUI (on EDT)
-        FireDroneGUI gui = new FireDroneGUI();
+        FireDroneGUI gui = new FireDroneGUI(droneCount);
         javax.swing.SwingUtilities.invokeLater(() -> gui.setVisible(true));
 
         // Build subsystems.
@@ -33,12 +34,17 @@ public class Main {
         } catch (SocketException | UnknownHostException e) {
             throw new RuntimeException(e);
         }
-        DroneSubsystem drone = null;
-        try {
-            drone = new DroneSubsystem(toScheduler, schedulerToDrone);
-        } catch (SocketException | UnknownHostException e) {
-            throw new RuntimeException(e);
+
+        // Create drone instances
+        DroneSubsystem[] drones = new DroneSubsystem[droneCount];
+        for (int i = 0; i < droneCount; i++) {
+            try {
+                drones[i] = new DroneSubsystem(i + 1, toScheduler, schedulerToDrone);
+            } catch (SocketException | UnknownHostException e) {
+                throw new RuntimeException(e);
+            }
         }
+
         // Pass GUI to Scheduler
         Scheduler scheduler = null;
         try {
@@ -49,22 +55,31 @@ public class Main {
 
         // Launch threads.
         Thread fireThread = new Thread(fireIncident, "FireIncidentSubsystem");
-        Thread droneThread = new Thread(drone, "DroneSubsystem");
+        Thread[] droneThreads = new Thread[droneCount];
+        for (int i = 0; i < droneCount; i++) {
+            droneThreads[i] = new Thread(drones[i], "DroneSubsystem-" + (i + 1));
+        }
         Thread schedulerThread = new Thread(scheduler, "Scheduler");
 
         fireThread.start();
-        droneThread.start();
+        for (Thread dt : droneThreads) {
+            dt.start();
+        }
         schedulerThread.start();
 
         try {
             fireThread.join();
-            droneThread.join();
+            for (Thread dt : droneThreads) {
+                dt.join();
+            }
             schedulerThread.join();
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
         }
         fireIncident.closeSocket();
-        drone.closeSocket();
+        for (DroneSubsystem d : drones) {
+            d.closeSocket();
+        }
         scheduler.closeSocket();
     }
 }

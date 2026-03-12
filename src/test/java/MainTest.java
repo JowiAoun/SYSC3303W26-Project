@@ -28,7 +28,7 @@ public class MainTest {
         schedulerToDrone = new MessageBuffer();
 
         fireIncident = new FireIncidentSubsystem(inputPath, toScheduler, schedulerToFire);
-        drone = new DroneSubsystem(toScheduler, schedulerToDrone);
+        drone = new DroneSubsystem(1, toScheduler, schedulerToDrone);
         scheduler = new Scheduler(toScheduler, schedulerToFire, schedulerToDrone, null);
     }
 

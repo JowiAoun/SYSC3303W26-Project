@@ -25,7 +25,7 @@ public class DroneStateMachineTest {
         toScheduler = new MessageBuffer();
         schedulerToDrone = new MessageBuffer();
         try {
-            drone = new DroneSubsystem(toScheduler, schedulerToDrone);
+            drone = new DroneSubsystem(1, toScheduler, schedulerToDrone);
             schedulerSocket = new DatagramSocket(SwarmNetwork.SCHEDULER_PORT);
         } catch (SocketException | UnknownHostException e) {
             throw new RuntimeException(e);
