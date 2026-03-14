@@ -116,7 +116,7 @@ public class Message {
      * Convert Message data into bytes.
      */
     public byte[] toBytes() {
-        String[] fields = new String[9];
+        String[] fields = new String[11];
         fields[0] = type.name();
 
         if (event != null) {
@@ -136,11 +136,15 @@ public class Message {
             fields[6] = status.getState().name();
             fields[7] = Integer.toString(status.getZoneId());
             fields[8] = Integer.toString(status.getRemainingLiters());
+            fields[9] = Integer.toString(status.getCurrentCol());
+            fields[10] = Integer.toString(status.getCurrentRow());
         } else {
             fields[5] = "";
             fields[6] = "";
             fields[7] = "";
             fields[8] = "";
+            fields[9] = "";
+            fields[10] = "";
         }
 
         String wire = String.join("|", fields);
@@ -154,7 +158,7 @@ public class Message {
         String wire = new String(data, 0, length, StandardCharsets.UTF_8);
         String[] parts = wire.split("\\|", -1); // keep empty fields
 
-        if (parts.length != 9) {
+        if (parts.length != 11) {
             throw new IllegalArgumentException("Invalid message format: " + wire);
         }
 
@@ -175,7 +179,9 @@ public class Message {
             DroneState droneState = DroneState.valueOf(parts[6]);
             int zoneId = Integer.parseInt(parts[7]);
             int remainingLiters = Integer.parseInt(parts[8]);
-            status = new DroneStatus(droneId, droneState, zoneId, remainingLiters);
+            int col = parts[9].isEmpty() ? 0 : Integer.parseInt(parts[9]);
+            int row = parts[10].isEmpty() ? 0 : Integer.parseInt(parts[10]);
+            status = new DroneStatus(droneId, droneState, zoneId, remainingLiters, col, row);
         }
 
         return new Message(type, event, status);

@@ -2,6 +2,7 @@ import java.net.DatagramSocket;
 import java.net.InetAddress;
 import java.net.SocketException;
 import java.net.UnknownHostException;
+import java.util.List;
 
 /**
  * DroneSubsystem.java
@@ -28,6 +29,11 @@ public class DroneSubsystem implements Runnable {
     private int remainingRequired = 0;
     private int currentZoneId = BASE_ZONE_ID;
 
+    // Grid position tracking
+    private int currentCol = 0;
+    private int currentRow = 0;
+    private final List<ZoneDef> zones;
+
     /**
      * @param droneId unique identifier for this drone
      * @param toScheduler queue used to send messages to Scheduler
@@ -40,6 +46,15 @@ public class DroneSubsystem implements Runnable {
         this.fromScheduler = fromScheduler;
         this.socket = new DatagramSocket();
         this.schedulerAddr = InetAddress.getByName(SwarmNetwork.LOCALHOST);
+
+        // Load zone geometry for path planning
+        this.zones = ZoneLoader.loadZones("./src/main/resources/data/zones.csv", 16, 16);
+        ZoneDef baseZone = getZoneById(BASE_ZONE_ID);
+        if (baseZone != null) {
+            int[] baseCenter = PathPlanner.zoneCenterCell(baseZone);
+            this.currentCol = baseCenter[0];
+            this.currentRow = baseCenter[1];
+        }
     }
 
     /**
@@ -392,20 +407,60 @@ public class DroneSubsystem implements Runnable {
      */
     private void sendStatus(DroneState state, int zoneId) throws Exception {
         this.currentState = state;
-        SwarmNetwork.sendMessage(socket, schedulerAddr, SwarmNetwork.SCHEDULER_PORT, Message.droneStatus(new DroneStatus(droneId, state, zoneId, remainingLiters)),
+        SwarmNetwork.sendMessage(socket, schedulerAddr, SwarmNetwork.SCHEDULER_PORT,
+                Message.droneStatus(new DroneStatus(droneId, state, zoneId, remainingLiters, currentCol, currentRow)),
                 "[Drone " + droneId + "]", "sent Drone Status", "to Scheduler");
     }
 
-    private void simulateTravel(int zoneId) throws InterruptedException {
-        // Simple placeholder for travel time
-        // In real impl, calculate distance from current pos to zoneId
-        double travelSeconds = 2.0; // Fixed 2 seconds for now
-        Thread.sleep((long)(travelSeconds * 1000));
+    /** Time per cell step in ms, derived from zone size and travel speed. */
+    private static final long CELL_TRAVEL_MS = Math.round((METERS_PER_ZONE / TRAVEL_SPEED_MPS) * 1000);
+
+    /**
+     * Simulate cell-by-cell travel to the target zone center using Bresenham path.
+     */
+    private void simulateTravel(int targetZoneId) throws Exception {
+        ZoneDef targetZone = getZoneById(targetZoneId);
+        if (targetZone == null) {
+            // Fallback: fixed sleep if zone not found
+            Thread.sleep(2000);
+            return;
+        }
+        int[] targetCenter = PathPlanner.zoneCenterCell(targetZone);
+        List<int[]> path = PathPlanner.computePath(currentCol, currentRow, targetCenter[0], targetCenter[1]);
+
+        // Skip first cell (current position), traverse remaining cells
+        for (int i = 1; i < path.size(); i++) {
+            Thread.sleep(CELL_TRAVEL_MS);
+            currentCol = path.get(i)[0];
+            currentRow = path.get(i)[1];
+            int cellZoneId = findZoneForCell(currentCol, currentRow);
+            // Send intermediate status update so GUI can track movement
+            sendStatus(currentState, cellZoneId);
+        }
+        currentZoneId = targetZoneId;
     }
 
-    private double estimateTravelSeconds(int zoneId) {
-        int distanceMeters = 50;
-        return distanceMeters / TRAVEL_SPEED_MPS;
+    /**
+     * Look up which zone a given cell belongs to.
+     */
+    private int findZoneForCell(int col, int row) {
+        for (ZoneDef z : zones) {
+            if (col >= z.startCol && col < z.startCol + z.widthCols &&
+                    row >= z.startRow && row < z.startRow + z.heightRows) {
+                return z.id;
+            }
+        }
+        return 0; // fallback to base
+    }
+
+    /**
+     * Look up a zone by ID from the loaded zone list.
+     */
+    private ZoneDef getZoneById(int id) {
+        for (ZoneDef z : zones) {
+            if (z.id == id) return z;
+        }
+        return null;
     }
 
     /**

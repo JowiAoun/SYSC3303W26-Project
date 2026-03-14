@@ -36,7 +36,7 @@ public class FireDroneGUI extends JFrame {
     private final List<JLabel> droneLabels = new ArrayList<>();
     private final List<JLabel> zoneLabels = new ArrayList<>();
     private final Set<Integer> activeZoneIds = new HashSet<>();
-    private final Map<Integer, Integer> droneLastZone = new HashMap<>();       // droneId → last zoneId
+    private final Map<Integer, int[]> droneLastCell = new HashMap<>();         // droneId → {col, row}
     private final Set<Integer> activeDroneIds = new HashSet<>();               // non-idle drone IDs
     private final Map<Integer, FireEvent.Severity> zoneSeverities = new HashMap<>(); // zoneId → severity
     private final Map<Integer, DroneStatus> droneCurrentStatuses = new HashMap<>();  // droneId → latest status
@@ -258,21 +258,22 @@ public class FireDroneGUI extends JFrame {
 
     /**
      * Updates the GUI based on the drone's status.
-     * Tracks drone-to-zone assignment, recomputes cells for old and new zones
-     * so that multiple drones sharing a zone are all visible.
+     * Tracks drone position by exact (col, row) cell, recomputes old and new cells
+     * so that multiple drones sharing a cell are all visible.
      * Thread-safe.
      */
     public void updateDroneStatus(DroneStatus status) {
         runOnEdt(() -> {
             int droneId = status.getDroneId();
-            int currentZoneId = status.getZoneId();
+            int col = status.getCurrentCol();
+            int row = status.getCurrentRow();
 
-            // Save the old zone before updating
-            Integer lastZoneId = droneLastZone.get(droneId);
+            // Save the old cell before updating
+            int[] lastCell = droneLastCell.get(droneId);
 
             // Update tracking maps
             droneCurrentStatuses.put(droneId, status);
-            droneLastZone.put(droneId, currentZoneId);
+            droneLastCell.put(droneId, new int[]{col, row});
 
             // Track active drones via set
             if (status.getState() == DroneState.IDLE) {
@@ -282,15 +283,16 @@ public class FireDroneGUI extends JFrame {
             }
             setActiveDrones(activeDroneIds.size());
 
-            // Recompute the old zone cell (drone left it)
-            if (lastZoneId != null && lastZoneId != currentZoneId) {
-                recomputeZoneCell(lastZoneId);
+            // Recompute the old cell (drone left it)
+            if (lastCell != null && (lastCell[0] != col || lastCell[1] != row)) {
+                recomputeCell(lastCell[0], lastCell[1]);
             }
 
-            // Recompute the new zone cell (drone arrived or updated state)
-            recomputeZoneCell(currentZoneId);
+            // Recompute the new cell (drone arrived or updated state)
+            recomputeCell(col, row);
 
             // Update sidebar label with zone + remaining liters
+            int currentZoneId = status.getZoneId();
             String zoneInfo = currentZoneId > 0 ? " \u2192 Zone " + currentZoneId : "";
             String litersInfo = " (" + status.getRemainingLiters() + "L)";
             setDroneState(droneId, status.getState().name() + zoneInfo + litersInfo);
@@ -298,56 +300,47 @@ public class FireDroneGUI extends JFrame {
     }
 
     /**
-     * Recomputes a zone cell's text and state based on all drones currently at that zone.
-     * If no drones are present, reverts to fire or empty state.
+     * Checks whether a drone should be rendered on the grid.
+     * IDLE drones at non-base zones are hidden.
      */
-    private void recomputeZoneCell(int zoneId) {
-        ZoneDef zone = getZoneById(zoneId);
-        if (zone == null) return;
+    private boolean shouldRenderDrone(DroneStatus ds) {
+        if (ds.getState() == DroneState.IDLE) {
+            // Only show IDLE drones at base zone (zone 0)
+            return ds.getZoneId() == 0;
+        }
+        return true;
+    }
 
-        // Collect all drones currently at this zone
+    /**
+     * Recomputes a grid cell's text and state based on all drones currently at that (col, row).
+     * If no drones are present, reverts the cell to its default zone appearance.
+     */
+    private void recomputeCell(int col, int row) {
+        if (col < 0 || col >= COLS || row < 0 || row >= ROWS) return;
+
+        // Find all visible drones at this exact cell
         List<DroneStatus> dronesHere = new ArrayList<>();
-        for (Map.Entry<Integer, Integer> entry : droneLastZone.entrySet()) {
-            if (entry.getValue() == zoneId) {
+        for (Map.Entry<Integer, int[]> entry : droneLastCell.entrySet()) {
+            int[] cell = entry.getValue();
+            if (cell[0] == col && cell[1] == row) {
                 DroneStatus ds = droneCurrentStatuses.get(entry.getKey());
-                if (ds != null) {
+                if (ds != null && shouldRenderDrone(ds)) {
                     dronesHere.add(ds);
                 }
             }
         }
 
-        // Filter to drones that should actually be displayed on the cell
-        // (IDLE drones at non-base zones are not displayed)
-        List<DroneStatus> visibleDrones = new ArrayList<>();
-        for (DroneStatus ds : dronesHere) {
-            if (ds.getState() == DroneState.IDLE && zoneId != 0) {
-                continue; // IDLE at remote zone — not rendered on grid
-            }
-            if (ds.getState() == DroneState.IDLE && zoneId == 0) {
-                visibleDrones.add(ds);
-            } else if (ds.getState() != DroneState.IDLE) {
-                visibleDrones.add(ds);
-            }
-        }
-
-        if (visibleDrones.isEmpty()) {
-            // No drones to display — revert to fire or empty
-            if (activeZoneIds.contains(zoneId)) {
-                FireEvent.Severity sev = zoneSeverities.get(zoneId);
-                setCellState(zone.startCol, zone.startRow, CellState.ACTIVE_FIRE);
-                setCellText(zone.startCol, zone.startRow, "FIRE" + severityLabel(sev));
-            } else {
-                setCellState(zone.startCol, zone.startRow, CellState.EMPTY);
-                setCellText(zone.startCol, zone.startRow, "");
-            }
+        if (dronesHere.isEmpty()) {
+            // No drones to display — revert to default cell appearance
+            restoreCellDefault(col, row);
             return;
         }
 
         // Determine the highest-priority cell state and build text for all drones
         CellState bestState = CellState.EMPTY;
         StringBuilder htmlBuilder = new StringBuilder("<html><center>");
-        for (int i = 0; i < visibleDrones.size(); i++) {
-            DroneStatus ds = visibleDrones.get(i);
+        for (int i = 0; i < dronesHere.size(); i++) {
+            DroneStatus ds = dronesHere.get(i);
             String label = droneShortLabel(ds);
             CellState cs = droneCellState(ds);
 
@@ -360,8 +353,39 @@ public class FireDroneGUI extends JFrame {
         }
         htmlBuilder.append("</center></html>");
 
-        setCellState(zone.startCol, zone.startRow, bestState);
-        setCellText(zone.startCol, zone.startRow, htmlBuilder.toString());
+        gridCells[row][col].setState(bestState);
+        gridCells[row][col].setText(htmlBuilder.toString());
+    }
+
+    /**
+     * Restores a cell to its default appearance: zone label, fire, or empty.
+     */
+    private void restoreCellDefault(int col, int row) {
+        if (col < 0 || col >= COLS || row < 0 || row >= ROWS) return;
+
+        ZoneDef zone = findZoneForCell(col, row);
+
+        // Check if this cell's zone has an active fire
+        if (zone != null && activeZoneIds.contains(zone.id)) {
+            // Only show fire state on the zone's start cell
+            if (col == zone.startCol && row == zone.startRow) {
+                FireEvent.Severity sev = zoneSeverities.get(zone.id);
+                gridCells[row][col].setState(CellState.ACTIVE_FIRE);
+                gridCells[row][col].setText("FIRE" + severityLabel(sev));
+                return;
+            }
+        }
+
+        // Restore zone label on the bottom-right cell of the zone
+        if (zone != null) {
+            boolean isBottomRight = (col == zone.startCol + zone.widthCols - 1
+                    && row == zone.startRow + zone.heightRows - 1);
+            gridCells[row][col].setState(CellState.EMPTY);
+            gridCells[row][col].setText(isBottomRight ? String.format("Z%d", zone.id) : "");
+        } else {
+            gridCells[row][col].setState(CellState.EMPTY);
+            gridCells[row][col].setText("");
+        }
     }
 
     /**
