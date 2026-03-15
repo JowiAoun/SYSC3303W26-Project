@@ -12,10 +12,6 @@ import java.util.Map;
 @TestMethodOrder(MethodOrderer.OrderAnnotation.class)
 public class DroneStateMachineTest {
 
-    // Message buffers
-    private MessageBuffer toScheduler;
-    private MessageBuffer schedulerToDrone;
-
     // Subsystem under test
     private DroneSubsystem drone;
     private InetAddress lastDroneAddr = null;
@@ -24,10 +20,8 @@ public class DroneStateMachineTest {
 
     @BeforeEach
     public void setup() {
-        toScheduler = new MessageBuffer();
-        schedulerToDrone = new MessageBuffer();
         try {
-            drone = new DroneSubsystem(1, toScheduler, schedulerToDrone);
+            drone = new DroneSubsystem(1);
             schedulerSocket = new DatagramSocket(SwarmNetwork.SCHEDULER_PORT);
         } catch (SocketException | UnknownHostException e) {
             throw new RuntimeException(e);
@@ -230,7 +224,7 @@ public class DroneStateMachineTest {
     public void test_4() throws Exception {
         System.out.println("Test 4: Multiple drones report status independently");
 
-        DroneSubsystem drone2 = new DroneSubsystem(2, toScheduler, schedulerToDrone);
+        DroneSubsystem drone2 = new DroneSubsystem(2);
         Thread t1 = new Thread(drone);
         Thread t2 = new Thread(drone2);
         t1.start();

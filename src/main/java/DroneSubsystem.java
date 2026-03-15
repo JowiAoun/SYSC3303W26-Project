@@ -11,8 +11,6 @@ import java.util.List;
  * The run() loop switches on currentState; each handler advances the state.
  */
 public class DroneSubsystem implements Runnable {
-    private final MessageBuffer toScheduler;
-    private final MessageBuffer fromScheduler;
     private static final int MAX_CAPACITY_LITERS = 15;
     private static final double TRAVEL_SPEED_MPS = 15.0;
     private static final int METERS_PER_ZONE = 10;
@@ -36,14 +34,9 @@ public class DroneSubsystem implements Runnable {
 
     /**
      * @param droneId unique identifier for this drone
-     * @param toScheduler queue used to send messages to Scheduler
-     * @param fromScheduler queue used to receive assignments from Scheduler
      */
-    public DroneSubsystem(int droneId, MessageBuffer toScheduler,
-                          MessageBuffer fromScheduler) throws SocketException, UnknownHostException {
+    public DroneSubsystem(int droneId) throws SocketException, UnknownHostException {
         this.droneId = droneId;
-        this.toScheduler = toScheduler;
-        this.fromScheduler = fromScheduler;
         this.socket = new DatagramSocket();
         this.schedulerAddr = InetAddress.getByName(SwarmNetwork.LOCALHOST);
 
@@ -60,9 +53,8 @@ public class DroneSubsystem implements Runnable {
     /**
      * Backward-compatible constructor defaulting to drone ID 1.
      */
-    public DroneSubsystem(MessageBuffer toScheduler,
-                          MessageBuffer fromScheduler) throws SocketException, UnknownHostException {
-        this(1, toScheduler, fromScheduler);
+    public DroneSubsystem() throws SocketException, UnknownHostException {
+        this(1);
     }
 
     public int getDroneId() { return droneId; }

@@ -17,9 +17,6 @@ import java.util.Set;
  * Supports multiple drones, each tracked independently via maps.
  */
 public class Scheduler implements Runnable {
-    private final MessageBuffer fromSubsystems;
-    private final MessageBuffer toFireIncident;
-    private final MessageBuffer toDrone;
     private final DatagramSocket socket;
     private final Queue<FireEvent> pending = new ArrayDeque<>();
 
@@ -41,18 +38,9 @@ public class Scheduler implements Runnable {
     private SchedulerState currentState = SchedulerState.IDLE;
 
     /**
-     * @param fromSubsystems shared buffer of incoming messages
-     * @param toFireIncident buffer to send acknowledgments back
-     * @param toDrone buffer to send assignments to the drone
      * @param gui reference to the main GUI window
      */
-    public Scheduler(MessageBuffer fromSubsystems,
-                     MessageBuffer toFireIncident,
-                     MessageBuffer toDrone,
-                     FireDroneGUI gui) throws SocketException {
-        this.fromSubsystems = fromSubsystems;
-        this.toFireIncident = toFireIncident;
-        this.toDrone = toDrone;
+    public Scheduler(FireDroneGUI gui) throws SocketException {
         this.gui = gui;
         this.socket = new DatagramSocket(SwarmNetwork.SCHEDULER_PORT);
         this.zones = ZoneLoader.loadZones("./src/main/resources/data/zones.csv", 16, 16);

@@ -9,10 +9,6 @@ import java.util.List;
 @TestMethodOrder(MethodOrderer.OrderAnnotation.class)
 public class MainTest {
     String inputPath;
-    // Message buffers
-    private MessageBuffer toScheduler;
-    private MessageBuffer schedulerToFire;
-    private MessageBuffer schedulerToDrone;
 
     // Build subsystems.
     private FireIncidentSubsystem fireIncident;
@@ -23,13 +19,9 @@ public class MainTest {
     public void setup() throws SocketException, UnknownHostException {
         inputPath = "./src/test/resources/data/events.csv";
 
-        toScheduler = new MessageBuffer();
-        schedulerToFire = new MessageBuffer();
-        schedulerToDrone = new MessageBuffer();
-
-        fireIncident = new FireIncidentSubsystem(inputPath, toScheduler, schedulerToFire);
-        drone = new DroneSubsystem(1, toScheduler, schedulerToDrone);
-        scheduler = new Scheduler(toScheduler, schedulerToFire, schedulerToDrone, null);
+        fireIncident = new FireIncidentSubsystem(inputPath);
+        drone = new DroneSubsystem(1);
+        scheduler = new Scheduler(null);
     }
 
     @AfterEach

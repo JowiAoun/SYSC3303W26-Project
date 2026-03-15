@@ -16,23 +16,15 @@ import java.util.List;
  */
 public class FireIncidentSubsystem implements Runnable {
     private String inputCsvPath;
-    private final MessageBuffer toScheduler;
-    private final MessageBuffer fromScheduler;
     public final boolean readInputEvent;
     private final DatagramSocket socket;
     private final InetAddress schedulerAddr;
 
     /**
      * @param inputCsvPath path to the input CSV file
-     * @param toScheduler buffer to send messages to the Scheduler
-     * @param fromScheduler buffer to receive acknowledgments from Scheduler
      */
-    public FireIncidentSubsystem(String inputCsvPath,
-                                 MessageBuffer toScheduler,
-                                 MessageBuffer fromScheduler) throws SocketException, UnknownHostException {
+    public FireIncidentSubsystem(String inputCsvPath) throws SocketException, UnknownHostException {
         this.inputCsvPath = inputCsvPath;
-        this.toScheduler = toScheduler;
-        this.fromScheduler = fromScheduler;
         this.readInputEvent = hasAtLeastOneValidEvent();
         this.socket = new DatagramSocket(SwarmNetwork.FIS_PORT);
         this.schedulerAddr = InetAddress.getByName(SwarmNetwork.LOCALHOST);

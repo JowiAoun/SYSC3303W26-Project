@@ -6,24 +6,13 @@ import java.net.SocketException;
 
 @TestMethodOrder(MethodOrderer.OrderAnnotation.class)
 public class SchedulerDispatchTest {
-
-    // Message buffers
-    private MessageBuffer toScheduler;
-    private MessageBuffer schedulerToFire;
-    private MessageBuffer schedulerToDrone;
-
     // Subsystem under test
     private Scheduler scheduler;
 
     @BeforeEach
     public void setup() throws SocketException {
-        // Message buffers
-        toScheduler = new MessageBuffer();
-        schedulerToFire = new MessageBuffer();
-        schedulerToDrone = new MessageBuffer();
-
         // Build scheduler
-        scheduler = new Scheduler(toScheduler, schedulerToFire, schedulerToDrone, null);
+        scheduler = new Scheduler(null);
     }
 
     @AfterEach

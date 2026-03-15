@@ -18,11 +18,6 @@ public class Main {
         String inputPath = "./src/main/resources/data/events.csv";
         int droneCount = 3;
 
-        // Message buffers
-        MessageBuffer toScheduler = new MessageBuffer();
-        MessageBuffer schedulerToFire = new MessageBuffer();
-        MessageBuffer schedulerToDrone = new MessageBuffer();
-
         // Build GUI (on EDT)
         FireDroneGUI gui = new FireDroneGUI(droneCount);
         javax.swing.SwingUtilities.invokeLater(() -> gui.setVisible(true));
@@ -30,7 +25,7 @@ public class Main {
         // Build subsystems.
         FireIncidentSubsystem fireIncident = null;
         try {
-            fireIncident = new FireIncidentSubsystem(inputPath, toScheduler, schedulerToFire);
+            fireIncident = new FireIncidentSubsystem(inputPath);
         } catch (SocketException | UnknownHostException e) {
             throw new RuntimeException(e);
         }
@@ -39,7 +34,7 @@ public class Main {
         DroneSubsystem[] drones = new DroneSubsystem[droneCount];
         for (int i = 0; i < droneCount; i++) {
             try {
-                drones[i] = new DroneSubsystem(i + 1, toScheduler, schedulerToDrone);
+                drones[i] = new DroneSubsystem(i + 1);
             } catch (SocketException | UnknownHostException e) {
                 throw new RuntimeException(e);
             }
@@ -48,7 +43,7 @@ public class Main {
         // Pass GUI to Scheduler
         Scheduler scheduler = null;
         try {
-            scheduler = new Scheduler(toScheduler, schedulerToFire, schedulerToDrone, gui);
+            scheduler = new Scheduler(gui);
         } catch (SocketException e) {
             throw new RuntimeException(e);
         }
