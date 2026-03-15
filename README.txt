@@ -76,7 +76,7 @@ Alternatively, right-click 'Main.java' in the Project view and select "Run 'Main
 
 HOW TO RUN (Multiple Processes via Command Line)
 --------------------------------------------------------------------------------
-Build the project once before starting the processes.
+Build the project in IntelliJ (Ctrl+F9) once before starting the processes.
 
 Linux/Mac (bash):
   mvn -q -DskipTests package
@@ -90,7 +90,6 @@ Linux/Mac (bash):
   java -cp target/classes FireIncidentMain --input=./src/main/resources/data/events.csv --schedulerHost=localhost --schedulerPort=5000 --localPort=6000
 
 Windows (PowerShell):
-  mvn -q -DskipTests package
   # Terminal 1 - Scheduler
   java -cp target\classes SchedulerMain --port=5000 --drones=3
   # Terminal 2 - Drone 1
@@ -144,8 +143,8 @@ Jowi: Source code
 
 Iteration 3
 -----------
-Zachary: Documentation and Diagrams
-Amir: Testing
-Thanos: Source code
-Jowi: GUI
+Zachary: Documentation and Diagrams, Source code
+Amir: Testing, Source code
+Thanos: Source code, Documentation
+Jowi: GUI, Source code
 
