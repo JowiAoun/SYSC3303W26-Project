@@ -33,6 +33,9 @@ public class Scheduler implements Runnable {
 
     private final FireDroneGUI gui;
     private final List<ZoneDef> zones;
+    // Track Fire Incident sender for replies/acknowledgments.
+    private InetAddress fireIncidentAddress;
+    private Integer fireIncidentPort;
 
     // State machine
     private SchedulerState currentState = SchedulerState.IDLE;
@@ -41,9 +44,19 @@ public class Scheduler implements Runnable {
      * @param gui reference to the main GUI window
      */
     public Scheduler(FireDroneGUI gui) throws SocketException {
+        this(gui, SwarmNetwork.SCHEDULER_PORT, "./src/main/resources/data/zones.csv");
+    }
+
+    /**
+     * @param schedulerPort UDP port to bind locally
+     * @param zonesPath path to zones CSV
+     */
+    public Scheduler(FireDroneGUI gui,
+                     int schedulerPort,
+                     String zonesPath) throws SocketException {
         this.gui = gui;
-        this.socket = new DatagramSocket(SwarmNetwork.SCHEDULER_PORT);
-        this.zones = ZoneLoader.loadZones("./src/main/resources/data/zones.csv", 16, 16);
+        this.socket = new DatagramSocket(schedulerPort);
+        this.zones = ZoneLoader.loadZones(zonesPath, 16, 16);
     }
 
     public int getTotalEvents() { return totalEvents; }
@@ -131,7 +144,7 @@ public class Scheduler implements Runnable {
         switch (msg.getType()) {
             case FIRE_EVENT:
             case SHUTDOWN:
-                handleFireIncidentMessage(msg);
+                handleFireIncidentMessage(msg, rm.getAddress(), rm.getPort());
                 break;
             case DRONE_READY:
             case DRONE_COMPLETED:
@@ -333,14 +346,25 @@ public class Scheduler implements Runnable {
      */
     void sendShutdownToFireIfComplete() throws Exception {
         if (isProcessingComplete() && !shutdownSentToFire) {
-            if (InetAddress.getByName(SwarmNetwork.LOCALHOST) != null) {
-                SwarmNetwork.sendMessage(socket, InetAddress.getByName(SwarmNetwork.LOCALHOST), SwarmNetwork.FIS_PORT, Message.shutdown(), "[Scheduler]", "sent Shutdown", "to FireIncident");
-            } else {
-                System.err.println("[Scheduler] - ERROR: Could not send Message to FireIncidentSubsystem - FIS Address: " + InetAddress.getByName(SwarmNetwork.LOCALHOST) + ", FIS Port: " + SwarmNetwork.FIS_PORT);
-            }
-
+            sendFireIncidentMessage(Message.shutdown(), "sent Shutdown");
             shutdownSentToFire = true;
             System.out.println("[Scheduler] Sent shutdown to Fire Incident.");
+        }
+    }
+
+    /**
+     * Sends a message to the Fire Incident subsystem using last known address/port.
+     * Falls back to default localhost + FIS port if not yet seen.
+     */
+    private void sendFireIncidentMessage(Message msg, String action) {
+        try {
+            InetAddress addr = fireIncidentAddress != null
+                    ? fireIncidentAddress
+                    : InetAddress.getByName(SwarmNetwork.LOCALHOST);
+            int port = fireIncidentPort != null ? fireIncidentPort : SwarmNetwork.FIS_PORT;
+            SwarmNetwork.sendMessage(socket, addr, port, msg, "[Scheduler]", action, "to FireIncident");
+        } catch (Exception e) {
+            System.err.println("[Scheduler] - ERROR: Could not send Message to FireIncidentSubsystem - " + e.getMessage());
         }
     }
 
@@ -369,7 +393,9 @@ public class Scheduler implements Runnable {
     /**
      * Handle messages from Fire Incident subsystem.
      */
-    private void handleFireIncidentMessage(Message message) throws InterruptedException {
+    private void handleFireIncidentMessage(Message message, InetAddress addr, int port) throws InterruptedException {
+        fireIncidentAddress = addr;
+        fireIncidentPort = port;
         if (message.getType() == Message.Type.FIRE_EVENT) {
             FireEvent event = message.getEvent();
             pending.add(event);
@@ -424,11 +450,7 @@ public class Scheduler implements Runnable {
 
             case DRONE_COMPLETED:
                 completed++;
-                if (InetAddress.getByName(SwarmNetwork.LOCALHOST) != null) {
-                    SwarmNetwork.sendMessage(socket, InetAddress.getByName(SwarmNetwork.LOCALHOST), SwarmNetwork.FIS_PORT, Message.fireAck(message.getEvent()), "[Scheduler]", "sent FireAck", "to FireIncident");
-                } else {
-                    System.err.println("[Scheduler] - ERROR: Could not send Message to FireIncidentSubsystem - FIS Address: " + InetAddress.getByName(SwarmNetwork.LOCALHOST) + ", FIS Port: " + SwarmNetwork.FIS_PORT);
-                }
+                sendFireIncidentMessage(Message.fireAck(message.getEvent()), "sent FireAck");
 
                 String completedMsg = "[Scheduler] Completion ack forwarded: " + message.getEvent();
                 System.out.println(completedMsg);

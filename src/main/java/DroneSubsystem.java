@@ -20,6 +20,8 @@ public class DroneSubsystem implements Runnable {
     private DroneState currentState = DroneState.IDLE;
     private final DatagramSocket socket;
     private final InetAddress schedulerAddr;
+    // Scheduler target port for UDP messages.
+    private final int schedulerPort;
     private final int droneId;
 
     // State-machine context
@@ -36,9 +38,20 @@ public class DroneSubsystem implements Runnable {
      * @param droneId unique identifier for this drone
      */
     public DroneSubsystem(int droneId) throws SocketException, UnknownHostException {
+        this(droneId, SwarmNetwork.LOCALHOST, SwarmNetwork.SCHEDULER_PORT);
+    }
+
+    /**
+     * @param schedulerHost hostname/IP for Scheduler
+     * @param schedulerPort Scheduler UDP port
+     */
+    public DroneSubsystem(int droneId,
+                          String schedulerHost,
+                          int schedulerPort) throws SocketException, UnknownHostException {
         this.droneId = droneId;
         this.socket = new DatagramSocket();
-        this.schedulerAddr = InetAddress.getByName(SwarmNetwork.LOCALHOST);
+        this.schedulerAddr = InetAddress.getByName(schedulerHost);
+        this.schedulerPort = schedulerPort;
 
         // Load zone geometry for path planning
         this.zones = ZoneLoader.loadZones("./src/main/resources/data/zones.csv", 16, 16);
@@ -257,7 +270,7 @@ public class DroneSubsystem implements Runnable {
      */
     void sendReadySignal() throws Exception {
         // toScheduler.put(Message.droneReady());
-        SwarmNetwork.sendMessage(socket, schedulerAddr, SwarmNetwork.SCHEDULER_PORT, Message.droneReady(), "[Drone " + droneId + "]", "sent Ready", "to Scheduler");
+        SwarmNetwork.sendMessage(socket, schedulerAddr, schedulerPort, Message.droneReady(), "[Drone " + droneId + "]", "sent Ready", "to Scheduler");
     }
 
     /**
@@ -325,7 +338,7 @@ public class DroneSubsystem implements Runnable {
      */
     void sendCompletion(FireEvent event) throws Exception {
         // toScheduler.put(Message.droneCompleted(event));
-        SwarmNetwork.sendMessage(socket, schedulerAddr, SwarmNetwork.SCHEDULER_PORT, Message.droneCompleted(event), "[Drone " + droneId + "]", "sent Completion", "to Scheduler");
+        SwarmNetwork.sendMessage(socket, schedulerAddr, schedulerPort, Message.droneCompleted(event), "[Drone " + droneId + "]", "sent Completion", "to Scheduler");
     }
 
     /**
@@ -399,7 +412,7 @@ public class DroneSubsystem implements Runnable {
      */
     private void sendStatus(DroneState state, int zoneId) throws Exception {
         this.currentState = state;
-        SwarmNetwork.sendMessage(socket, schedulerAddr, SwarmNetwork.SCHEDULER_PORT,
+        SwarmNetwork.sendMessage(socket, schedulerAddr, schedulerPort,
                 Message.droneStatus(new DroneStatus(droneId, state, zoneId, remainingLiters, currentCol, currentRow)),
                 "[Drone " + droneId + "]", "sent Drone Status", "to Scheduler");
     }

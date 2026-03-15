@@ -19,15 +19,31 @@ public class FireIncidentSubsystem implements Runnable {
     public final boolean readInputEvent;
     private final DatagramSocket socket;
     private final InetAddress schedulerAddr;
+    // Scheduler target port for UDP messages.
+    private final int schedulerPort;
 
     /**
      * @param inputCsvPath path to the input CSV file
      */
     public FireIncidentSubsystem(String inputCsvPath) throws SocketException, UnknownHostException {
+        this(inputCsvPath, SwarmNetwork.LOCALHOST,
+                SwarmNetwork.SCHEDULER_PORT, SwarmNetwork.FIS_PORT);
+    }
+
+    /**
+     * @param schedulerHost hostname/IP for Scheduler
+     * @param schedulerPort Scheduler UDP port
+     * @param localPort UDP port to bind locally
+     */
+    public FireIncidentSubsystem(String inputCsvPath,
+                                 String schedulerHost,
+                                 int schedulerPort,
+                                 int localPort) throws SocketException, UnknownHostException {
         this.inputCsvPath = inputCsvPath;
         this.readInputEvent = hasAtLeastOneValidEvent();
-        this.socket = new DatagramSocket(SwarmNetwork.FIS_PORT);
-        this.schedulerAddr = InetAddress.getByName(SwarmNetwork.LOCALHOST);
+        this.socket = new DatagramSocket(localPort);
+        this.schedulerAddr = InetAddress.getByName(schedulerHost);
+        this.schedulerPort = schedulerPort;
     }
 
     public void setInputCsvPath(String inputCsvPath) {
@@ -124,7 +140,7 @@ public class FireIncidentSubsystem implements Runnable {
             // retaining old method for now
             // toScheduler.put(Message.fireEvent(event));
             // NEW: UDP sendMessage
-            SwarmNetwork.sendMessage(socket, schedulerAddr, SwarmNetwork.SCHEDULER_PORT, Message.fireEvent(event), "[FireIncident]", "sent Event", "to Scheduler");
+            SwarmNetwork.sendMessage(socket, schedulerAddr, schedulerPort, Message.fireEvent(event), "[FireIncident]", "sent Event", "to Scheduler");
             eventsSent++;
             System.out.println("[FireIncident] Sent event: " + event);
         }
@@ -144,7 +160,7 @@ public class FireIncidentSubsystem implements Runnable {
      */
     void notifySchedulerInputComplete() throws Exception {
         // toScheduler.put(Message.shutdown());
-        SwarmNetwork.sendMessage(socket, schedulerAddr, SwarmNetwork.SCHEDULER_PORT, Message.shutdown(), "[FireIncident]", "sent Shutdown", "to Scheduler");
+        SwarmNetwork.sendMessage(socket, schedulerAddr, schedulerPort, Message.shutdown(), "[FireIncident]", "sent Shutdown", "to Scheduler");
     }
 
     /**
