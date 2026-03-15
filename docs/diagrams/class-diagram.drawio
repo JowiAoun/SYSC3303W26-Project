@@ -1,53 +1,56 @@
-<mxfile host="app.diagrams.net" agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:147.0) Gecko/20100101 Firefox/147.0" version="29.3.8">
+<mxfile host="Electron" agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) draw.io/29.6.1 Chrome/142.0.7444.265 Electron/39.8.0 Safari/537.36" version="29.6.1">
   <diagram id="class-diagram" name="Iteration 1 Class Diagram">
-    <mxGraphModel dx="1560" dy="897" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1800" pageHeight="1400" math="0" shadow="0">
+    <mxGraphModel dx="3301" dy="2285" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1800" pageHeight="1400" math="0" shadow="0">
       <root>
         <mxCell id="0" />
         <mxCell id="1" parent="0" />
         <mxCell id="runnable" parent="1" style="swimlane;fontStyle=1;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=40;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=1;marginBottom=0;whiteSpace=wrap;html=1;" value="&lt;&lt;interface&gt;&gt;&#xa;Runnable" vertex="1">
-          <mxGeometry height="66" width="160" x="620" y="40" as="geometry" />
+          <mxGeometry height="66" width="160" x="630" y="-100" as="geometry" />
         </mxCell>
         <mxCell id="runnable-method" parent="runnable" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;" value="+ run(): void" vertex="1">
           <mxGeometry height="26" width="160" y="40" as="geometry" />
         </mxCell>
         <mxCell id="fire" parent="1" style="swimlane;fontStyle=1;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=1;marginBottom=0;whiteSpace=wrap;html=1;" value="FireIncidentSubsystem" vertex="1">
-          <mxGeometry height="250" width="340" x="40" y="280" as="geometry" />
+          <mxGeometry height="280" width="340" x="40" y="280" as="geometry" />
         </mxCell>
-        <mxCell id="fire-attrs" parent="fire" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;" value="- inputCsvPath: String&#xa;- toScheduler: MessageBuffer&#xa;- fromScheduler: MessageBuffer&#xa;+ readInputEvent: boolean" vertex="1">
-          <mxGeometry height="64" width="340" y="26" as="geometry" />
+        <mxCell id="fire-attrs" parent="fire" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;" value="&lt;div&gt;&lt;div&gt;&lt;div&gt;- inputCsvPath: String&lt;/div&gt;&lt;div&gt;- toScheduler: MessageBuffer&lt;/div&gt;&lt;div&gt;- fromScheduler: MessageBuffer&lt;/div&gt;&lt;div&gt;+ readInputEvent: boolean&lt;/div&gt;&lt;div&gt;- socket: DatagramSocket&lt;/div&gt;&lt;div&gt;- schedulerAddr: InetAddress&lt;/div&gt;&lt;/div&gt;&lt;/div&gt;" vertex="1">
+          <mxGeometry height="94" width="340" y="26" as="geometry" />
         </mxCell>
         <mxCell id="fire-line" parent="fire" style="line;strokeWidth=1;fillColor=none;align=left;verticalAlign=middle;spacingTop=-1;spacingLeft=3;spacingRight=3;rotatable=0;labelPosition=right;points=[];portConstraint=eastwest;strokeColor=inherit;" value="" vertex="1">
-          <mxGeometry height="8" width="340" y="90" as="geometry" />
+          <mxGeometry height="8" width="340" y="120" as="geometry" />
         </mxCell>
-        <mxCell id="fire-methods" parent="fire" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;" value="+ run(): void&#xa;+ setInputCsvPath(path: String): void&#xa;+ awaitAcknowledgements(): int&#xa;~ loadEventsFromCsv(): List&lt;FireEvent&gt;&#xa;~ hasAtLeastOneValidEvent(): boolean&#xa;~ parseEventLine(line: String): FireEvent&#xa;~ sendEventsToScheduler(events: List&lt;FireEvent&gt;): int&#xa;~ receiveMessage(): Message&#xa;~ notifySchedulerInputComplete(): void" vertex="1">
-          <mxGeometry height="152" width="340" y="98" as="geometry" />
+        <mxCell id="fire-methods" parent="fire" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;" value="&lt;div&gt;+ setInputCsvPath(inputCsvPath: String): void&lt;/div&gt;&lt;div&gt;+ closeSocket(): void&lt;/div&gt;&lt;div&gt;+ run(): void&lt;/div&gt;&lt;div&gt;~ hasAtLeastOneValidEvent(): boolean&lt;/div&gt;&lt;div&gt;~ loadEventsFromCsv(): List&amp;lt;FireEvent&amp;gt;&lt;/div&gt;&lt;div&gt;~ parseEventLine(line: String): FireEvent&lt;/div&gt;&lt;div&gt;~ sendEventsToScheduler(events: List&amp;lt;FireEvent&amp;gt;): int&lt;/div&gt;&lt;div&gt;~ receiveMessage(): Message&lt;/div&gt;&lt;div&gt;~ notifySchedulerInputComplete(): void&lt;/div&gt;&lt;div&gt;+ awaitAcknowledgements(): int&lt;/div&gt;" vertex="1">
+          <mxGeometry height="152" width="340" y="128" as="geometry" />
         </mxCell>
         <mxCell id="scheduler" parent="1" style="swimlane;fontStyle=1;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=1;marginBottom=0;whiteSpace=wrap;html=1;" value="Scheduler" vertex="1">
-          <mxGeometry height="384" width="360" x="520" y="200" as="geometry" />
+          <mxGeometry height="600" width="360" x="530" as="geometry" />
         </mxCell>
-        <mxCell id="scheduler-attrs" parent="scheduler" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;" value="- fromSubsystems: MessageBuffer&lt;br&gt;- toFireIncident: MessageBuffer&lt;br&gt;- toDrone: MessageBuffer&lt;br&gt;- pending: Queue&amp;lt;FireEvent&amp;gt;&lt;br&gt;- totalEvents: int&lt;br&gt;- completed: int&lt;br&gt;- fireIncidentDone: boolean&lt;br&gt;- droneReady: boolean&lt;br&gt;- shutdownSentToFire: boolean&lt;br&gt;&lt;div&gt;- shutdownSentToDrone: boolean&lt;/div&gt;&lt;div&gt;- lastDroneStatus: DroneStatus&lt;/div&gt;" vertex="1">
-          <mxGeometry height="164" width="360" y="26" as="geometry" />
+        <mxCell id="scheduler-attrs" parent="scheduler" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;" value="&lt;div&gt;- fromSubsystems: MessageBuffer&lt;/div&gt;&lt;div&gt;- toFireIncident: MessageBuffer&lt;/div&gt;&lt;div&gt;- toDrone: MessageBuffer&lt;/div&gt;&lt;div&gt;- socket: DatagramSocket&lt;/div&gt;&lt;div&gt;- pending: Queue&amp;lt;FireEvent&amp;gt;&lt;/div&gt;&lt;div&gt;- totalEvents: int&lt;/div&gt;&lt;div&gt;- completed: int&lt;/div&gt;&lt;div&gt;- fireIncidentDone: boolean&lt;/div&gt;&lt;div&gt;- shutdownSentToFire: boolean&lt;/div&gt;&lt;div&gt;- shutdownSentToDrone: boolean&lt;/div&gt;&lt;div&gt;- lastDroneStatus: DroneStatus&lt;/div&gt;&lt;div&gt;- droneStatuses: Map&amp;lt;Integer, DroneStatus&amp;gt;&lt;/div&gt;&lt;div&gt;- droneAddresses: Map&amp;lt;Integer, InetAddress&amp;gt;&lt;/div&gt;&lt;div&gt;- dronePorts: Map&amp;lt;Integer, Integer&amp;gt;&lt;/div&gt;&lt;div&gt;- shutdownSentToDrones: Set&amp;lt;Integer&amp;gt;&lt;/div&gt;&lt;div&gt;- gui: FireDroneGUI&lt;/div&gt;&lt;div&gt;- currentState: SchedulerState&lt;/div&gt;" vertex="1">
+          <mxGeometry height="254" width="360" y="26" as="geometry" />
         </mxCell>
         <mxCell id="scheduler-line" parent="scheduler" style="line;strokeWidth=1;fillColor=none;align=left;verticalAlign=middle;spacingTop=-1;spacingLeft=3;spacingRight=3;rotatable=0;labelPosition=right;points=[];portConstraint=eastwest;strokeColor=inherit;" value="" vertex="1">
-          <mxGeometry height="8" width="360" y="190" as="geometry" />
+          <mxGeometry height="8" width="360" y="280" as="geometry" />
         </mxCell>
-        <mxCell id="scheduler-methods" parent="scheduler" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;" value="+ run(): void&#xa;+ getTotalEvents(): int&#xa;~ receiveSubsystemMessage(): Message&#xa;~ handleIncomingMessage(msg: Message): void&#xa;~ canDispatchPendingEvent(): boolean&#xa;~ dispatchPendingEvent(): void&#xa;~ sendReturnToBase(): void&#xa;~ checkAndSendReturnToBase(): void&#xa;~ sendShutdownToDroneIfComplete(): void&#xa;~ sendShutdownToFireIfComplete(): void&#xa;~ isProcessingComplete(): boolean&#xa;~ shouldTerminate(): boolean&#xa;- handleFireIncidentMessage(msg: Message): void&#xa;- handleDroneMessage(msg: Message): void" vertex="1">
-          <mxGeometry height="186" width="360" y="198" as="geometry" />
+        <mxCell id="scheduler-methods" parent="scheduler" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;" value="&lt;div&gt;+ run(): void&lt;/div&gt;&lt;div&gt;+ getTotalEvents(): int&lt;/div&gt;&lt;div&gt;~ getCurrentState(): SchedulerState&lt;/div&gt;&lt;div&gt;+ getSocket(): DatagramSocket&lt;/div&gt;&lt;div&gt;+ closeSocket(): void&lt;/div&gt;&lt;div&gt;~ evaluateTransition(): void&lt;/div&gt;&lt;div&gt;~ receiveSubsystemMessage(): ReceivedMessage&lt;/div&gt;&lt;div&gt;~ handleIncomingMessage(rm: ReceivedMessage): void&lt;/div&gt;&lt;div&gt;- findIdleDrone(): Integer&lt;/div&gt;&lt;div&gt;~ canDispatchPendingEvent(): boolean&lt;/div&gt;&lt;div&gt;~ dispatchPendingEvent(): void&lt;/div&gt;&lt;div&gt;~ sendReturnToBase(droneId: int): void&lt;/div&gt;&lt;div&gt;~ sendReturnToBase(): void&lt;/div&gt;&lt;div&gt;~ checkAndSendReturnToBase(): void&lt;/div&gt;&lt;div&gt;~ sendShutdownToDroneIfComplete(): void&lt;/div&gt;&lt;div&gt;~ sendShutdownToFireIfComplete(): void&lt;/div&gt;&lt;div&gt;~ isProcessingComplete(): boolean&lt;/div&gt;&lt;div&gt;~ shouldTerminate(): boolean&lt;/div&gt;&lt;div&gt;- handleFireIncidentMessage(message: Message): void&lt;/div&gt;&lt;div&gt;- handleDroneMessage(message: Message, addr: InetAddress, port: int): void&lt;/div&gt;" vertex="1">
+          <mxGeometry height="312" width="360" y="288" as="geometry" />
+        </mxCell>
+        <mxCell id="U2mrzsjLOKktN14YIC3D-12" edge="1" parent="1" source="drone" style="edgeStyle=orthogonalEdgeStyle;shape=connector;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=0.75;exitY=0;exitDx=0;exitDy=0;strokeColor=default;align=center;verticalAlign=middle;fontFamily=Helvetica;fontSize=11;fontColor=default;labelBackgroundColor=default;endArrow=open;endFill=0;endSize=12;entryX=1;entryY=0.5;entryDx=0;entryDy=0;" target="U2mrzsjLOKktN14YIC3D-2">
+          <mxGeometry relative="1" as="geometry" />
         </mxCell>
         <mxCell id="drone" parent="1" style="swimlane;fontStyle=1;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=1;marginBottom=0;whiteSpace=wrap;html=1;" value="DroneSubsystem" vertex="1">
-          <mxGeometry height="290" width="300" x="1000" y="280" as="geometry" />
+          <mxGeometry height="630" width="300" x="1000" y="240" as="geometry" />
         </mxCell>
-        <mxCell id="drone-attrs" parent="drone" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;" value="- toScheduler: MessageBuffer&lt;br&gt;&lt;div&gt;- fromScheduler: MessageBuffer&lt;/div&gt;&lt;div&gt;- remainingLiters: int&lt;/div&gt;" vertex="1">
-          <mxGeometry height="54" width="300" y="26" as="geometry" />
+        <mxCell id="drone-attrs" parent="drone" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;" value="&lt;div&gt;- toScheduler: MessageBuffer&lt;/div&gt;&lt;div&gt;- fromScheduler: MessageBuffer&lt;/div&gt;&lt;div&gt;- remainingLiters: int&lt;/div&gt;&lt;div&gt;- currentState: DroneState&lt;/div&gt;&lt;div&gt;- socket: DatagramSocket&lt;/div&gt;&lt;div&gt;- schedulerAddr: InetAddress&lt;/div&gt;&lt;div&gt;- droneId: int&lt;/div&gt;&lt;div&gt;- currentAssignment: FireEvent&lt;/div&gt;&lt;div&gt;- remainingRequired: int&lt;/div&gt;&lt;div&gt;- currentZoneId: int&lt;/div&gt;" vertex="1">
+          <mxGeometry height="154" width="300" y="26" as="geometry" />
         </mxCell>
         <mxCell id="drone-line" parent="drone" style="line;strokeWidth=1;fillColor=none;align=left;verticalAlign=middle;spacingTop=-1;spacingLeft=3;spacingRight=3;rotatable=0;labelPosition=right;points=[];portConstraint=eastwest;strokeColor=inherit;" value="" vertex="1">
-          <mxGeometry height="8" width="300" y="80" as="geometry" />
+          <mxGeometry height="8" width="300" y="180" as="geometry" />
         </mxCell>
-        <mxCell id="drone-methods" parent="drone" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;" value="+ run(): void&lt;br&gt;&lt;div&gt;~ sendReadySignal(): void&lt;/div&gt;&lt;div&gt;~ sendUserIdlingUpdate(): void&lt;/div&gt;&lt;div&gt;~ sendUserIdlingUpdate(zoneId: int): void&lt;/div&gt;~ receiveMessage(): Message&lt;br&gt;~ isShutdown(reply: Message): boolean&lt;br&gt;~ isAssignment(reply: Message): boolean&lt;br&gt;~ isReturnToBase(reply: Message): boolean&lt;br&gt;~ processAssignment(reply: Message): void&lt;br&gt;&lt;div&gt;~ handleReturnToBase(): void&lt;/div&gt;&lt;div&gt;~ sendCompletion(event: FireEvent): void&lt;/div&gt;&lt;div&gt;~ checkAndRefillIfNeeded(): void&lt;/div&gt;&lt;div&gt;- simulateService(event: FireEvent): void&lt;/div&gt;&lt;div&gt;- sendStatus(state: DroneState, zoneId: int): void&lt;/div&gt;&lt;div&gt;- simulateTravel(zoneId: int): void&lt;/div&gt;&lt;div&gt;- estimateTravelSeconds(zoneId: int): double&lt;/div&gt;" vertex="1">
-          <mxGeometry height="202" width="300" y="88" as="geometry" />
+        <mxCell id="drone-methods" parent="drone" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;" value="&lt;div&gt;+ run(): void&lt;/div&gt;&lt;div&gt;+ getDroneId(): int&lt;/div&gt;&lt;div&gt;+ getSocket(): DatagramSocket&lt;/div&gt;&lt;div&gt;+ getPort(): int&lt;/div&gt;&lt;div&gt;+ closeSocket(): void&lt;/div&gt;&lt;div&gt;~ getCurrentState(): DroneState&lt;/div&gt;&lt;div&gt;~ getCurrentState(droneState: DroneState): DroneState&lt;/div&gt;&lt;div&gt;~ setCurrentState(droneState: DroneState): void&lt;/div&gt;&lt;div&gt;~ sendReadySignal(): void&lt;/div&gt;&lt;div&gt;~ sendUserIdlingUpdate(): void&lt;/div&gt;&lt;div&gt;~ sendUserIdlingUpdate(zoneId: int): void&lt;/div&gt;&lt;div&gt;~ receiveMessage(): Message&lt;/div&gt;&lt;div&gt;~ isAssignment(reply: Message): boolean&lt;/div&gt;&lt;div&gt;~ isShutdown(reply: Message): boolean&lt;/div&gt;&lt;div&gt;~ isReturnToBase(reply: Message): boolean&lt;/div&gt;&lt;div&gt;~ processAssignment(reply: Message): void&lt;/div&gt;&lt;div&gt;~ sendCompletion(event: FireEvent): void&lt;/div&gt;&lt;div&gt;- handleIdle(): boolean&lt;/div&gt;&lt;div&gt;- handleEnRoute(): void&lt;/div&gt;&lt;div&gt;- handleExtinguishing(): void&lt;/div&gt;&lt;div&gt;- handleReturning(): void&lt;/div&gt;&lt;div&gt;- handleRefilling(): void&lt;/div&gt;&lt;div&gt;- handleFaulted(): void&lt;/div&gt;&lt;div&gt;- checkAndRefillIfNeeded(): void&lt;/div&gt;&lt;div&gt;- simulateService(event: FireEvent): void&lt;/div&gt;&lt;div&gt;- sendStatus(state: DroneState, zoneId: int): void&lt;/div&gt;&lt;div&gt;- simulateTravel(zoneId: int): void&lt;/div&gt;&lt;div&gt;- estimateTravelSeconds(zoneId: int): double&lt;/div&gt;&lt;div&gt;- handleReturnToBase(): void&lt;/div&gt;" vertex="1">
+          <mxGeometry height="442" width="300" y="188" as="geometry" />
         </mxCell>
         <mxCell id="msgbuffer" parent="1" style="swimlane;fontStyle=1;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=1;marginBottom=0;whiteSpace=wrap;html=1;" value="MessageBuffer" vertex="1">
-          <mxGeometry height="100" width="280" x="680" y="660" as="geometry" />
+          <mxGeometry height="100" width="280" x="690" y="840" as="geometry" />
         </mxCell>
         <mxCell id="msgbuffer-attrs" parent="msgbuffer" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;" value="- queue: Queue&amp;lt;Message&amp;gt;" vertex="1">
           <mxGeometry height="26" width="280" y="26" as="geometry" />
@@ -59,19 +62,19 @@
           <mxGeometry height="40" width="280" y="60" as="geometry" />
         </mxCell>
         <mxCell id="message" parent="1" style="swimlane;fontStyle=1;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=1;marginBottom=0;whiteSpace=wrap;html=1;" value="Message" vertex="1">
-          <mxGeometry height="230" width="280" x="680" y="840" as="geometry" />
+          <mxGeometry height="270" width="280" x="690" y="965" as="geometry" />
         </mxCell>
-        <mxCell id="message-attrs" parent="message" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;" value="- type: Type&lt;br&gt;&lt;div&gt;- event: FireEvent&lt;/div&gt;&lt;div&gt;- status: droneStatus&lt;/div&gt;" vertex="1">
+        <mxCell id="message-attrs" parent="message" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;" value="- type: Type&lt;br&gt;&lt;div&gt;- event: FireEvent&lt;/div&gt;&lt;div&gt;- status: DroneStatus&lt;/div&gt;" vertex="1">
           <mxGeometry height="54" width="280" y="26" as="geometry" />
         </mxCell>
         <mxCell id="message-line" parent="message" style="line;strokeWidth=1;fillColor=none;align=left;verticalAlign=middle;spacingTop=-1;spacingLeft=3;spacingRight=3;rotatable=0;labelPosition=right;points=[];portConstraint=eastwest;strokeColor=inherit;" value="" vertex="1">
           <mxGeometry height="8" width="280" y="80" as="geometry" />
         </mxCell>
-        <mxCell id="message-methods" parent="message" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;" value="+ getType(): Type&lt;br&gt;&lt;div&gt;+ getEvent(): FireEvent&lt;/div&gt;&lt;div&gt;+ getStatus(): DroneStatus&lt;/div&gt;+ fireEvent(event: FireEvent): Message&lt;br&gt;+ droneReady(): Message&lt;br&gt;+ droneAssignment(event: FireEvent): Message&lt;br&gt;+ droneReturnToBase(): Message&lt;br&gt;+ droneCompleted(event: FireEvent): Message&lt;br&gt;+ fireAck(event: FireEvent): Message&lt;br&gt;+ shutdown(): Message" vertex="1">
-          <mxGeometry height="142" width="280" y="88" as="geometry" />
+        <mxCell id="message-methods" parent="message" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;" value="+ getType(): Type&lt;br&gt;&lt;div&gt;+ getEvent(): FireEvent&lt;/div&gt;&lt;div&gt;+ getStatus(): DroneStatus&lt;/div&gt;+ fireEvent(event: FireEvent): Message&lt;br&gt;+ droneReady(): Message&lt;br&gt;+ droneAssignment(event: FireEvent): Message&lt;br&gt;+ droneReturnToBase(): Message&lt;br&gt;+ droneCompleted(event: FireEvent): Message&lt;br&gt;+ fireAck(event: FireEvent): Message&lt;div&gt;+ toBytes(): byte[]&lt;/div&gt;&lt;div&gt;+ fromBytes(data: byte[], length: int): Message&lt;br&gt;+ shutdown(): Message&lt;/div&gt;" vertex="1">
+          <mxGeometry height="182" width="280" y="88" as="geometry" />
         </mxCell>
         <mxCell id="fireevent" parent="1" style="swimlane;fontStyle=1;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=1;marginBottom=0;whiteSpace=wrap;html=1;" value="FireEvent" vertex="1">
-          <mxGeometry height="230" width="280" x="280" y="660" as="geometry" />
+          <mxGeometry height="230" width="280" x="290" y="815" as="geometry" />
         </mxCell>
         <mxCell id="fireevent-attrs" parent="fireevent" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;" value="- time: String&#xa;- zoneId: int&#xa;- eventType: EventType&#xa;- severity: Severity" vertex="1">
           <mxGeometry height="64" width="280" y="26" as="geometry" />
@@ -83,7 +86,7 @@
           <mxGeometry height="132" width="280" y="98" as="geometry" />
         </mxCell>
         <mxCell id="main" parent="1" style="swimlane;fontStyle=1;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=1;marginBottom=0;whiteSpace=wrap;html=1;" value="Main" vertex="1">
-          <mxGeometry height="70" width="160" x="40" y="660" as="geometry" />
+          <mxGeometry height="70" width="160" x="500" y="650" as="geometry" />
         </mxCell>
         <mxCell id="main-line" parent="main" style="line;strokeWidth=1;fillColor=none;align=left;verticalAlign=middle;spacingTop=-1;spacingLeft=3;spacingRight=3;rotatable=0;labelPosition=right;points=[];portConstraint=eastwest;strokeColor=inherit;" value="" vertex="1">
           <mxGeometry height="8" width="160" y="26" as="geometry" />
@@ -92,25 +95,31 @@
           <mxGeometry height="36" width="160" y="34" as="geometry" />
         </mxCell>
         <mxCell id="eventtype-enum" parent="1" style="swimlane;fontStyle=1;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=40;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=1;marginBottom=0;whiteSpace=wrap;html=1;" value="&lt;&lt;enumeration&gt;&gt;&#xa;EventType" vertex="1">
-          <mxGeometry height="80" width="140" x="50" y="790" as="geometry" />
+          <mxGeometry height="80" width="140" x="60" y="945" as="geometry" />
         </mxCell>
         <mxCell id="eventtype-values" parent="eventtype-enum" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;" value="FIRE_DETECTED&#xa;DRONE_REQUEST" vertex="1">
           <mxGeometry height="40" width="140" y="40" as="geometry" />
         </mxCell>
         <mxCell id="severity-enum" parent="1" style="swimlane;fontStyle=1;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=40;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=1;marginBottom=0;whiteSpace=wrap;html=1;" value="&lt;&lt;enumeration&gt;&gt;&#xa;Severity" vertex="1">
-          <mxGeometry height="100" width="140" x="350" y="940" as="geometry" />
+          <mxGeometry height="100" width="140" x="360" y="1095" as="geometry" />
         </mxCell>
         <mxCell id="severity-values" parent="severity-enum" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;" value="LOW&#xa;MODERATE&#xa;HIGH" vertex="1">
           <mxGeometry height="60" width="140" y="40" as="geometry" />
         </mxCell>
         <mxCell id="msgtype-enum" parent="1" style="swimlane;fontStyle=1;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=40;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=1;marginBottom=0;whiteSpace=wrap;html=1;" value="&lt;&lt;enumeration&gt;&gt;&#xa;Message.Type" vertex="1">
-          <mxGeometry height="140" width="160" x="1040" y="885" as="geometry" />
+          <mxGeometry height="170" width="160" x="1050" y="1040" as="geometry" />
         </mxCell>
         <mxCell id="msgtype-values" parent="msgtype-enum" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;" value="FIRE_EVENT&#xa;DRONE_READY&#xa;DRONE_ASSIGNMENT&#xa;DRONE_COMPLETED&#xa;DRONE_STATUS_UPDATE&#xa;DRONE_RETURN_TO_BASE&#xa;FIRE_ACK&#xa;SHUTDOWN" vertex="1">
-          <mxGeometry height="100" width="160" y="40" as="geometry" />
+          <mxGeometry height="130" width="160" y="40" as="geometry" />
         </mxCell>
         <mxCell id="e1" edge="1" parent="1" source="fire" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=0;dashed=1;endSize=12;exitX=0.5;exitY=0;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" target="runnable">
-          <mxGeometry relative="1" as="geometry" />
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="210" y="-30" />
+              <mxPoint x="580" y="-30" />
+              <mxPoint x="580" y="-67" />
+            </Array>
+          </mxGeometry>
         </mxCell>
         <mxCell id="e2" edge="1" parent="1" source="scheduler" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=0;dashed=1;endSize=12;exitX=0.5;exitY=0;exitDx=0;exitDy=0;entryX=0.5;entryY=1;entryDx=0;entryDy=0;" target="runnable">
           <mxGeometry relative="1" as="geometry" />
@@ -118,22 +127,35 @@
         <mxCell id="e3" edge="1" parent="1" source="drone" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=0;dashed=1;endSize=12;exitX=0.5;exitY=0;exitDx=0;exitDy=0;entryX=1;entryY=0.5;entryDx=0;entryDy=0;" target="runnable">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="e4" edge="1" parent="1" source="fire" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=open;endFill=0;endSize=12;exitX=0.5;exitY=1;exitDx=0;exitDy=0;" target="msgbuffer">
+        <mxCell id="e4" edge="1" parent="1" source="fire-methods" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=open;endFill=0;endSize=12;exitX=0.582;exitY=0.988;exitDx=0;exitDy=0;exitPerimeter=0;" target="msgbuffer">
           <mxGeometry relative="1" as="geometry">
             <Array as="points">
-              <mxPoint x="210" y="600" />
-              <mxPoint x="620" y="600" />
-              <mxPoint x="620" y="710" />
+              <mxPoint x="240" y="558" />
+              <mxPoint x="240" y="755" />
+              <mxPoint x="630" y="755" />
+              <mxPoint x="630" y="865" />
             </Array>
-            <mxPoint x="210" y="500" as="sourcePoint" />
-            <mxPoint x="620" y="720" as="targetPoint" />
+            <mxPoint x="240" y="680" as="sourcePoint" />
+            <mxPoint x="630" y="875" as="targetPoint" />
           </mxGeometry>
         </mxCell>
-        <mxCell id="e5" edge="1" parent="1" source="scheduler" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=open;endFill=0;endSize=12;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" target="msgbuffer">
-          <mxGeometry relative="1" as="geometry" />
+        <mxCell id="e5" edge="1" parent="1" source="scheduler-methods" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=open;endFill=0;endSize=12;exitX=0.506;exitY=1.001;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;exitPerimeter=0;" target="msgbuffer">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="712" y="640" />
+              <mxPoint x="830" y="640" />
+            </Array>
+            <mxPoint x="710" y="735" as="sourcePoint" />
+          </mxGeometry>
         </mxCell>
-        <mxCell id="e6" edge="1" parent="1" source="drone" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=open;endFill=0;endSize=12;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=1;entryY=0.5;entryDx=0;entryDy=0;" target="msgbuffer">
-          <mxGeometry relative="1" as="geometry" />
+        <mxCell id="e6" edge="1" parent="1" source="drone-methods" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=open;endFill=0;endSize=12;exitX=0.515;exitY=1.001;exitDx=0;exitDy=0;exitPerimeter=0;entryX=1;entryY=0.5;entryDx=0;entryDy=0;" target="msgbuffer-attrs">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="1154" y="879" />
+            </Array>
+            <mxPoint x="1160" y="785" as="sourcePoint" />
+            <mxPoint x="970" y="890" as="targetPoint" />
+          </mxGeometry>
         </mxCell>
         <mxCell id="e7" edge="1" parent="1" source="msgbuffer" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=open;endFill=0;endSize=12;dashed=1;" target="message">
           <mxGeometry relative="1" as="geometry" />
@@ -141,11 +163,10 @@
         <mxCell id="e8" edge="1" parent="1" source="message" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=diamond;endFill=0;endSize=12;" target="fireevent">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="e9" edge="1" parent="1" source="main" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=open;endFill=0;endSize=12;dashed=1;" target="fire">
-          <mxGeometry relative="1" as="geometry" />
-        </mxCell>
-        <mxCell id="e10" edge="1" parent="1" source="scheduler" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=open;endFill=0;endSize=12;dashed=1;" target="fireevent">
-          <mxGeometry relative="1" as="geometry" />
+        <mxCell id="e10" edge="1" parent="1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=open;endFill=0;endSize=12;dashed=1;" target="fireevent">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="830" y="735" as="sourcePoint" />
+          </mxGeometry>
         </mxCell>
         <mxCell id="e11" edge="1" parent="1" source="fireevent" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=open;endFill=0;endSize=12;dashed=1;" target="eventtype-enum">
           <mxGeometry relative="1" as="geometry" />
@@ -169,7 +190,7 @@
           <mxGeometry height="72" width="170" y="108" as="geometry" />
         </mxCell>
         <mxCell id="pufbM71whZwlIvXFRAdN-5" parent="1" style="swimlane;fontStyle=1;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=40;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=1;marginBottom=0;whiteSpace=wrap;html=1;" value="&lt;div&gt;&amp;lt;&amp;gt;&lt;/div&gt;&lt;div&gt;DroneState&lt;/div&gt;" vertex="1">
-          <mxGeometry height="140" width="170" x="1420" y="600" as="geometry" />
+          <mxGeometry height="140" width="170" x="1420" y="580" as="geometry" />
         </mxCell>
         <mxCell id="pufbM71whZwlIvXFRAdN-6" parent="pufbM71whZwlIvXFRAdN-5" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;" value="IDLE&lt;br&gt;EN_ROUTE&lt;br&gt;EXTINGUISHING&lt;br&gt;RETURNING&lt;br&gt;REFILLING&lt;br&gt;FAULTED" vertex="1">
           <mxGeometry height="100" width="170" y="40" as="geometry" />
@@ -180,10 +201,10 @@
             <mxPoint x="1340" y="740" as="targetPoint" />
           </mxGeometry>
         </mxCell>
-        <mxCell id="pufbM71whZwlIvXFRAdN-10" edge="1" parent="1" source="pufbM71whZwlIvXFRAdN-1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=open;endFill=0;endSize=12;dashed=1;" target="pufbM71whZwlIvXFRAdN-5">
+        <mxCell id="pufbM71whZwlIvXFRAdN-10" edge="1" parent="1" source="pufbM71whZwlIvXFRAdN-4" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=open;endFill=0;endSize=12;dashed=1;exitX=0.497;exitY=0.989;exitDx=0;exitDy=0;exitPerimeter=0;" target="pufbM71whZwlIvXFRAdN-5">
           <mxGeometry relative="1" as="geometry">
-            <mxPoint x="1330" y="840" as="sourcePoint" />
-            <mxPoint x="1410" y="820" as="targetPoint" />
+            <mxPoint x="1505" y="540" as="sourcePoint" />
+            <mxPoint x="1410" y="845" as="targetPoint" />
           </mxGeometry>
         </mxCell>
         <mxCell id="pufbM71whZwlIvXFRAdN-11" edge="1" parent="1" source="scheduler" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=open;endFill=0;endSize=12;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" target="pufbM71whZwlIvXFRAdN-1">
@@ -197,15 +218,111 @@
             <mxPoint x="1380" y="190" as="targetPoint" />
           </mxGeometry>
         </mxCell>
-        <mxCell id="pufbM71whZwlIvXFRAdN-12" edge="1" parent="1" source="message" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=open;endFill=0;endSize=12;" target="pufbM71whZwlIvXFRAdN-1">
+        <mxCell id="pufbM71whZwlIvXFRAdN-12" edge="1" parent="1" source="message" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=open;endFill=0;endSize=12;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" target="pufbM71whZwlIvXFRAdN-2">
           <mxGeometry relative="1" as="geometry">
             <Array as="points">
-              <mxPoint x="810" y="1120" />
-              <mxPoint x="1360" y="1120" />
-              <mxPoint x="1360" y="425" />
+              <mxPoint x="1360" y="1220" />
+              <mxPoint x="1360" y="398" />
             </Array>
             <mxPoint x="810" y="1110" as="sourcePoint" />
             <mxPoint x="1360" y="370" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="U2mrzsjLOKktN14YIC3D-1" parent="1" style="swimlane;fontStyle=1;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=1;marginBottom=0;whiteSpace=wrap;html=1;" value="SwarmNetwork" vertex="1">
+          <mxGeometry height="210" width="420" x="460" y="-360" as="geometry" />
+        </mxCell>
+        <mxCell id="U2mrzsjLOKktN14YIC3D-2" parent="U2mrzsjLOKktN14YIC3D-1" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;" value="&lt;div&gt;+ SCHEDULER_PORT : int&lt;/div&gt;&lt;div&gt;+ FIS_PORT : int&lt;/div&gt;&lt;div&gt;+ LOCALHOST : String&lt;/div&gt;&lt;div&gt;- BUF_SIZE: int&lt;/div&gt;" vertex="1">
+          <mxGeometry height="74" width="420" y="26" as="geometry" />
+        </mxCell>
+        <mxCell id="U2mrzsjLOKktN14YIC3D-3" parent="U2mrzsjLOKktN14YIC3D-1" style="line;strokeWidth=1;fillColor=none;align=left;verticalAlign=middle;spacingTop=-1;spacingLeft=3;spacingRight=3;rotatable=0;labelPosition=right;points=[];portConstraint=eastwest;strokeColor=inherit;" value="" vertex="1">
+          <mxGeometry height="8" width="420" y="100" as="geometry" />
+        </mxCell>
+        <mxCell id="U2mrzsjLOKktN14YIC3D-4" parent="U2mrzsjLOKktN14YIC3D-1" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;" value="&lt;div&gt;+ sendMessage(socket: DatagramSocket, addr: InetAddress, port: int, msg: Message, prefix: String, action: String, peerLabel: String): void&lt;/div&gt;&lt;div&gt;+ receiveMessage(socket: DatagramSocket) : Message&lt;/div&gt;&lt;div&gt;+ receiveMessageWithSource(socket: DatagramSocket) : ReceivedMessage&lt;/div&gt;&lt;div&gt;-&lt;span style=&quot;background-color: transparent; color: light-dark(rgb(0, 0, 0), rgb(255, 255, 255));&quot;&gt;&amp;nbsp;printPacket(prefix: String, action: String, peerLabel: String, p: DatagramPacket, containing: String, rawBytes: byte[]): void&lt;/span&gt;&lt;/div&gt;&lt;div&gt;&lt;span style=&quot;background-color: transparent; color: light-dark(rgb(0, 0, 0), rgb(255, 255, 255));&quot;&gt;&lt;br&gt;&lt;/span&gt;&lt;/div&gt;" vertex="1">
+          <mxGeometry height="102" width="420" y="108" as="geometry" />
+        </mxCell>
+        <mxCell id="U2mrzsjLOKktN14YIC3D-5" parent="1" style="swimlane;fontStyle=1;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=1;marginBottom=0;whiteSpace=wrap;html=1;" value="ReceivedMessage" vertex="1">
+          <mxGeometry height="150" width="160" x="260" y="-200" as="geometry" />
+        </mxCell>
+        <mxCell id="U2mrzsjLOKktN14YIC3D-6" parent="U2mrzsjLOKktN14YIC3D-5" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;" value="&lt;div&gt;- message : Message&lt;/div&gt;&lt;div&gt;- address : InetAddress&lt;/div&gt;&lt;div&gt;- port : int&lt;/div&gt;" vertex="1">
+          <mxGeometry height="54" width="160" y="26" as="geometry" />
+        </mxCell>
+        <mxCell id="U2mrzsjLOKktN14YIC3D-7" parent="U2mrzsjLOKktN14YIC3D-5" style="line;strokeWidth=1;fillColor=none;align=left;verticalAlign=middle;spacingTop=-1;spacingLeft=3;spacingRight=3;rotatable=0;labelPosition=right;points=[];portConstraint=eastwest;strokeColor=inherit;" value="" vertex="1">
+          <mxGeometry height="8" width="160" y="80" as="geometry" />
+        </mxCell>
+        <mxCell id="U2mrzsjLOKktN14YIC3D-8" parent="U2mrzsjLOKktN14YIC3D-5" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;" value="&lt;div&gt;+ getMessage(): Message&lt;/div&gt;&lt;div&gt;+ getAddress(): InetAddress&lt;/div&gt;&lt;div&gt;+ getPort(): int&lt;/div&gt;" vertex="1">
+          <mxGeometry height="62" width="160" y="88" as="geometry" />
+        </mxCell>
+        <mxCell id="U2mrzsjLOKktN14YIC3D-9" edge="1" parent="1" source="U2mrzsjLOKktN14YIC3D-4" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.5;entryY=0;entryDx=0;entryDy=0;startArrow=circlePlus;startFill=0;endArrow=none;endFill=0;exitX=0;exitY=0.282;exitDx=0;exitDy=0;exitPerimeter=0;" target="U2mrzsjLOKktN14YIC3D-5">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="340" y="-213" />
+            </Array>
+            <mxPoint x="-210" y="530" as="sourcePoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="U2mrzsjLOKktN14YIC3D-11" edge="1" parent="1" source="fire" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=0.25;exitY=0;exitDx=0;exitDy=0;entryX=0.014;entryY=-0.02;entryDx=0;entryDy=0;endArrow=open;endFill=0;endSize=12;entryPerimeter=0;" target="U2mrzsjLOKktN14YIC3D-4">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="U2mrzsjLOKktN14YIC3D-13" edge="1" parent="1" style="edgeStyle=orthogonalEdgeStyle;shape=connector;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.509;entryY=0.991;entryDx=0;entryDy=0;entryPerimeter=0;strokeColor=default;align=center;verticalAlign=middle;fontFamily=Helvetica;fontSize=11;fontColor=default;labelBackgroundColor=default;endArrow=open;endFill=0;endSize=12;" target="U2mrzsjLOKktN14YIC3D-4">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="812" y="-110" />
+              <mxPoint x="674" y="-110" />
+            </Array>
+            <mxPoint x="812" as="sourcePoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="U2mrzsjLOKktN14YIC3D-39" edge="1" parent="1" source="U2mrzsjLOKktN14YIC3D-8" style="edgeStyle=orthogonalEdgeStyle;shape=connector;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=0;exitY=0.5;exitDx=0;exitDy=0;entryX=0.226;entryY=0.995;entryDx=0;entryDy=0;entryPerimeter=0;strokeColor=default;align=center;verticalAlign=middle;fontFamily=Helvetica;fontSize=11;fontColor=default;labelBackgroundColor=default;endArrow=open;endFill=0;endSize=12;dashed=1;" target="message-methods">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="10" y="-81" />
+              <mxPoint x="10" y="1250" />
+              <mxPoint x="760" y="1250" />
+              <mxPoint x="760" y="1234" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="U2mrzsjLOKktN14YIC3D-40" parent="1" style="swimlane;fontStyle=0;childLayout=stackLayout;horizontal=1;startSize=40;fillColor=none;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=1;marginBottom=0;whiteSpace=wrap;html=1;fontFamily=Helvetica;fontSize=11;fontColor=default;labelBackgroundColor=default;" value="&lt;b&gt;&amp;lt;&amp;lt;enum&amp;gt;&amp;gt;&lt;/b&gt;&lt;div&gt;&lt;b&gt;SchedulerState&lt;/b&gt;&lt;/div&gt;" vertex="1">
+          <mxGeometry height="110" width="140" x="370" y="140" as="geometry" />
+        </mxCell>
+        <mxCell id="U2mrzsjLOKktN14YIC3D-41" parent="U2mrzsjLOKktN14YIC3D-40" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;fontFamily=Helvetica;fontSize=11;fontColor=default;labelBackgroundColor=default;" value="&lt;div&gt;IDLE&lt;/div&gt;&lt;div&gt;AWAITING_DRONE&lt;/div&gt;&lt;div&gt;DRONE_ACTIVE&lt;/div&gt;&lt;div&gt;SHUTTING_DOWN&lt;/div&gt;" vertex="1">
+          <mxGeometry height="70" width="140" y="40" as="geometry" />
+        </mxCell>
+        <mxCell id="U2mrzsjLOKktN14YIC3D-44" edge="1" parent="1" source="scheduler-attrs" style="edgeStyle=orthogonalEdgeStyle;shape=connector;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=0;exitY=0.5;exitDx=0;exitDy=0;entryX=0.502;entryY=0.991;entryDx=0;entryDy=0;entryPerimeter=0;strokeColor=default;align=center;verticalAlign=middle;fontFamily=Helvetica;fontSize=11;fontColor=default;labelBackgroundColor=default;endArrow=open;endFill=0;endSize=12;dashed=1;" target="U2mrzsjLOKktN14YIC3D-41">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="440" y="268" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="U2mrzsjLOKktN14YIC3D-81" edge="1" parent="1" source="main-methods" style="edgeStyle=orthogonalEdgeStyle;shape=connector;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=0;exitY=0.5;exitDx=0;exitDy=0;strokeColor=default;align=center;verticalAlign=middle;fontFamily=Helvetica;fontSize=11;fontColor=default;labelBackgroundColor=default;endArrow=open;endFill=0;endSize=12;dashed=1;entryX=0.787;entryY=0.995;entryDx=0;entryDy=0;entryPerimeter=0;" target="fire-methods">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="310" y="570" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="U2mrzsjLOKktN14YIC3D-82" edge="1" parent="1" source="main" style="edgeStyle=orthogonalEdgeStyle;shape=connector;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=0.5;exitY=0;exitDx=0;exitDy=0;entryX=0.132;entryY=1.011;entryDx=0;entryDy=0;entryPerimeter=0;strokeColor=default;align=center;verticalAlign=middle;fontFamily=Helvetica;fontSize=11;fontColor=default;labelBackgroundColor=default;endArrow=open;endFill=0;endSize=12;dashed=1;" target="scheduler-methods">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="U2mrzsjLOKktN14YIC3D-83" edge="1" parent="1" source="main-methods" style="edgeStyle=orthogonalEdgeStyle;shape=connector;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;strokeColor=default;align=center;verticalAlign=middle;fontFamily=Helvetica;fontSize=11;fontColor=default;labelBackgroundColor=default;endArrow=open;endFill=0;endSize=12;dashed=1;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" target="drone-methods">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="660" y="682" />
+              <mxPoint x="820" y="682" />
+              <mxPoint x="820" y="649" />
+            </Array>
+            <mxPoint x="1000" y="680" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="U2mrzsjLOKktN14YIC3D-84" edge="1" parent="1" source="drone-methods" style="edgeStyle=orthogonalEdgeStyle;shape=connector;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0.019;entryY=0.334;entryDx=0;entryDy=0;entryPerimeter=0;strokeColor=default;align=center;verticalAlign=middle;fontFamily=Helvetica;fontSize=11;fontColor=default;labelBackgroundColor=default;endArrow=open;endFill=0;endSize=12;dashed=1;" target="pufbM71whZwlIvXFRAdN-6">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="U2mrzsjLOKktN14YIC3D-85" edge="1" parent="1" source="U2mrzsjLOKktN14YIC3D-2" style="edgeStyle=orthogonalEdgeStyle;shape=connector;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=0;exitY=0.5;exitDx=0;exitDy=0;entryX=0.511;entryY=0.998;entryDx=0;entryDy=0;entryPerimeter=0;strokeColor=default;align=center;verticalAlign=middle;fontFamily=Helvetica;fontSize=11;fontColor=default;labelBackgroundColor=default;endArrow=open;endFill=0;endSize=12;" target="message-methods">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="-20" y="-287" />
+              <mxPoint x="-20" y="1265" />
+              <mxPoint x="833" y="1265" />
+            </Array>
           </mxGeometry>
         </mxCell>
       </root>
