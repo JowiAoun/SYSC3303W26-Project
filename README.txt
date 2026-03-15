@@ -74,6 +74,32 @@ HOW TO RUN (IntelliJ IDEA)
 
 Alternatively, right-click 'Main.java' in the Project view and select "Run 'Main'".
 
+HOW TO RUN (Multiple Processes via Command Line)
+--------------------------------------------------------------------------------
+Build the project once before starting the processes.
+
+Linux/Mac (bash):
+  mvn -q -DskipTests package
+  # Terminal 1 - Scheduler
+  java -cp target/classes SchedulerMain --port=5000 --drones=3
+  # Terminal 2 - Drone 1
+  java -cp target/classes DroneMain --id=1 --schedulerHost=localhost --schedulerPort=5000
+  # Terminal 3 - Drone 2
+  java -cp target/classes DroneMain --id=2 --schedulerHost=localhost --schedulerPort=5000
+  # Terminal 4 - Fire Incident
+  java -cp target/classes FireIncidentMain --input=./src/main/resources/data/events.csv --schedulerHost=localhost --schedulerPort=5000 --localPort=6000
+
+Windows (PowerShell):
+  mvn -q -DskipTests package
+  # Terminal 1 - Scheduler
+  java -cp target\classes SchedulerMain --port=5000 --drones=3
+  # Terminal 2 - Drone 1
+  java -cp target\classes DroneMain --id=1 --schedulerHost=localhost --schedulerPort=5000
+  # Terminal 3 - Drone 2
+  java -cp target\classes DroneMain --id=2 --schedulerHost=localhost --schedulerPort=5000
+  # Terminal 4 - Fire Incident
+  java -cp target\classes FireIncidentMain --input=.\src\main\resources\data\events.csv --schedulerHost=localhost --schedulerPort=5000 --localPort=6000
+
 UNIT TESTING
 --------------------------------------------------------------------------------
 JUnit 5 was used as the testing framework.
