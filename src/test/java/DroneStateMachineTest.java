@@ -6,6 +6,8 @@ import java.net.DatagramSocket;
 import java.net.InetAddress;
 import java.net.SocketException;
 import java.net.UnknownHostException;
+import java.util.HashMap;
+import java.util.Map;
 
 @TestMethodOrder(MethodOrderer.OrderAnnotation.class)
 public class DroneStateMachineTest {
@@ -221,5 +223,70 @@ public class DroneStateMachineTest {
         // schedulerToDrone.put(Message.shutdown());
         SwarmNetwork.sendMessage(schedulerSocket, InetAddress.getByName(SwarmNetwork.LOCALHOST), lastDronePort, Message.shutdown(), "[Scheduler]", "sent Shutdown", "to Drone");
         t.join(10000);
+    }
+
+    @Test
+    @Order(4)
+    public void test_4() throws Exception {
+        System.out.println("Test 4: Multiple drones report status independently");
+
+        DroneSubsystem drone2 = new DroneSubsystem(2, toScheduler, schedulerToDrone);
+        Thread t1 = new Thread(drone);
+        Thread t2 = new Thread(drone2);
+        t1.start();
+        t2.start();
+
+        Map<Integer, Integer> dronePorts = new HashMap<>();
+        int idleCount = 0;
+
+        // Collect IDLE status updates from both drones to learn their ports
+        for (int i = 0; i < 10 && idleCount < 2; i++) {
+            SwarmNetwork.ReceivedMessage rm = SwarmNetwork.receiveMessageWithSource(schedulerSocket);
+            Message msg = rm.getMessage();
+            if (msg.getType() == Message.Type.DRONE_STATUS_UPDATE && msg.getStatus() != null) {
+                if (msg.getStatus().getState() == DroneState.IDLE) {
+                    dronePorts.put(msg.getStatus().getDroneId(), rm.getPort());
+                    idleCount++;
+                }
+            }
+        }
+
+        assertEquals(2, dronePorts.size(), "Expected IDLE status from both drones");
+
+        FireEvent e1 = new FireEvent("00:00:01", 5, FireEvent.EventType.FIRE_DETECTED, FireEvent.Severity.LOW);
+        FireEvent e2 = new FireEvent("00:00:02", 6, FireEvent.EventType.FIRE_DETECTED, FireEvent.Severity.LOW);
+
+        SwarmNetwork.sendMessage(schedulerSocket, InetAddress.getByName(SwarmNetwork.LOCALHOST), dronePorts.get(1),
+                Message.droneAssignment(e1), "[Scheduler]", "sent Assignment", "to Drone 1");
+        SwarmNetwork.sendMessage(schedulerSocket, InetAddress.getByName(SwarmNetwork.LOCALHOST), dronePorts.get(2),
+                Message.droneAssignment(e2), "[Scheduler]", "sent Assignment", "to Drone 2");
+
+        boolean sawDrone1 = false;
+        boolean sawDrone2 = false;
+        for (int i = 0; i < 10 && (!sawDrone1 || !sawDrone2); i++) {
+            SwarmNetwork.ReceivedMessage rm = SwarmNetwork.receiveMessageWithSource(schedulerSocket);
+            Message msg = rm.getMessage();
+            if (msg.getType() == Message.Type.DRONE_STATUS_UPDATE && msg.getStatus() != null) {
+                int id = msg.getStatus().getDroneId();
+                if (msg.getStatus().getState() == DroneState.EN_ROUTE) {
+                    if (id == 1 && msg.getStatus().getZoneId() == 5) {
+                        sawDrone1 = true;
+                    } else if (id == 2 && msg.getStatus().getZoneId() == 6) {
+                        sawDrone2 = true;
+                    }
+                }
+            }
+        }
+
+        assertTrue(sawDrone1 && sawDrone2, "Expected EN_ROUTE updates from both drones");
+
+        SwarmNetwork.sendMessage(schedulerSocket, InetAddress.getByName(SwarmNetwork.LOCALHOST), dronePorts.get(1),
+                Message.shutdown(), "[Scheduler]", "sent Shutdown", "to Drone 1");
+        SwarmNetwork.sendMessage(schedulerSocket, InetAddress.getByName(SwarmNetwork.LOCALHOST), dronePorts.get(2),
+                Message.shutdown(), "[Scheduler]", "sent Shutdown", "to Drone 2");
+
+        t1.join(10000);
+        t2.join(10000);
+        drone2.closeSocket();
     }
 }

@@ -5,6 +5,7 @@ import java.net.UnknownHostException;
 import java.util.ArrayDeque;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Queue;
 import java.util.Set;
@@ -34,6 +35,7 @@ public class Scheduler implements Runnable {
     private final Set<Integer> shutdownSentToDrones = new HashSet<>();
 
     private final FireDroneGUI gui;
+    private final List<ZoneDef> zones;
 
     // State machine
     private SchedulerState currentState = SchedulerState.IDLE;
@@ -53,6 +55,7 @@ public class Scheduler implements Runnable {
         this.toDrone = toDrone;
         this.gui = gui;
         this.socket = new DatagramSocket(SwarmNetwork.SCHEDULER_PORT);
+        this.zones = ZoneLoader.loadZones("./src/main/resources/data/zones.csv", 16, 16);
     }
 
     public int getTotalEvents() { return totalEvents; }
@@ -153,7 +156,8 @@ public class Scheduler implements Runnable {
     }
 
     /**
-     * Find an idle drone from the registered drones.
+     * Find an idle drone from the registered drones (arbitrary order).
+     * Kept as fallback for sendReturnToBase() and checkAndSendReturnToBase().
      * @return the drone ID of an idle drone, or null if none available
      */
     private Integer findIdleDrone() {
@@ -166,21 +170,60 @@ public class Scheduler implements Runnable {
     }
 
     /**
-     * Checks if the scheduler can dispatch a pending event.
+     * Find the closest idle drone to a target zone using Euclidean distance.
+     * @return the drone ID of the closest idle drone, or null if none available
      */
-    boolean canDispatchPendingEvent() {
-        return !pending.isEmpty() && findIdleDrone() != null;
+    private Integer findClosestIdleDrone(int targetZoneId) {
+        ZoneDef targetZone = getSchedulerZoneById(targetZoneId);
+        if (targetZone == null) return findIdleDrone(); // fallback
+
+        int[] targetCenter = PathPlanner.zoneCenterCell(targetZone);
+        Integer bestDrone = null;
+        double bestDistance = Double.MAX_VALUE;
+
+        for (Map.Entry<Integer, DroneStatus> entry : droneStatuses.entrySet()) {
+            DroneStatus ds = entry.getValue();
+            if (ds.getState() != DroneState.IDLE) continue;
+
+            double dist = PathPlanner.distance(
+                    ds.getCurrentCol(), ds.getCurrentRow(),
+                    targetCenter[0], targetCenter[1]);
+
+            if (dist < bestDistance) {
+                bestDistance = dist;
+                bestDrone = entry.getKey();
+            }
+        }
+        return bestDrone;
     }
 
     /**
-     * Dispatches the next pending event to an idle drone.
+     * Look up a zone by ID from the loaded zone list.
+     */
+    private ZoneDef getSchedulerZoneById(int id) {
+        for (ZoneDef z : zones) {
+            if (z.id == id) return z;
+        }
+        return null;
+    }
+
+    /**
+     * Checks if the scheduler can dispatch a pending event.
+     */
+    boolean canDispatchPendingEvent() {
+        if (pending.isEmpty()) return false;
+        return findClosestIdleDrone(pending.peek().getZoneId()) != null;
+    }
+
+    /**
+     * Dispatches the next pending event to the closest idle drone.
      */
     void dispatchPendingEvent() throws Exception {
-        Integer droneId = findIdleDrone();
-        if (droneId == null) return;
-
         FireEvent next = pending.peek();
         if (next == null) return;
+
+        Integer droneId = findClosestIdleDrone(next.getZoneId());
+        if (droneId == null) return;
 
         DroneStatus status = droneStatuses.get(droneId);
         InetAddress addr = droneAddresses.get(droneId);
@@ -209,7 +252,9 @@ public class Scheduler implements Runnable {
                 droneId,
                 DroneState.EN_ROUTE,
                 next.getZoneId(),
-                status.getRemainingLiters()
+                status.getRemainingLiters(),
+                status.getCurrentCol(),
+                status.getCurrentRow()
         ));
 
         String dispatchMsg = "[Scheduler] Dispatched to Drone " + droneId + ": " + next;
@@ -239,7 +284,9 @@ public class Scheduler implements Runnable {
                 droneId,
                 DroneState.RETURNING,
                 0,
-                current != null ? current.getRemainingLiters() : 0
+                current != null ? current.getRemainingLiters() : 0,
+                current != null ? current.getCurrentCol() : 0,
+                current != null ? current.getCurrentRow() : 0
         ));
 
         String rtbMsg = "[Scheduler] Commanding Drone " + droneId + " to Return to Base.";
