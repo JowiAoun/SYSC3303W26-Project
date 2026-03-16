@@ -76,16 +76,17 @@ Alternatively, right-click 'Main.java' in the Project view and select "Run 'Main
 
 HOW TO RUN (Multiple Processes via Command Line)
 --------------------------------------------------------------------------------
-Build the project in IntelliJ (Ctrl+F9) once before starting the processes.
+Build the project in IntelliJ (Ctrl+F9 or Command+F9) once before starting the processes.
 
 Linux/Mac (bash):
-  mvn -q -DskipTests package
   # Terminal 1 - Scheduler
   java -cp target/classes SchedulerMain --port=5000 --drones=3
   # Terminal 2 - Drone 1
   java -cp target/classes DroneMain --id=1 --schedulerHost=localhost --schedulerPort=5000
   # Terminal 3 - Drone 2
   java -cp target/classes DroneMain --id=2 --schedulerHost=localhost --schedulerPort=5000
+  # Terminal 3 - Drone 3
+  java -cp target/classes DroneMain --id=3 --schedulerHost=localhost --schedulerPort=5000
   # Terminal 4 - Fire Incident
   java -cp target/classes FireIncidentMain --input=./src/main/resources/data/events.csv --schedulerHost=localhost --schedulerPort=5000 --localPort=6000
 
@@ -96,6 +97,8 @@ Windows (PowerShell):
   java -cp target\classes DroneMain --id=1 --schedulerHost=localhost --schedulerPort=5000
   # Terminal 3 - Drone 2
   java -cp target\classes DroneMain --id=2 --schedulerHost=localhost --schedulerPort=5000
+  # Terminal 3 - Drone 3
+  java -cp target/classes DroneMain --id=3 --schedulerHost=localhost --schedulerPort=5000
   # Terminal 4 - Fire Incident
   java -cp target\classes FireIncidentMain --input=.\src\main\resources\data\events.csv --schedulerHost=localhost --schedulerPort=5000 --localPort=6000
 
