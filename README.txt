@@ -151,3 +151,9 @@ Amir: Testing, Source code
 Thanos: Source code, Documentation
 Jowi: GUI, Source code
 
+Iteration 4
+-----------
+Zachary: Source code
+Amir: Documentation and Diagrams
+Thanos: GUI
+Jowi: Testing
