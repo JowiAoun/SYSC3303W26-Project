@@ -1,2 +1,2 @@
-time,zoneId,eventType,severity
-14:03:15.000,3,FIRE_DETECTED,High
+time,zoneId,eventType,severity,faultType,faultTime
+14:03:15.000,3,FIRE_DETECTED,High,NONE,0

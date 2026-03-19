@@ -25,15 +25,33 @@ public class FireEvent {
     private final int zoneId;
     private final EventType eventType;
     private final Severity severity;
+    private final FaultType faultType;
+    private final long faultTime;
+
 
     /**
      * Construct a new FireEvent with all required fields.
+     */
+    public FireEvent(String time, int zoneId, EventType eventType, Severity severity,
+                     FaultType faultType, long faultTime) {
+        this.time = time;
+        this.zoneId = zoneId;
+        this.eventType = eventType;
+        this.severity = severity;
+        this.faultType = faultType;
+        this.faultTime = faultTime;
+    }
+
+    /**
+     * TODO: Temporary, to not break testing
      */
     public FireEvent(String time, int zoneId, EventType eventType, Severity severity) {
         this.time = time;
         this.zoneId = zoneId;
         this.eventType = eventType;
         this.severity = severity;
+        this.faultType = FaultType.NONE;
+        this.faultTime = 0;
     }
 
     /**
@@ -62,6 +80,23 @@ public class FireEvent {
      */
     public Severity getSeverity() {
         return severity;
+    }
+
+    /**
+     * Get Fault Type
+     */
+    public FaultType getFaultType() { return faultType; }
+
+    /**
+     * Time until fault triggers
+     */
+    public long getFaultTime() { return faultTime; }
+
+    /**
+     * Does event have fault
+     */
+    public boolean hasFault() {
+        return faultType != FaultType.NONE;
     }
 
     /**
@@ -95,6 +130,11 @@ public class FireEvent {
     }
 
     /**
+     * Parse fault type from CSV.
+     */
+    public static FaultType parseFaultType(String token) { return FaultType.valueOf(token.trim().toUpperCase()); }
+
+    /**
      * Single-line printable summary for logs.
      */
     @Override
@@ -104,6 +144,8 @@ public class FireEvent {
                ", zoneId=" + zoneId +
                ", eventType=" + eventType +
                ", severity=" + severity +
+               ", faultType=" + faultType +
+               ", faultTime=" + faultTime +
                ", requiredLiters=" + getRequiredLiters() +
                '}';
     }
