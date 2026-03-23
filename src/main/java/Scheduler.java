@@ -1,6 +1,7 @@
 import java.net.DatagramSocket;
 import java.net.InetAddress;
 import java.net.SocketException;
+import java.net.SocketTimeoutException;
 import java.net.UnknownHostException;
 import java.util.ArrayDeque;
 import java.util.HashMap;
@@ -17,6 +18,7 @@ import java.util.Set;
  * Supports multiple drones, each tracked independently via maps.
  */
 public class Scheduler implements Runnable {
+    private static final int EXPECTED_ARRIVAL_TIME = 10000;//time before assume drone is stuck
     private final DatagramSocket socket;
     private final Queue<FireEvent> pending = new ArrayDeque<>();
 
@@ -30,6 +32,8 @@ public class Scheduler implements Runnable {
     private final Map<Integer, InetAddress> droneAddresses = new HashMap<>();
     private final Map<Integer, Integer> dronePorts = new HashMap<>();
     private final Set<Integer> shutdownSentToDrones = new HashSet<>();
+    private final Map<Integer, FireEvent> activeAssignments = new HashMap<>();
+    private final Map<Integer, Long> assignmentDeadlines = new HashMap<>();
 
     private final FireDroneGUI gui;
     private final List<ZoneDef> zones;
@@ -56,6 +60,7 @@ public class Scheduler implements Runnable {
                      String zonesPath) throws SocketException {
         this.gui = gui;
         this.socket = new DatagramSocket(schedulerPort);
+        this.socket.setSoTimeout(500);
         this.zones = ZoneLoader.loadZones(zonesPath, 16, 16);
     }
 
@@ -73,8 +78,16 @@ public class Scheduler implements Runnable {
 
         try {
             while (currentState != SchedulerState.SHUTTING_DOWN) {
-                SwarmNetwork.ReceivedMessage msg = receiveSubsystemMessage();
-                handleIncomingMessage(msg);
+                try {
+                    SwarmNetwork.ReceivedMessage msg = receiveSubsystemMessage();
+                    handleIncomingMessage(msg);
+                } catch (SocketTimeoutException e) {
+                    //
+                } catch (IllegalArgumentException e) {
+                    System.out.println("[Scheduler] Dropped corrupted packet: " + e.getMessage());
+                }
+
+                checkForTimedOutDrones();
 
                 // Try to dispatch to ALL available idle drones
                 while (canDispatchPendingEvent()) {
@@ -257,11 +270,46 @@ public class Scheduler implements Runnable {
                 status.getCurrentCol(),
                 status.getCurrentRow()
         ));
+        activeAssignments.put(droneId, next);
+        assignmentDeadlines.put(droneId, System.currentTimeMillis() + EXPECTED_ARRIVAL_TIME);
 
         String dispatchMsg = "[Scheduler] Dispatched to Drone " + droneId + ": " + next;
         System.out.println(dispatchMsg);
         if (gui != null) {
             gui.appendEvent(dispatchMsg);
+        }
+    }
+
+    /**
+     * Detect the drones that didn't reach their destination in time.
+     */
+    private void checkForTimedOutDrones() {
+        long now = System.currentTimeMillis();
+
+        for (Integer droneId : new HashSet<>(assignmentDeadlines.keySet())) {
+            Long deadline = assignmentDeadlines.get(droneId);
+            DroneStatus status = droneStatuses.get(droneId);
+
+            if (status.getState() != DroneState.EN_ROUTE || now <= deadline) {
+                continue;
+            }
+
+            FireEvent interrupted = activeAssignments.remove(droneId);
+            assignmentDeadlines.remove(droneId);
+
+            pending.add(interrupted.withoutFault());
+
+            droneStatuses.put(droneId, new DroneStatus(
+                    droneId,
+                    DroneState.FAULTED,
+                    status.getZoneId(),
+                    status.getRemainingLiters(),
+                    status.getCurrentCol(),
+                    status.getCurrentRow(),
+                    FaultType.STUCK_MID_FLIGHT
+            ));
+
+            System.out.println("[Scheduler] Drone " + droneId + " timed out while travelling, event id requeued.");
         }
     }
 
@@ -391,6 +439,13 @@ public class Scheduler implements Runnable {
     }
 
     /**
+     * Checks whether the fault is HardFault.
+     */
+    private boolean isHardFault(FaultType faultType) {
+        return faultType == FaultType.NOZZLE_JAM;
+    }
+
+    /**
      * Handle messages from Fire Incident subsystem.
      */
     private void handleFireIncidentMessage(Message message, InetAddress addr, int port) throws InterruptedException {
@@ -442,6 +497,32 @@ public class Scheduler implements Runnable {
                 droneAddresses.put(droneId, addr);
                 dronePorts.put(droneId, port);
 
+                if (status.getState() == DroneState.EXTINGUISHING || status.getState() == DroneState.IDLE) {
+                    assignmentDeadlines.remove(droneId);
+                }
+
+                if (status.getState() == DroneState.FAULTED) {
+                    FireEvent interrupted = activeAssignments.remove(droneId);
+                    assignmentDeadlines.remove(droneId);
+
+                    if (interrupted != null) {
+                        pending.add(interrupted.withoutFault());
+                    }
+
+                    if (isHardFault(status.getFaultType())) {
+                        droneStatuses.remove(droneId);
+                        droneAddresses.remove(droneId);
+                        dronePorts.remove(droneId);
+                        shutdownSentToDrones.add(droneId);
+
+                        String msg = "[Scheduler] Drone " + droneId + " removed from service due to hard fault: " + status.getFaultType();
+                        System.out.println(msg);
+                        if (gui != null) {
+                            gui.appendEvent(msg);
+                        }
+                    }
+                }
+
                 if (gui != null) {
                     gui.updateDroneStatus(status);
                     gui.appendEvent(statusMsg);
@@ -450,6 +531,17 @@ public class Scheduler implements Runnable {
 
             case DRONE_COMPLETED:
                 completed++;
+                if (message.getEvent() != null) {
+                    for (Map.Entry<Integer, FireEvent> entry : new HashMap<>(activeAssignments).entrySet()) {
+                        FireEvent active = entry.getValue();
+                        if (active != null && active.getZoneId() == message.getEvent().getZoneId()
+                                && active.getTime().equals(message.getEvent().getTime())) {
+                            activeAssignments.remove(entry.getKey());
+                            assignmentDeadlines.remove(entry.getKey());
+                            break;
+                        }
+                    }
+                }
                 sendFireIncidentMessage(Message.fireAck(message.getEvent()), "sent FireAck");
 
                 String completedMsg = "[Scheduler] Completion ack forwarded: " + message.getEvent();

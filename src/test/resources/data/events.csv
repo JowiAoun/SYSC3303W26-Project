@@ -1,4 +1,4 @@
-time,zoneId,eventType,severity,faultType,faultTime
+time,zoneId,eventType,severity,faultType,faultDelayTime
 14:03:15.000,3,FIRE_DETECTED,High,NONE,0
 14:10:00.000,7,DRONE_REQUEST,Moderate,NONE,0
 14:12:30.500,2,FIRE_DETECTED,Low,NONE,0

@@ -118,7 +118,7 @@ public class Message {
      * Convert Message data into bytes.
      */
     public byte[] toBytes() {
-        String[] fields = new String[14];
+        String[] fields = new String[15];
         fields[0] = type.name();
 
         if (event != null) {
@@ -127,7 +127,7 @@ public class Message {
             fields[3] = event.getEventType().name();
             fields[4] = event.getSeverity().name();
             fields[5] = event.getFaultType().name();
-            fields[6] = Long.toString(event.getFaultTime());
+            fields[6] = Long.toString(event.getFaultDelayTime());
         } else {
             fields[1] = "";
             fields[2] = "";
@@ -144,6 +144,7 @@ public class Message {
             fields[10] = Integer.toString(status.getRemainingLiters());
             fields[11] = Integer.toString(status.getCurrentCol());
             fields[12] = Integer.toString(status.getCurrentRow());
+            fields[13] = status.getFaultType().name();
         } else {
             fields[7] = "";
             fields[8] = "";
@@ -151,13 +152,14 @@ public class Message {
             fields[10] = "";
             fields[11] = "";
             fields[12] = "";
+            fields[13] = "";
         }
 
-        fields[13] = "";
+        fields[14] = "";
 
         String withoutChecksum = String.join("|", fields);
         long checksum = getCRC32Checksum(withoutChecksum);
-        fields[13] = Long.toString(checksum);
+        fields[14] = Long.toString(checksum);
 
         String wire = String.join("|", fields);
         return wire.getBytes(StandardCharsets.UTF_8);
@@ -168,14 +170,14 @@ public class Message {
      */
     public static Message fromBytes(byte[] data, int length) {
         String wire = new String(data, 0, length, StandardCharsets.UTF_8);
-        String[] parts = wire.split("\\|", -1); // keep empty fields
+        String[] parts = wire.split("\\|", -1);
 
-        if (parts.length != 14) {
+        if (parts.length != 15) {
             throw new IllegalArgumentException("Invalid message format: " + wire);
         }
 
-        String receivedChecksum = parts[13];
-        parts[13] = "";
+        String receivedChecksum = parts[14];
+        parts[14] = "";
 
         String withoutChecksum = String.join("|", parts);
         long expectedChecksum = getCRC32Checksum(withoutChecksum);
@@ -198,9 +200,9 @@ public class Message {
             FireEvent.EventType eventType = FireEvent.EventType.valueOf(parts[3]);
             FireEvent.Severity severity = FireEvent.Severity.valueOf(parts[4]);
             FaultType faultType = parts[5].isEmpty() ? FaultType.NONE : FaultType.valueOf(parts[5]);
-            long faultTime = parts[6].isEmpty() ? 0 : Long.parseLong(parts[6]);
+            long faultDelayTime = parts[6].isEmpty() ? 0 : Long.parseLong(parts[6]);
 
-            event = new FireEvent(time, zoneId, eventType, severity, faultType, faultTime);
+            event = new FireEvent(time, zoneId, eventType, severity, faultType, faultDelayTime);
         }
 
         DroneStatus status = null;
@@ -211,7 +213,8 @@ public class Message {
             int remainingLiters = Integer.parseInt(parts[10]);
             int col = parts[11].isEmpty() ? 0 : Integer.parseInt(parts[11]);
             int row = parts[12].isEmpty() ? 0 : Integer.parseInt(parts[12]);
-            status = new DroneStatus(droneId, droneState, zoneId, remainingLiters, col, row);
+            FaultType faultType = parts[13].isEmpty() ? FaultType.NONE : FaultType.valueOf(parts[13]);
+            status = new DroneStatus(droneId, droneState, zoneId, remainingLiters, col, row, faultType);
         }
 
         return new Message(type, event, status);

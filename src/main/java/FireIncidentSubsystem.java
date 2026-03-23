@@ -129,16 +129,16 @@ public class FireIncidentSubsystem implements Runnable {
         FireEvent.Severity severity = FireEvent.parseSeverity(parts[3]);
 
         FaultType faultType = FaultType.NONE;
-        long faultTime = 0;
+        long faultDelayTime = 0;
 
         if (parts.length >= 5) {
             faultType = FireEvent.parseFaultType(parts[4]);
         }
         if (parts.length >= 6 && !parts[5].trim().isEmpty()) {
-            faultTime = Long.parseLong(parts[5].trim());
+            faultDelayTime = Long.parseLong(parts[5].trim());
         }
 
-        return new FireEvent(time, zoneId, eventType, severity, faultType, faultTime);
+        return new FireEvent(time, zoneId, eventType, severity, faultType, faultDelayTime);
     }
 
     /**
