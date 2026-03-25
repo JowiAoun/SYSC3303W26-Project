@@ -10,21 +10,27 @@ public class DroneStatus {
     private final int remainingLiters;
     private final int currentCol;
     private final int currentRow;
+    private final FaultType faultType;
 
-    public DroneStatus(int droneId, DroneState state, int zoneId, int remainingLiters, int currentCol, int currentRow) {
+    public DroneStatus(int droneId, DroneState state, int zoneId, int remainingLiters, int currentCol, int currentRow, FaultType faultType) {
         this.droneId = droneId;
         this.state = state;
         this.zoneId = zoneId;
         this.remainingLiters = remainingLiters;
         this.currentCol = currentCol;
         this.currentRow = currentRow;
+        this.faultType = faultType;
+    }
+
+    public DroneStatus(int droneId, DroneState state, int zoneId, int remainingLiters, int currentCol, int currentRow) {
+        this(droneId, state, zoneId, remainingLiters, currentCol, currentRow, FaultType.NONE);
     }
 
     /**
      * Backward-compatible constructor (defaults col/row to 0,0).
      */
     public DroneStatus(int droneId, DroneState state, int zoneId, int remainingLiters) {
-        this(droneId, state, zoneId, remainingLiters, 0, 0);
+        this(droneId, state, zoneId, remainingLiters, 0, 0, FaultType.NONE);
     }
 
     public int getDroneId() { return droneId; }
@@ -33,9 +39,10 @@ public class DroneStatus {
     public int getRemainingLiters() { return remainingLiters; }
     public int getCurrentCol() { return currentCol; }
     public int getCurrentRow() { return currentRow; }
+    public FaultType getFaultType() { return faultType; }
 
     @Override
     public String toString() {
-        return String.format("Drone %d [%s] Zone:%d Liters:%d Pos:(%d,%d)", droneId, state, zoneId, remainingLiters, currentCol, currentRow);
+        return String.format("Drone %d [%s] Zone:%d Liters:%d Pos:(%d,%d) Fault:%s", droneId, state, zoneId, remainingLiters, currentCol, currentRow, faultType);
     }
 }

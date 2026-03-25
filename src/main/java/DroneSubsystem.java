@@ -28,6 +28,9 @@ public class DroneSubsystem implements Runnable {
     private FireEvent currentAssignment = null;
     private int remainingRequired = 0;
     private int currentZoneId = BASE_ZONE_ID;
+    private boolean hardFault = false;
+    private boolean corruptedMessageSent = false;
+    private boolean terminated = false;
 
     // Grid position tracking
     private int currentCol = 0;
@@ -89,7 +92,7 @@ public class DroneSubsystem implements Runnable {
             sendStatus(DroneState.IDLE, BASE_ZONE_ID);
 
             boolean running = true;
-            while (running) {
+            while (running && !terminated) {
                 switch (currentState) {
                     case IDLE:
                         running = handleIdle();
@@ -120,6 +123,12 @@ public class DroneSubsystem implements Runnable {
             }
 
             System.out.println("[Drone " + droneId + "] Finished. Completed: " + completed);
+        } catch (SocketException e) {
+            if (terminated || socket.isClosed()) {
+                System.out.println("[Drone " + droneId + "] Socket closed during shutdown.");
+                return;
+            }
+            throw new RuntimeException("[Drone " + droneId + "] Socket error.", e);
         } catch (Exception e) {
             Thread.currentThread().interrupt();
             throw new RuntimeException("[Drone " + droneId + "] Interrupted.", e);
@@ -139,6 +148,12 @@ public class DroneSubsystem implements Runnable {
                 currentAssignment = reply.getEvent();
                 remainingRequired = currentAssignment.getRequiredLiters();
                 System.out.println("[Drone " + droneId + "] Assigned: " + currentAssignment);
+
+                if (currentAssignment.hasFault() && currentAssignment.getFaultType() == FaultType.CORRUPTED_MESSAGE && !corruptedMessageSent) {
+                    System.out.println("[Drone " + droneId + "] Sending corrupted status packet for test.");
+                    sendCorruptedStatus(currentZoneId);
+                    corruptedMessageSent = true;
+                }
 
                 if (remainingLiters <= 0) {
                     sendStatus(DroneState.RETURNING, BASE_ZONE_ID);
@@ -170,7 +185,16 @@ public class DroneSubsystem implements Runnable {
         int targetZone = currentAssignment.getZoneId();
         System.out.println("[Drone " + droneId + "] Flying to Zone " + targetZone);
         simulateTravel(targetZone);
+        if (currentState == DroneState.FAULTED) {
+            return;
+        }
         currentZoneId = targetZone;
+
+        if (currentAssignment.hasFault()  && currentAssignment.getFaultType() == FaultType.ARRIVAL_SENSOR_FAILURE) {
+            triggerFault(FaultType.ARRIVAL_SENSOR_FAILURE, "Arrival sensor failure detected at Zone " + targetZone);
+            return;
+        }
+
         sendStatus(DroneState.EXTINGUISHING, targetZone);
     }
 
@@ -181,6 +205,13 @@ public class DroneSubsystem implements Runnable {
     private void handleExtinguishing() throws Exception {
         int targetZone = currentAssignment.getZoneId();
         System.out.println("[Drone " + droneId + "] Extinguishing fire at Zone " + targetZone);
+
+        if (currentAssignment.hasFault()) {
+            if (currentAssignment.getFaultType() == FaultType.NOZZLE_JAM) {
+                triggerFault(currentAssignment.getFaultType(), currentAssignment.getFaultType() + " detected while extinguishing.");
+                return;
+            }
+        }
 
         int toDrop = Math.min(remainingLiters, remainingRequired);
         double dropSeconds = toDrop * DROP_SECONDS_PER_LITER;
@@ -235,11 +266,21 @@ public class DroneSubsystem implements Runnable {
     }
 
     /**
-     * FAULTED — placeholder for iteration 4.
+     * FAULTED - simulate fault then handles it
      */
-    private void handleFaulted() throws InterruptedException {
-        System.out.println("[Drone " + droneId + "] FAULTED state — awaiting recovery (not yet implemented).");
-        Thread.sleep(5000);
+    private void handleFaulted() throws Exception {
+        if (hardFault) {
+            System.out.println("[Drone " + droneId + "] Hard fault detected. Shutting down drone.");
+            terminated = true;
+            closeSocket();
+            return;
+        }
+
+        System.out.println("[Drone " + droneId + "] Soft fault detected. Returning to base after reset.");
+        Thread.sleep(1000);
+        currentAssignment = null;
+        remainingRequired = 0;
+        sendStatus(DroneState.RETURNING, BASE_ZONE_ID);
     }
 
     // ── Helpers ─────────────────────────────────────────────────────
@@ -269,7 +310,7 @@ public class DroneSubsystem implements Runnable {
      * Announce readiness to the Scheduler.
      */
     void sendReadySignal() throws Exception {
-        // toScheduler.put(Message.droneReady());
+        if (terminated || socket.isClosed()) return;
         SwarmNetwork.sendMessage(socket, schedulerAddr, schedulerPort, Message.droneReady(), "[Drone " + droneId + "]", "sent Ready", "to Scheduler");
     }
 
@@ -291,8 +332,17 @@ public class DroneSubsystem implements Runnable {
      * Reads one message from the Scheduler.
      */
     Message receiveMessage() throws Exception {
-        // return fromScheduler.get();
-        return SwarmNetwork.receiveMessage(socket);
+        while (true) {
+            if (terminated || socket.isClosed()) {
+                throw new SocketException("Socket closed");
+            }
+
+            try {
+                return SwarmNetwork.receiveMessage(socket);
+            } catch (IllegalArgumentException e) {
+                System.out.println("[Drone " + droneId + "] Dropped corrupted packet: " + e.getMessage());
+            }
+        }
     }
 
     /**
@@ -337,7 +387,7 @@ public class DroneSubsystem implements Runnable {
      * Reports completion of an event to the Scheduler.
      */
     void sendCompletion(FireEvent event) throws Exception {
-        // toScheduler.put(Message.droneCompleted(event));
+        if (terminated || socket.isClosed()) return;
         SwarmNetwork.sendMessage(socket, schedulerAddr, schedulerPort, Message.droneCompleted(event), "[Drone " + droneId + "]", "sent Completion", "to Scheduler");
     }
 
@@ -411,9 +461,19 @@ public class DroneSubsystem implements Runnable {
      * Single transition point: updates currentState and sends status to Scheduler.
      */
     private void sendStatus(DroneState state, int zoneId) throws Exception {
+        sendStatus(state, zoneId, FaultType.NONE);
+    }
+
+    /**
+     * Single transition point: updates currentState and sends status to Scheduler with fault information.
+     */
+    private void sendStatus(DroneState state, int zoneId, FaultType faultType) throws Exception {
         this.currentState = state;
+        if (terminated || socket.isClosed()) {
+            return;
+        }
         SwarmNetwork.sendMessage(socket, schedulerAddr, schedulerPort,
-                Message.droneStatus(new DroneStatus(droneId, state, zoneId, remainingLiters, currentCol, currentRow)),
+                Message.droneStatus(new DroneStatus(droneId, state, zoneId, remainingLiters, currentCol, currentRow, faultType)),
                 "[Drone " + droneId + "]", "sent Drone Status", "to Scheduler");
     }
 
@@ -436,6 +496,15 @@ public class DroneSubsystem implements Runnable {
         // Skip first cell (current position), traverse remaining cells
         for (int i = 1; i < path.size(); i++) {
             Thread.sleep(CELL_TRAVEL_MS);
+
+            if (currentAssignment != null && currentAssignment.hasFault()) {
+                if (currentAssignment.getFaultType() == FaultType.STUCK_MID_FLIGHT && currentAssignment.getFaultDelayTime() > 0
+                && ((long) i * CELL_TRAVEL_MS) >= currentAssignment.getFaultDelayTime()) {
+                    triggerFault(FaultType.STUCK_MID_FLIGHT, "Drone stuck mid-flight between zones.");
+                    return;
+                }
+            }
+
             currentCol = path.get(i)[0];
             currentRow = path.get(i)[1];
             int cellZoneId = findZoneForCell(currentCol, currentRow);
@@ -466,6 +535,29 @@ public class DroneSubsystem implements Runnable {
             if (z.id == id) return z;
         }
         return null;
+    }
+
+    /**
+     * Trigger a drone fault and notify the scheduler
+     */
+    private void triggerFault(FaultType faultType, String message) throws Exception {
+        System.out.println("[Drone " + droneId + "] " + message);
+
+        if (faultType == FaultType.NOZZLE_JAM) {
+            hardFault = true;
+        }
+
+        sendStatus(DroneState.FAULTED, currentZoneId, faultType);
+    }
+
+    /**
+     * Send one intentionally corrupted status packet to test the checksum handling.
+     */
+    private void sendCorruptedStatus(int zoneId) throws Exception {
+        byte[] data = Message.droneStatus(new DroneStatus(droneId, DroneState.FAULTED, zoneId, remainingLiters, currentCol, currentRow, FaultType.CORRUPTED_MESSAGE)).toBytes();
+        data[data.length - 1] = (byte) (data[data.length - 1] == '0' ? '1' : '0');
+        java.net.DatagramPacket packet = new java.net.DatagramPacket(data, data.length, schedulerAddr, schedulerPort);
+        socket.send(packet);
     }
 
     /**

@@ -1,1 +1,1 @@
-time,zoneId,eventType,severity
+time,zoneId,eventType,severity,faultType,faultDelayTime

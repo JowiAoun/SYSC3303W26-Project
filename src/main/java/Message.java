@@ -1,4 +1,6 @@
 import java.nio.charset.StandardCharsets;
+import java.util.zip.CRC32;
+import java.util.zip.Checksum;
 
 /**
  * Message.java
@@ -116,7 +118,7 @@ public class Message {
      * Convert Message data into bytes.
      */
     public byte[] toBytes() {
-        String[] fields = new String[11];
+        String[] fields = new String[15];
         fields[0] = type.name();
 
         if (event != null) {
@@ -124,28 +126,40 @@ public class Message {
             fields[2] = Integer.toString(event.getZoneId());
             fields[3] = event.getEventType().name();
             fields[4] = event.getSeverity().name();
+            fields[5] = event.getFaultType().name();
+            fields[6] = Long.toString(event.getFaultDelayTime());
         } else {
             fields[1] = "";
             fields[2] = "";
             fields[3] = "";
             fields[4] = "";
+            fields[5] = "";
+            fields[6] = "";
         }
 
         if (status != null) {
-            fields[5] = Integer.toString(status.getDroneId());
-            fields[6] = status.getState().name();
-            fields[7] = Integer.toString(status.getZoneId());
-            fields[8] = Integer.toString(status.getRemainingLiters());
-            fields[9] = Integer.toString(status.getCurrentCol());
-            fields[10] = Integer.toString(status.getCurrentRow());
+            fields[7] = Integer.toString(status.getDroneId());
+            fields[8] = status.getState().name();
+            fields[9] = Integer.toString(status.getZoneId());
+            fields[10] = Integer.toString(status.getRemainingLiters());
+            fields[11] = Integer.toString(status.getCurrentCol());
+            fields[12] = Integer.toString(status.getCurrentRow());
+            fields[13] = status.getFaultType().name();
         } else {
-            fields[5] = "";
-            fields[6] = "";
             fields[7] = "";
             fields[8] = "";
             fields[9] = "";
             fields[10] = "";
+            fields[11] = "";
+            fields[12] = "";
+            fields[13] = "";
         }
+
+        fields[14] = "";
+
+        String withoutChecksum = String.join("|", fields);
+        long checksum = getCRC32Checksum(withoutChecksum);
+        fields[14] = Long.toString(checksum);
 
         String wire = String.join("|", fields);
         return wire.getBytes(StandardCharsets.UTF_8);
@@ -156,10 +170,25 @@ public class Message {
      */
     public static Message fromBytes(byte[] data, int length) {
         String wire = new String(data, 0, length, StandardCharsets.UTF_8);
-        String[] parts = wire.split("\\|", -1); // keep empty fields
+        String[] parts = wire.split("\\|", -1);
 
-        if (parts.length != 11) {
+        if (parts.length != 15) {
             throw new IllegalArgumentException("Invalid message format: " + wire);
+        }
+
+        String receivedChecksum = parts[14];
+        parts[14] = "";
+
+        String withoutChecksum = String.join("|", parts);
+        long expectedChecksum = getCRC32Checksum(withoutChecksum);
+
+        if (receivedChecksum.isEmpty()) {
+            throw new IllegalArgumentException("No Checksum");
+        }
+
+        long receivedValue = Long.parseLong(receivedChecksum);
+        if (receivedValue != expectedChecksum) {
+            throw new IllegalArgumentException("Checksum doesn't match");
         }
 
         Type type = Type.valueOf(parts[0]);
@@ -170,21 +199,30 @@ public class Message {
             int zoneId = Integer.parseInt(parts[2]);
             FireEvent.EventType eventType = FireEvent.EventType.valueOf(parts[3]);
             FireEvent.Severity severity = FireEvent.Severity.valueOf(parts[4]);
-            event = new FireEvent(time, zoneId, eventType, severity);
+            FaultType faultType = parts[5].isEmpty() ? FaultType.NONE : FaultType.valueOf(parts[5]);
+            long faultDelayTime = parts[6].isEmpty() ? 0 : Long.parseLong(parts[6]);
+
+            event = new FireEvent(time, zoneId, eventType, severity, faultType, faultDelayTime);
         }
 
         DroneStatus status = null;
-        if (!parts[5].isEmpty()) {
-            int droneId = Integer.parseInt(parts[5]);
-            DroneState droneState = DroneState.valueOf(parts[6]);
-            int zoneId = Integer.parseInt(parts[7]);
-            int remainingLiters = Integer.parseInt(parts[8]);
-            int col = parts[9].isEmpty() ? 0 : Integer.parseInt(parts[9]);
-            int row = parts[10].isEmpty() ? 0 : Integer.parseInt(parts[10]);
-            status = new DroneStatus(droneId, droneState, zoneId, remainingLiters, col, row);
+        if (!parts[7].isEmpty()) {
+            int droneId = Integer.parseInt(parts[7]);
+            DroneState droneState = DroneState.valueOf(parts[8]);
+            int zoneId = Integer.parseInt(parts[9]);
+            int remainingLiters = Integer.parseInt(parts[10]);
+            int col = parts[11].isEmpty() ? 0 : Integer.parseInt(parts[11]);
+            int row = parts[12].isEmpty() ? 0 : Integer.parseInt(parts[12]);
+            FaultType faultType = parts[13].isEmpty() ? FaultType.NONE : FaultType.valueOf(parts[13]);
+            status = new DroneStatus(droneId, droneState, zoneId, remainingLiters, col, row, faultType);
         }
 
         return new Message(type, event, status);
     }
 
+    public static long getCRC32Checksum(String value) {
+        Checksum crc32  = new CRC32();
+        crc32.update(value.getBytes(StandardCharsets.UTF_8));
+        return crc32.getValue();
+    }
 }
