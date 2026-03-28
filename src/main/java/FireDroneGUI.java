@@ -1,6 +1,8 @@
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
 import java.awt.*;
+import java.net.DatagramSocket;
+import java.net.InetAddress;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -28,7 +30,9 @@ public class FireDroneGUI extends JFrame {
         EXTINGUISHED,
         DRONE_OUTBOUND,
         DRONE_EXTINGUISHED,
-        DRONE_RETURNING
+        DRONE_RETURNING,
+        DRONE_FAULT_SOFT,   // recoverable faults (stuck mid-flight, arrival sensor)
+        DRONE_FAULT_HARD    // permanent faults (nozzle jam)
     }
 
     //zone definitions
@@ -40,11 +44,13 @@ public class FireDroneGUI extends JFrame {
     private final Set<Integer> activeDroneIds = new HashSet<>();               // non-idle drone IDs
     private final Map<Integer, FireEvent.Severity> zoneSeverities = new HashMap<>(); // zoneId → severity
     private final Map<Integer, DroneStatus> droneCurrentStatuses = new HashMap<>();  // droneId → latest status
+    private final Set<Integer> faultedDroneIds = new HashSet<>();            // drones currently faulted
     private JTextArea eventLog;
     private JLabel statusLeft;
     private JLabel statusRight;
     private int activeFires = 0;
     private int activeDrones = 0;
+    private int faultedDrones = 0;
     private int droneCount;
 
     public FireDroneGUI() {
@@ -70,6 +76,7 @@ public class FireDroneGUI extends JFrame {
         JSplitPane split = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, gridScroll, sidebar);
         split.setResizeWeight(0.75);
 
+        add(createToolbar(), BorderLayout.NORTH);
         add(split, BorderLayout.CENTER);
         add(createStatusBar(), BorderLayout.SOUTH);
 
@@ -199,6 +206,8 @@ public class FireDroneGUI extends JFrame {
         p.add(createLegendRow("Drone Outbound", CellState.DRONE_OUTBOUND, "D(n)"));
         p.add(createLegendRow("Drone Extinguished Fire", CellState.DRONE_EXTINGUISHED, "D(n)"));
         p.add(createLegendRow("Drone Returning", CellState.DRONE_RETURNING, "D(n)"));
+        p.add(createLegendRow("Fault (Recoverable)", CellState.DRONE_FAULT_SOFT, "D(n)"));
+        p.add(createLegendRow("Fault (Permanent)", CellState.DRONE_FAULT_HARD, "D(n)"));
 
         return p;
     }
@@ -283,6 +292,14 @@ public class FireDroneGUI extends JFrame {
             }
             setActiveDrones(activeDroneIds.size());
 
+            // Track faulted drones
+            if (status.getState() == DroneState.FAULTED) {
+                faultedDroneIds.add(droneId);
+            } else {
+                faultedDroneIds.remove(droneId);
+            }
+            setFaultedDrones(faultedDroneIds.size());
+
             // Recompute the old cell (drone left it)
             if (lastCell != null && (lastCell[0] != col || lastCell[1] != row)) {
                 recomputeCell(lastCell[0], lastCell[1]);
@@ -291,11 +308,16 @@ public class FireDroneGUI extends JFrame {
             // Recompute the new cell (drone arrived or updated state)
             recomputeCell(col, row);
 
-            // Update sidebar label with zone + remaining liters
+            // Update sidebar label with zone + remaining liters + fault info
             int currentZoneId = status.getZoneId();
             String zoneInfo = currentZoneId > 0 ? " \u2192 Zone " + currentZoneId : "";
             String litersInfo = " (" + status.getRemainingLiters() + "L)";
-            setDroneState(droneId, status.getState().name() + zoneInfo + litersInfo);
+            String faultInfo = "";
+            if (status.getState() == DroneState.FAULTED && status.getFaultType() != FaultType.NONE) {
+                faultInfo = " [" + faultLabel(status.getFaultType()) + "]";
+            }
+            setDroneState(droneId, status.getState().name() + zoneInfo + litersInfo + faultInfo,
+                    status.getState() == DroneState.FAULTED);
         });
     }
 
@@ -399,6 +421,7 @@ public class FireDroneGUI extends JFrame {
             case RETURNING:      return prefix + " &lt;&lt;&lt;";
             case REFILLING:      return prefix + " FILL";
             case IDLE:           return prefix + " IDLE";
+            case FAULTED:        return prefix + " \u26A0 " + faultShortLabel(ds.getFaultType());
             default:             return prefix;
         }
     }
@@ -413,6 +436,10 @@ public class FireDroneGUI extends JFrame {
             case RETURNING:
             case REFILLING:
             case IDLE:          return CellState.DRONE_RETURNING;
+            case FAULTED:
+                return isHardFault(ds.getFaultType())
+                        ? CellState.DRONE_FAULT_HARD
+                        : CellState.DRONE_FAULT_SOFT;
             default:            return CellState.EMPTY;
         }
     }
@@ -423,6 +450,8 @@ public class FireDroneGUI extends JFrame {
      */
     private int statePriority(CellState state) {
         switch (state) {
+            case DRONE_FAULT_HARD:   return 5;
+            case DRONE_FAULT_SOFT:   return 4;
             case DRONE_EXTINGUISHED: return 3;
             case DRONE_OUTBOUND:     return 2;
             case DRONE_RETURNING:    return 1;
@@ -512,10 +541,19 @@ public class FireDroneGUI extends JFrame {
      * update the displayed drone state label.
      */
     public void setDroneState(int droneId, String state) {
+        setDroneState(droneId, state, false);
+    }
+
+    /**
+     * update the displayed drone state label with optional fault highlighting.
+     */
+    public void setDroneState(int droneId, String state, boolean faulted) {
         runOnEdt(() -> {
             int index = droneId - 1;
             if (index >= 0 && index < droneLabels.size()) {
-                droneLabels.get(index).setText("Drone " + droneId + " - " + state);
+                JLabel lbl = droneLabels.get(index);
+                lbl.setText("Drone " + droneId + " - " + state);
+                lbl.setForeground(faulted ? new Color(200, 40, 40) : Color.BLACK);
             }
         });
     }
@@ -537,12 +575,23 @@ public class FireDroneGUI extends JFrame {
     }
 
     /**
+     * set the faulted drone count in the status bar.
+     */
+    public void setFaultedDrones(int count) {
+        this.faultedDrones = Math.max(0, count);
+        updateStatusBar();
+    }
+
+    /**
      * rebuild the status bar text.
      */
     private void updateStatusBar() {
         runOnEdt(() -> {
             if (statusLeft != null) {
-                statusLeft.setText("Simulation: Running | Active Fires: " + activeFires + " | Active Drones: " + activeDrones);
+                String text = "Simulation: Running | Active Fires: " + activeFires
+                        + " | Active Drones: " + activeDrones
+                        + " | Faulted: " + faultedDrones;
+                statusLeft.setText(text);
             }
         });
     }
@@ -571,6 +620,127 @@ public class FireDroneGUI extends JFrame {
             task.run();
         } else {
             SwingUtilities.invokeLater(task);
+        }
+    }
+
+    /**
+     * Returns whether the given fault type is a hard (permanent) fault.
+     */
+    private boolean isHardFault(FaultType ft) {
+        return ft == FaultType.NOZZLE_JAM;
+    }
+
+    /**
+     * Returns a short label for a fault type on the grid cell.
+     */
+    private String faultShortLabel(FaultType ft) {
+        switch (ft) {
+            case STUCK_MID_FLIGHT:       return "STUCK";
+            case NOZZLE_JAM:             return "NOZZLE";
+            case ARRIVAL_SENSOR_FAILURE: return "SENSOR";
+            case CORRUPTED_MESSAGE:      return "CORRUPT";
+            default:                     return "FAULT";
+        }
+    }
+
+    /**
+     * Returns a human-readable label for a fault type.
+     */
+    private String faultLabel(FaultType ft) {
+        switch (ft) {
+            case STUCK_MID_FLIGHT:       return "Stuck Mid-Flight";
+            case NOZZLE_JAM:             return "Nozzle Jam";
+            case ARRIVAL_SENSOR_FAILURE: return "Arrival Sensor Failure";
+            case CORRUPTED_MESSAGE:      return "Corrupted Message";
+            default:                     return "Unknown Fault";
+        }
+    }
+
+    /**
+     * Creates a toolbar with the fault injection button.
+     */
+    private JPanel createToolbar() {
+        JPanel toolbar = new JPanel(new FlowLayout(FlowLayout.LEFT));
+        toolbar.setBorder(BorderFactory.createMatteBorder(0, 0, 1, 0, new Color(200, 200, 200)));
+
+        JButton injectFaultBtn = new JButton("\u26A0 Inject Fault");
+        injectFaultBtn.setToolTipText("Manually inject a fault into a drone");
+        injectFaultBtn.addActionListener(e -> showFaultInjectionDialog());
+        toolbar.add(injectFaultBtn);
+
+        return toolbar;
+    }
+
+    /**
+     * Shows a dialog allowing the user to select a drone and fault type to inject.
+     */
+    private void showFaultInjectionDialog() {
+        JPanel panel = new JPanel(new GridLayout(3, 2, 8, 8));
+        panel.setBorder(new EmptyBorder(8, 8, 8, 8));
+
+        // Drone selector
+        JComboBox<String> droneSelector = new JComboBox<>();
+        for (int i = 1; i <= droneCount; i++) {
+            droneSelector.addItem("Drone " + i);
+        }
+        panel.add(new JLabel("Target Drone:"));
+        panel.add(droneSelector);
+
+        // Fault type selector (exclude NONE and CORRUPTED_MESSAGE which is packet-level)
+        FaultType[] injectableFaults = {
+            FaultType.STUCK_MID_FLIGHT,
+            FaultType.NOZZLE_JAM,
+            FaultType.ARRIVAL_SENSOR_FAILURE
+        };
+        JComboBox<String> faultSelector = new JComboBox<>();
+        for (FaultType ft : injectableFaults) {
+            faultSelector.addItem(faultLabel(ft));
+        }
+        panel.add(new JLabel("Fault Type:"));
+        panel.add(faultSelector);
+
+        // Zone selector for the fire event
+        JComboBox<String> zoneSelector = new JComboBox<>();
+        for (ZoneDef z : zones) {
+            zoneSelector.addItem("Zone " + z.id);
+        }
+        panel.add(new JLabel("Target Zone:"));
+        panel.add(zoneSelector);
+
+        int result = JOptionPane.showConfirmDialog(this, panel,
+                "Inject Fault", JOptionPane.OK_CANCEL_OPTION, JOptionPane.WARNING_MESSAGE);
+
+        if (result == JOptionPane.OK_OPTION) {
+            int droneIndex = droneSelector.getSelectedIndex() + 1;
+            FaultType selectedFault = injectableFaults[faultSelector.getSelectedIndex()];
+            int zoneId = zones.get(zoneSelector.getSelectedIndex()).id;
+
+            sendFaultInjection(droneIndex, selectedFault, zoneId);
+        }
+    }
+
+    /**
+     * Sends a fire event with a fault to the scheduler via UDP so the fault
+     * is processed through the normal event pipeline.
+     */
+    private void sendFaultInjection(int droneId, FaultType faultType, int zoneId) {
+        try {
+            DatagramSocket tempSocket = new DatagramSocket();
+            FireEvent faultEvent = new FireEvent(
+                    "00:00:00", zoneId,
+                    FireEvent.EventType.FIRE_DETECTED,
+                    FireEvent.Severity.LOW,
+                    faultType, 0
+            );
+            Message msg = Message.fireEvent(faultEvent);
+            SwarmNetwork.sendMessage(tempSocket,
+                    InetAddress.getByName(SwarmNetwork.LOCALHOST),
+                    SwarmNetwork.SCHEDULER_PORT,
+                    msg, "[GUI]", "Injected fault", "to Scheduler");
+            tempSocket.close();
+            appendEvent("[GUI] Injected " + faultLabel(faultType) + " fault via event to Zone " + zoneId);
+        } catch (Exception ex) {
+            appendEvent("[GUI] Failed to inject fault: " + ex.getMessage());
         }
     }
 

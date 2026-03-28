@@ -120,9 +120,24 @@ public class ZoneCell extends JLabel {
                 setFont(getFont().deriveFont(Font.BOLD, 11f));
                 setHorizontalAlignment(SwingConstants.CENTER);
                 break;
+            case DRONE_FAULT_SOFT:
+                setBackground(new Color(255, 165, 50));  // orange — recoverable fault
+                setFont(getFont().deriveFont(Font.BOLD, 11f));
+                setHorizontalAlignment(SwingConstants.CENTER);
+                break;
+            case DRONE_FAULT_HARD:
+                setBackground(new Color(180, 30, 30));   // dark red — permanent fault
+                setForeground(Color.WHITE);
+                setFont(getFont().deriveFont(Font.BOLD, 11f));
+                setHorizontalAlignment(SwingConstants.CENTER);
+                break;
             default:
                 setBackground(baseBg);
                 break;
+        }
+        // Reset foreground for non-hard-fault states
+        if (state != FireDroneGUI.CellState.DRONE_FAULT_HARD) {
+            setForeground(Color.BLACK);
         }
     }
 
