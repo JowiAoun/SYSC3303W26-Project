@@ -1,6 +1,6 @@
-<mxfile host="Electron" agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) draw.io/29.6.1 Chrome/142.0.7444.265 Electron/39.8.0 Safari/537.36" version="29.6.1">
+<mxfile host="app.diagrams.net" agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36" version="29.6.6">
   <diagram name="Page-1" id="lDwNhIErx0aiCV-LpvuA">
-    <mxGraphModel dx="3702" dy="1682" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="850" pageHeight="1100" math="0" shadow="0">
+    <mxGraphModel dx="3290" dy="1873" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="850" pageHeight="1100" math="0" shadow="0">
       <root>
         <mxCell id="0" />
         <mxCell id="1" parent="0" />
@@ -134,8 +134,18 @@
             <mxPoint as="offset" />
           </mxGeometry>
         </mxCell>
-        <mxCell id="PqLcdHTOTpDVDWPst0Pc-46" edge="1" parent="1" source="PqLcdHTOTpDVDWPst0Pc-17" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=1;entryY=0.25;entryDx=0;entryDy=0;" target="PqLcdHTOTpDVDWPst0Pc-23" value="[remainingRequired &amp;gt; 0 &amp;amp;&amp;amp;&amp;nbsp;&lt;div&gt;remainingLiters &amp;lt;= 0]&lt;/div&gt;">
-          <mxGeometry relative="1" as="geometry" />
+        <mxCell id="PqLcdHTOTpDVDWPst0Pc-46" edge="1" parent="1" source="PqLcdHTOTpDVDWPst0Pc-17" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=0.5;exitY=1;exitDx=0;exitDy=0;" value="[remainingRequired &amp;gt; 0 &amp;amp;&amp;amp;&amp;nbsp;&lt;div&gt;remainingLiters &amp;lt;= 0]&lt;/div&gt;">
+          <mxGeometry relative="1" x="0.5095" y="10" as="geometry">
+            <mxPoint as="offset" />
+            <Array as="points">
+              <mxPoint x="890" y="420" />
+              <mxPoint x="890" y="470" />
+              <mxPoint x="100" y="470" />
+              <mxPoint x="100" y="550" />
+              <mxPoint x="60" y="550" />
+            </Array>
+            <mxPoint x="60" y="550" as="targetPoint" />
+          </mxGeometry>
         </mxCell>
         <mxCell id="PqLcdHTOTpDVDWPst0Pc-51" edge="1" parent="1" source="PqLcdHTOTpDVDWPst0Pc-23" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" target="PqLcdHTOTpDVDWPst0Pc-24">
           <mxGeometry relative="1" as="geometry" />
@@ -154,7 +164,7 @@
         </mxCell>
         <mxCell id="PqLcdHTOTpDVDWPst0Pc-56" connectable="0" parent="PqLcdHTOTpDVDWPst0Pc-54" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" value="[currentAssignment != null]" vertex="1">
           <mxGeometry relative="1" x="0.2511" as="geometry">
-            <mxPoint as="offset" />
+            <mxPoint x="-115" y="41" as="offset" />
           </mxGeometry>
         </mxCell>
         <mxCell id="PqLcdHTOTpDVDWPst0Pc-57" edge="1" parent="1" source="PqLcdHTOTpDVDWPst0Pc-25" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=0;exitY=0;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" target="PqLcdHTOTpDVDWPst0Pc-15">
@@ -167,6 +177,65 @@
         </mxCell>
         <mxCell id="PqLcdHTOTpDVDWPst0Pc-58" connectable="0" parent="PqLcdHTOTpDVDWPst0Pc-57" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" value="[currentAssignment == null]&amp;nbsp;&lt;div&gt;/ sendReadySignal()&lt;/div&gt;" vertex="1">
           <mxGeometry relative="1" x="-0.1404" as="geometry">
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="yJlSUdt5iBOt5nHw0bbK-1" parent="1" style="swimlane;childLayout=stackLayout;horizontal=1;startSize=40;horizontalStack=0;rounded=1;fontSize=14;fontStyle=0;strokeWidth=2;resizeParent=0;resizeLast=1;shadow=0;dashed=0;align=center;arcSize=4;whiteSpace=wrap;html=1;" value="FAULTED" vertex="1">
+          <mxGeometry height="100" width="350" x="650" y="540" as="geometry" />
+        </mxCell>
+        <mxCell id="yJlSUdt5iBOt5nHw0bbK-2" parent="yJlSUdt5iBOt5nHw0bbK-1" style="align=left;strokeColor=none;fillColor=none;spacingLeft=4;spacingRight=4;fontSize=12;verticalAlign=top;resizable=0;rotatable=0;part=1;html=1;whiteSpace=wrap;" value="&lt;span style=&quot;font-size: 11px;&quot;&gt;entry/ triggerFault → sendStatus(FAULTED, zoneId, faultType)&lt;/span&gt;&lt;div style=&quot;font-size: 11px;&quot;&gt;do/ handleFaulted(): if hardFault → close &amp;amp; terminate; else sleep, clear assignment, go RETURNING&lt;/div&gt;" vertex="1">
+          <mxGeometry height="60" width="350" y="40" as="geometry" />
+        </mxCell>
+        <mxCell id="yJlSUdt5iBOt5nHw0bbK-3" edge="1" parent="1" source="PqLcdHTOTpDVDWPst0Pc-27" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=0.75;exitY=1;exitDx=0;exitDy=0;entryX=0.25;entryY=0;entryDx=0;entryDy=0;" target="yJlSUdt5iBOt5nHw0bbK-1">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="585" y="510" />
+              <mxPoint x="738" y="510" />
+              <mxPoint x="738" y="530" />
+            </Array>
+            <mxPoint x="570" y="430" as="sourcePoint" />
+            <mxPoint x="710" y="530" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="yJlSUdt5iBOt5nHw0bbK-4" connectable="0" parent="yJlSUdt5iBOt5nHw0bbK-3" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" value="STUCK_MID_FLIGHT / ARRIVAL_SENSOR_FAILURE" vertex="1">
+          <mxGeometry relative="1" x="-0.0727" as="geometry">
+            <mxPoint x="-31" y="-20" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="yJlSUdt5iBOt5nHw0bbK-5" edge="1" parent="1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=0.25;exitY=1;exitDx=0;exitDy=0;entryX=0.75;entryY=0;entryDx=0;entryDy=0;" target="yJlSUdt5iBOt5nHw0bbK-1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="959.67" y="420" as="sourcePoint" />
+            <mxPoint x="959.67" y="530" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="yJlSUdt5iBOt5nHw0bbK-6" connectable="0" parent="yJlSUdt5iBOt5nHw0bbK-5" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" value="NOZZLE_JAM" vertex="1">
+          <mxGeometry relative="1" x="-0.0727" as="geometry">
+            <mxPoint x="-34" y="29" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="yJlSUdt5iBOt5nHw0bbK-7" edge="1" parent="1" source="yJlSUdt5iBOt5nHw0bbK-2" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=0;exitY=0.25;exitDx=0;exitDy=0;entryX=1;entryY=0.5;entryDx=0;entryDy=0;" target="PqLcdHTOTpDVDWPst0Pc-23" value="[soft fault] / sendStatus(RETURNING)">
+          <mxGeometry relative="1" x="0.2268" as="geometry">
+            <mxPoint as="offset" />
+            <Array as="points">
+              <mxPoint x="650" y="590" />
+            </Array>
+            <mxPoint x="570" y="590" as="sourcePoint" />
+            <mxPoint x="90" y="590" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="yJlSUdt5iBOt5nHw0bbK-9" edge="1" parent="1" source="yJlSUdt5iBOt5nHw0bbK-2" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.855;entryY=0.145;entryDx=0;entryDy=0;entryPerimeter=0;exitX=1;exitY=0.5;exitDx=0;exitDy=0;" target="PqLcdHTOTpDVDWPst0Pc-30">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="1310" y="610" />
+              <mxPoint x="1310" y="200" />
+              <mxPoint x="-422" y="200" />
+            </Array>
+            <mxPoint x="1414.800048828125" y="222" as="sourcePoint" />
+            <mxPoint x="54" y="210" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="yJlSUdt5iBOt5nHw0bbK-10" connectable="0" parent="yJlSUdt5iBOt5nHw0bbK-9" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" value="[remainingRequired &amp;lt;= 0] / send completion" vertex="1">
+          <mxGeometry relative="1" x="0.0401" y="2" as="geometry">
             <mxPoint as="offset" />
           </mxGeometry>
         </mxCell>
