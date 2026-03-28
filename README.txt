@@ -31,10 +31,22 @@ src/main/java/
   - DroneStatus.java: Immutable snapshot of drone data (ID, state, location, battery/water).
   - FireEvent.java: Data structure representing a fire event with severity/type.
   - Message.java: Envelope class for inter-subsystem communication.
-  - MessageBuffer.java: Thread-safe FIFO buffer for message passing.
   - FireDroneGUI.java: Main GUI window displaying the zone grid and status.
   - ZoneCell.java: GUI component representing a single cell in the grid.
   - ZoneDef.java: Data structure defining the layout of zones on the grid.
+  - DroneMain.java: Standalone entry point for a single DroneSubsystem process.
+  - FaultType.java: Enum of fault kinds that can be attached to events or drone status.
+  - FireIncidentMain.java: Standalone entry point for the FireIncidentSubsystem process.
+  - PathPlanner.java: Computes grid paths for simulated drone movement between zones.
+  - SchedulerMain.java: Standalone entry point for the Scheduler process.
+  - SchedulerState.java: Enum of high-level scheduler coordination states.
+  - SwarmNetwork.java: UDP send/receive utilities (includes ReceivedMessage for sender address/port).
+  - ZoneLoader.java: Loads zone definitions from CSV for the grid layout.
+
+docs/
+  - project-specification.pdf: Project requirements.
+  - diagrams/: UML Class and Sequence diagrams.
+  - Diagrams.pdf: Rendered diagrams.
 
 HOW IT WORKS
 --------------------------------------------------------------------------------
@@ -53,11 +65,6 @@ The system operates using three parallel threads and a Swing GUI:
    - Updates in real-time based on messages processed by the Scheduler.
    - Shows active fires (RED cells).
    - Shows drone position and action (e.g., ">>>" for moving, "FIGHT" for extinguishing).
-
-docs/
-  - project-specification.pdf: Project requirements.
-  - diagrams/: UML Class and Sequence diagrams.
-  - Diagrams.pdf: Rendered diagrams.
 
 SETUP INSTRUCTIONS
 --------------------------------------------------------------------------------
@@ -121,11 +128,17 @@ src/test/java/DroneStateMachineTest.java
   - Test 1: Verify DroneSubsystem sends EN_ROUTE shortly after receiving an assignment
   - Test 2: Verify when tank is empty, drone sends RETURNING then REFILLING
   - Test 3: Verify drone eventually finishes an assignment by sending DRONE_COMPLETED or returning to IDLE
+  - Test 4: Verify two drones each send EN_ROUTE for the correct zone after separate assignments
 
 src/test/java/SchedulerDispatchTest.java
   - Test 1: Verify Scheduler does not dispatch a pending event when drone is not IDLE
   - Test 2: Verify Scheduler dispatches when drone is IDLE and a pending event exists, and sends DRONE_ASSIGNMENT to drone buffer
   - Test 3: Verify Scheduler dispatches a queued fire event after drone transitions from busy to IDLE
+  - Test 4: Verify Scheduler dispatches a new fire to a drone IDLE at a remote zone when it still has enough agent
+  - Test 5: Verify Scheduler sends DRONE_RETURN_TO_BASE when the drone does not have enough agent for the next fire
+
+src/test/java/PacketContentTest.java
+  - Test 1: Verify a FIRE_EVENT Message keeps the same field values after UDP send and receive
 
 BREAKDOWN OF RESPONSIBILITIES
 --------------------------------------------------------------------------------
