@@ -170,8 +170,18 @@ public class DroneSubsystem implements Runnable {
                 break;
 
             case DRONE_RETURN_TO_BASE:
-                System.out.println("[Drone " + droneId + "] Received Return to Base command.");
                 currentAssignment = null;
+                // Check for attached fault payload (from GUI fault injection)
+                FireEvent faultInfo = reply.getEvent();
+                if (faultInfo != null && faultInfo.hasFault()) {
+                    FaultType ft = faultInfo.getFaultType();
+                    long sleepMs = faultInfo.getFaultDelayTime();
+                    System.out.println("[Drone " + droneId + "] Fault injected: " + ft + ". Pausing for " + (sleepMs / 1000) + "s.");
+                    int cellZone = findZoneForCell(currentCol, currentRow);
+                    sendStatus(DroneState.FAULTED, cellZone, ft);
+                    Thread.sleep(sleepMs);
+                }
+                System.out.println("[Drone " + droneId + "] Returning to base.");
                 sendStatus(DroneState.RETURNING, BASE_ZONE_ID);
                 break;
 
@@ -191,8 +201,7 @@ public class DroneSubsystem implements Runnable {
     private void handleEnRoute() throws Exception {
         int targetZone = currentAssignment.getZoneId();
         System.out.println("[Drone " + droneId + "] Flying to Zone " + targetZone);
-        simulateTravel(targetZone);
-        if (currentState == DroneState.FAULTED) {
+        if (!simulateTravel(targetZone)) {
             return;
         }
         currentZoneId = targetZone;
@@ -225,6 +234,9 @@ public class DroneSubsystem implements Runnable {
         long sleepMs = Math.round(dropSeconds * 1000);
         Thread.sleep(sleepMs);
 
+        // Check for RTB command after drop cycle (non-blocking)
+        if (checkForRTB()) return;
+
         remainingLiters -= toDrop;
         remainingRequired -= toDrop;
         System.out.println("[Drone " + droneId + "] Dropped " + toDrop + "L. Remaining in tank: "
@@ -248,7 +260,11 @@ public class DroneSubsystem implements Runnable {
      * RETURNING — simulate travel back to base, then refill.
      */
     private void handleReturning() throws Exception {
-        simulateTravel(BASE_ZONE_ID);
+        if (!simulateTravel(BASE_ZONE_ID)) {
+            // Travel was interrupted by a fault. The run loop will
+            // re-enter handleReturning to complete the trip to base.
+            return;
+        }
         currentZoneId = BASE_ZONE_ID;
         sendStatus(DroneState.REFILLING, BASE_ZONE_ID);
     }
@@ -489,13 +505,14 @@ public class DroneSubsystem implements Runnable {
 
     /**
      * Simulate cell-by-cell travel to the target zone center using Bresenham path.
+     * @return true if travel completed, false if interrupted (fault/RTB)
      */
-    private void simulateTravel(int targetZoneId) throws Exception {
+    private boolean simulateTravel(int targetZoneId) throws Exception {
         ZoneDef targetZone = getZoneById(targetZoneId);
         if (targetZone == null) {
             // Fallback: fixed sleep if zone not found
             Thread.sleep(2000);
-            return;
+            return true;
         }
         int[] targetCenter = PathPlanner.zoneCenterCell(targetZone);
         List<int[]> path = PathPlanner.computePath(currentCol, currentRow, targetCenter[0], targetCenter[1]);
@@ -504,11 +521,14 @@ public class DroneSubsystem implements Runnable {
         for (int i = 1; i < path.size(); i++) {
             Thread.sleep(CELL_TRAVEL_MS);
 
+            // Check for RTB command during travel (non-blocking)
+            if (checkForRTB()) return false;
+
             if (currentAssignment != null && currentAssignment.hasFault()) {
                 if (currentAssignment.getFaultType() == FaultType.STUCK_MID_FLIGHT && currentAssignment.getFaultDelayTime() > 0
                 && ((long) i * CELL_TRAVEL_MS) >= currentAssignment.getFaultDelayTime()) {
                     triggerFault(FaultType.STUCK_MID_FLIGHT, "Drone stuck mid-flight between zones.");
-                    return;
+                    return false;
                 }
             }
 
@@ -519,6 +539,51 @@ public class DroneSubsystem implements Runnable {
             sendStatus(currentState, cellZoneId);
         }
         currentZoneId = targetZoneId;
+        return true;
+    }
+
+    /**
+     * Non-blocking check for a DRONE_RETURN_TO_BASE command.
+     * If the RTB carries a fault event, the drone enters FAULTED state,
+     * sleeps for the fault delay duration, then transitions to RETURNING.
+     * @return true if RTB was received and the caller should return immediately
+     */
+    private boolean checkForRTB() {
+        if (terminated || socket.isClosed()) return false;
+        int oldTimeout;
+        try {
+            oldTimeout = socket.getSoTimeout();
+        } catch (Exception e) {
+            return false;
+        }
+        try {
+            socket.setSoTimeout(1);
+            Message msg = SwarmNetwork.receiveMessage(socket);
+            if (msg.getType() == Message.Type.DRONE_RETURN_TO_BASE) {
+                currentAssignment = null;
+                remainingRequired = 0;
+
+                // If RTB carries fault info, pause at current position for the specified duration
+                FireEvent faultInfo = msg.getEvent();
+                if (faultInfo != null && faultInfo.hasFault()) {
+                    FaultType ft = faultInfo.getFaultType();
+                    long sleepMs = faultInfo.getFaultDelayTime();
+                    System.out.println("[Drone " + droneId + "] Fault injected: " + ft + ". Pausing for " + (sleepMs / 1000) + "s.");
+                    int cellZone = findZoneForCell(currentCol, currentRow);
+                    sendStatus(DroneState.FAULTED, cellZone, ft);
+                    Thread.sleep(sleepMs);
+                }
+
+                System.out.println("[Drone " + droneId + "] Returning to base.");
+                sendStatus(DroneState.RETURNING, 0);
+                return true;
+            }
+        } catch (java.net.SocketTimeoutException ignored) {
+        } catch (Exception ignored) {
+        } finally {
+            try { socket.setSoTimeout(oldTimeout); } catch (Exception ignored) {}
+        }
+        return false;
     }
 
     /**

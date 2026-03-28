@@ -301,8 +301,8 @@ public class FireDroneGUI extends JFrame {
             // Track faulted drones
             if (status.getState() == DroneState.FAULTED) {
                 faultedDroneIds.add(droneId);
-                // Hard faults are permanent — freeze this drone on the grid
-                if (isHardFault(status.getFaultType())) {
+                // Hard faults freeze permanently once the drone reaches base (zone 0)
+                if (isHardFault(status.getFaultType()) && status.getZoneId() == 0) {
                     permanentlyFaultedDrones.add(droneId);
                 }
             } else {

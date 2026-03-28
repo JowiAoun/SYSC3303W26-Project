@@ -43,6 +43,10 @@ public class DroneStatus {
 
     @Override
     public String toString() {
-        return String.format("Drone %d [%s] Zone:%d Liters:%d Pos:(%d,%d) Fault:%s", droneId, state, zoneId, remainingLiters, currentCol, currentRow, faultType);
+        String base = String.format("Drone %d [%s] Zone:%d Liters:%d Pos:(%d,%d)", droneId, state, zoneId, remainingLiters, currentCol, currentRow);
+        if (faultType != null && faultType != FaultType.NONE) {
+            base += " Fault:" + faultType;
+        }
+        return base;
     }
 }

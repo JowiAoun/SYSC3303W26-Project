@@ -65,6 +65,14 @@ public class Message {
     }
 
     /**
+     * Scheduler commands the Drone to return to base with fault info attached.
+     * The drone reads the fault type and delay from the event.
+     */
+    public static Message droneReturnToBase(FireEvent faultInfo) {
+        return new Message(Type.DRONE_RETURN_TO_BASE, faultInfo, null);
+    }
+
+    /**
      * Drone reports completion back to the Scheduler.
      * Note: Detailed status update is sent separately.
      */
