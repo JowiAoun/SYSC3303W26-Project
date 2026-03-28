@@ -692,7 +692,7 @@ public class FireDroneGUI extends JFrame {
      * Shows a dialog allowing the user to select a drone and fault type to inject.
      */
     private void showFaultInjectionDialog() {
-        JPanel panel = new JPanel(new GridLayout(2, 2, 8, 8));
+        JPanel panel = new JPanel(new GridLayout(3, 2, 8, 8));
         panel.setBorder(new EmptyBorder(8, 8, 8, 8));
 
         // Drone selector
@@ -716,16 +716,29 @@ public class FireDroneGUI extends JFrame {
         panel.add(new JLabel("Fault Type:"));
         panel.add(faultSelector);
 
+        // Duration spinner (seconds) — disabled for hard faults (permanent)
+        SpinnerNumberModel durationModel = new SpinnerNumberModel(10, 5, 60, 5);
+        JSpinner durationSpinner = new JSpinner(durationModel);
+        faultSelector.addActionListener(e -> {
+            int idx = faultSelector.getSelectedIndex();
+            boolean isHard = injectableFaults[idx] == FaultType.NOZZLE_JAM;
+            durationSpinner.setEnabled(!isHard);
+        });
+        panel.add(new JLabel("Duration (sec):"));
+        panel.add(durationSpinner);
+
         int result = JOptionPane.showConfirmDialog(this, panel,
                 "Inject Fault", JOptionPane.OK_CANCEL_OPTION, JOptionPane.WARNING_MESSAGE);
 
         if (result == JOptionPane.OK_OPTION) {
             int droneIndex = droneSelector.getSelectedIndex() + 1;
             FaultType selectedFault = injectableFaults[faultSelector.getSelectedIndex()];
+            long durationMs = ((Number) durationSpinner.getValue()).longValue() * 1000;
 
             if (schedulerRef != null) {
-                schedulerRef.requestFaultInjection(droneIndex, selectedFault);
-                appendEvent("[GUI] Injected " + faultLabel(selectedFault) + " on Drone " + droneIndex);
+                schedulerRef.requestFaultInjection(droneIndex, selectedFault, durationMs);
+                String durLabel = isHardFault(selectedFault) ? "permanent" : durationSpinner.getValue() + "s";
+                appendEvent("[GUI] Injected " + faultLabel(selectedFault) + " on Drone " + droneIndex + " (" + durLabel + ")");
             } else {
                 appendEvent("[GUI] Cannot inject fault: Scheduler not connected.");
             }

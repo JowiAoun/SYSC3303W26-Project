@@ -35,7 +35,8 @@ public class Scheduler implements Runnable {
     private final Set<Integer> shutdownSentToDrones = new HashSet<>();
     private final Map<Integer, FireEvent> activeAssignments = new HashMap<>();
     private final Map<Integer, Long> assignmentDeadlines = new HashMap<>();
-    private final ConcurrentLinkedQueue<int[]> faultInjectionQueue = new ConcurrentLinkedQueue<>();
+    private final Map<Integer, Long> faultHoldUntil = new HashMap<>();  // droneId → timestamp until fault is held
+    private final ConcurrentLinkedQueue<long[]> faultInjectionQueue = new ConcurrentLinkedQueue<>();
 
     private final FireDroneGUI gui;
     private final List<ZoneDef> zones;
@@ -91,6 +92,7 @@ public class Scheduler implements Runnable {
 
                 checkForTimedOutDrones();
                 processFaultInjections();
+                releaseExpiredFaultHolds();
 
                 // Try to dispatch to ALL available idle drones
                 while (canDispatchPendingEvent()) {
@@ -452,19 +454,21 @@ public class Scheduler implements Runnable {
      */
     /**
      * Thread-safe method for the GUI to request a fault injection on a specific drone.
+     * @param durationMs how long the fault should be held (in milliseconds)
      */
-    public void requestFaultInjection(int droneId, FaultType faultType) {
-        faultInjectionQueue.add(new int[]{droneId, faultType.ordinal()});
+    public void requestFaultInjection(int droneId, FaultType faultType, long durationMs) {
+        faultInjectionQueue.add(new long[]{droneId, faultType.ordinal(), durationMs});
     }
 
     /**
      * Processes any pending fault injections from the GUI.
      */
     private void processFaultInjections() {
-        int[] injection;
+        long[] injection;
         while ((injection = faultInjectionQueue.poll()) != null) {
-            int droneId = injection[0];
-            FaultType faultType = FaultType.values()[injection[1]];
+            int droneId = (int) injection[0];
+            FaultType faultType = FaultType.values()[(int) injection[1]];
+            long durationMs = injection[2];
             DroneStatus current = droneStatuses.get(droneId);
 
             if (current == null) {
@@ -487,6 +491,11 @@ public class Scheduler implements Runnable {
             );
             droneStatuses.put(droneId, faultedStatus);
 
+            // Set the fault hold timer so incoming drone updates are suppressed
+            if (!isHardFault(faultType)) {
+                faultHoldUntil.put(droneId, System.currentTimeMillis() + durationMs);
+            }
+
             if (isHardFault(faultType)) {
                 droneStatuses.remove(droneId);
                 droneAddresses.remove(droneId);
@@ -505,6 +514,20 @@ public class Scheduler implements Runnable {
 
     private boolean isHardFault(FaultType faultType) {
         return faultType == FaultType.NOZZLE_JAM;
+    }
+
+    /**
+     * Releases expired fault holds so drones can resume normal operation.
+     */
+    private void releaseExpiredFaultHolds() {
+        long now = System.currentTimeMillis();
+        faultHoldUntil.entrySet().removeIf(entry -> {
+            if (now >= entry.getValue()) {
+                System.out.println("[Scheduler] Fault hold released for Drone " + entry.getKey());
+                return true;
+            }
+            return false;
+        });
     }
 
     /**
@@ -552,6 +575,14 @@ public class Scheduler implements Runnable {
             case DRONE_STATUS_UPDATE:
                 DroneStatus status = message.getStatus();
                 int droneId = status.getDroneId();
+
+                // Suppress updates from drones in fault hold
+                Long holdUntil = faultHoldUntil.get(droneId);
+                if (holdUntil != null && System.currentTimeMillis() < holdUntil) {
+                    System.out.println("[Scheduler] Suppressed update from Drone " + droneId + " (fault hold active)");
+                    break;
+                }
+
                 String statusMsg = "[Scheduler] Drone Status Update: " + status;
                 System.out.println(statusMsg);
 
