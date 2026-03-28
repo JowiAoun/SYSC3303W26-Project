@@ -299,7 +299,7 @@ public class Scheduler implements Runnable {
 
             pending.add(interrupted.withoutFault());
 
-            droneStatuses.put(droneId, new DroneStatus(
+            DroneStatus faultedStatus = new DroneStatus(
                     droneId,
                     DroneState.FAULTED,
                     status.getZoneId(),
@@ -307,9 +307,15 @@ public class Scheduler implements Runnable {
                     status.getCurrentCol(),
                     status.getCurrentRow(),
                     FaultType.STUCK_MID_FLIGHT
-            ));
+            );
+            droneStatuses.put(droneId, faultedStatus);
 
-            System.out.println("[Scheduler] Drone " + droneId + " timed out while travelling, event id requeued.");
+            String faultMsg = "[Scheduler] Drone " + droneId + " timed out while travelling, event requeued.";
+            System.out.println(faultMsg);
+            if (gui != null) {
+                gui.updateDroneStatus(faultedStatus);
+                gui.appendEvent(faultMsg);
+            }
         }
     }
 

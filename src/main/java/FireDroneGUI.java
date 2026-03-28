@@ -730,7 +730,7 @@ public class FireDroneGUI extends JFrame {
                     "00:00:00", zoneId,
                     FireEvent.EventType.FIRE_DETECTED,
                     FireEvent.Severity.LOW,
-                    faultType, 0
+                    faultType, 1  // faultDelayTime > 0 required for STUCK_MID_FLIGHT to trigger during travel
             );
             Message msg = Message.fireEvent(faultEvent);
             SwarmNetwork.sendMessage(tempSocket,
