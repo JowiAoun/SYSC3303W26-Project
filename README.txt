@@ -140,6 +140,14 @@ src/test/java/SchedulerDispatchTest.java
 src/test/java/PacketContentTest.java
   - Test 1: Verify a FIRE_EVENT Message keeps the same field values after UDP send and receive
 
+src/test/java/FaultTest.java
+  - Test 1: Verify normal flow of FireEvent handling (no faults)
+  - Test 2: Verify a STUCK_MID_FLIGHT fault is handled properly
+  - Test 3: Verify a NOZZLE_JAM fault is handled properly
+  - Test 4: Verify an ARRIVAL_SENSOR_FAILURE fault is handled properly
+  - Test 5: Verify a CORRUPTED_MESSAGE fault is handled properly
+  - Test 6: Verify the Scheduler handles a drone timing out
+
 BREAKDOWN OF RESPONSIBILITIES
 --------------------------------------------------------------------------------
 
@@ -168,5 +176,5 @@ Iteration 4
 -----------
 Zachary: Source code
 Amir: Documentation and Diagrams
-Thanos: GUI
-Jowi: Testing
+Thanos: Testing
+Jowi: GUI
