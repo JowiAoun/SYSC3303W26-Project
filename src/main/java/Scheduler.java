@@ -10,6 +10,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Queue;
 import java.util.Set;
+import java.util.concurrent.ConcurrentLinkedQueue;
 /**
  * Scheduler.java
  *
@@ -34,6 +35,7 @@ public class Scheduler implements Runnable {
     private final Set<Integer> shutdownSentToDrones = new HashSet<>();
     private final Map<Integer, FireEvent> activeAssignments = new HashMap<>();
     private final Map<Integer, Long> assignmentDeadlines = new HashMap<>();
+    private final ConcurrentLinkedQueue<int[]> faultInjectionQueue = new ConcurrentLinkedQueue<>();
 
     private final FireDroneGUI gui;
     private final List<ZoneDef> zones;
@@ -88,6 +90,7 @@ public class Scheduler implements Runnable {
                 }
 
                 checkForTimedOutDrones();
+                processFaultInjections();
 
                 // Try to dispatch to ALL available idle drones
                 while (canDispatchPendingEvent()) {
@@ -447,6 +450,59 @@ public class Scheduler implements Runnable {
     /**
      * Checks whether the fault is HardFault.
      */
+    /**
+     * Thread-safe method for the GUI to request a fault injection on a specific drone.
+     */
+    public void requestFaultInjection(int droneId, FaultType faultType) {
+        faultInjectionQueue.add(new int[]{droneId, faultType.ordinal()});
+    }
+
+    /**
+     * Processes any pending fault injections from the GUI.
+     */
+    private void processFaultInjections() {
+        int[] injection;
+        while ((injection = faultInjectionQueue.poll()) != null) {
+            int droneId = injection[0];
+            FaultType faultType = FaultType.values()[injection[1]];
+            DroneStatus current = droneStatuses.get(droneId);
+
+            if (current == null) {
+                System.out.println("[Scheduler] Cannot inject fault: Drone " + droneId + " not registered.");
+                continue;
+            }
+
+            // Requeue the drone's current assignment if any
+            FireEvent interrupted = activeAssignments.remove(droneId);
+            assignmentDeadlines.remove(droneId);
+            if (interrupted != null) {
+                pending.add(interrupted.withoutFault());
+            }
+
+            DroneStatus faultedStatus = new DroneStatus(
+                    droneId, DroneState.FAULTED,
+                    current.getZoneId(), current.getRemainingLiters(),
+                    current.getCurrentCol(), current.getCurrentRow(),
+                    faultType
+            );
+            droneStatuses.put(droneId, faultedStatus);
+
+            if (isHardFault(faultType)) {
+                droneStatuses.remove(droneId);
+                droneAddresses.remove(droneId);
+                dronePorts.remove(droneId);
+                shutdownSentToDrones.add(droneId);
+            }
+
+            String msg = "[Scheduler] Fault injected on Drone " + droneId + ": " + faultType;
+            System.out.println(msg);
+            if (gui != null) {
+                gui.updateDroneStatus(faultedStatus);
+                gui.appendEvent(msg);
+            }
+        }
+    }
+
     private boolean isHardFault(FaultType faultType) {
         return faultType == FaultType.NOZZLE_JAM;
     }

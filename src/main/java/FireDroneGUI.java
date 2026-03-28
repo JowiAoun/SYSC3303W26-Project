@@ -1,8 +1,6 @@
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
 import java.awt.*;
-import java.net.DatagramSocket;
-import java.net.InetAddress;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -45,6 +43,8 @@ public class FireDroneGUI extends JFrame {
     private final Map<Integer, FireEvent.Severity> zoneSeverities = new HashMap<>(); // zoneId → severity
     private final Map<Integer, DroneStatus> droneCurrentStatuses = new HashMap<>();  // droneId → latest status
     private final Set<Integer> faultedDroneIds = new HashSet<>();            // drones currently faulted
+    private final Set<Integer> permanentlyFaultedDrones = new HashSet<>();    // hard-faulted, never cleared
+    private Scheduler schedulerRef;  // set after construction for fault injection
     private JTextArea eventLog;
     private JLabel statusLeft;
     private JLabel statusRight;
@@ -274,6 +274,12 @@ public class FireDroneGUI extends JFrame {
     public void updateDroneStatus(DroneStatus status) {
         runOnEdt(() -> {
             int droneId = status.getDroneId();
+
+            // Hard-faulted drones are permanently frozen — ignore any further updates
+            if (permanentlyFaultedDrones.contains(droneId)) {
+                return;
+            }
+
             int col = status.getCurrentCol();
             int row = status.getCurrentRow();
 
@@ -295,6 +301,10 @@ public class FireDroneGUI extends JFrame {
             // Track faulted drones
             if (status.getState() == DroneState.FAULTED) {
                 faultedDroneIds.add(droneId);
+                // Hard faults are permanent — freeze this drone on the grid
+                if (isHardFault(status.getFaultType())) {
+                    permanentlyFaultedDrones.add(droneId);
+                }
             } else {
                 faultedDroneIds.remove(droneId);
             }
@@ -672,10 +682,17 @@ public class FireDroneGUI extends JFrame {
     }
 
     /**
+     * Sets the Scheduler reference for direct fault injection.
+     */
+    public void setSchedulerRef(Scheduler scheduler) {
+        this.schedulerRef = scheduler;
+    }
+
+    /**
      * Shows a dialog allowing the user to select a drone and fault type to inject.
      */
     private void showFaultInjectionDialog() {
-        JPanel panel = new JPanel(new GridLayout(3, 2, 8, 8));
+        JPanel panel = new JPanel(new GridLayout(2, 2, 8, 8));
         panel.setBorder(new EmptyBorder(8, 8, 8, 8));
 
         // Drone selector
@@ -699,48 +716,19 @@ public class FireDroneGUI extends JFrame {
         panel.add(new JLabel("Fault Type:"));
         panel.add(faultSelector);
 
-        // Zone selector for the fire event
-        JComboBox<String> zoneSelector = new JComboBox<>();
-        for (ZoneDef z : zones) {
-            zoneSelector.addItem("Zone " + z.id);
-        }
-        panel.add(new JLabel("Target Zone:"));
-        panel.add(zoneSelector);
-
         int result = JOptionPane.showConfirmDialog(this, panel,
                 "Inject Fault", JOptionPane.OK_CANCEL_OPTION, JOptionPane.WARNING_MESSAGE);
 
         if (result == JOptionPane.OK_OPTION) {
             int droneIndex = droneSelector.getSelectedIndex() + 1;
             FaultType selectedFault = injectableFaults[faultSelector.getSelectedIndex()];
-            int zoneId = zones.get(zoneSelector.getSelectedIndex()).id;
 
-            sendFaultInjection(droneIndex, selectedFault, zoneId);
-        }
-    }
-
-    /**
-     * Sends a fire event with a fault to the scheduler via UDP so the fault
-     * is processed through the normal event pipeline.
-     */
-    private void sendFaultInjection(int droneId, FaultType faultType, int zoneId) {
-        try {
-            DatagramSocket tempSocket = new DatagramSocket();
-            FireEvent faultEvent = new FireEvent(
-                    "00:00:00", zoneId,
-                    FireEvent.EventType.FIRE_DETECTED,
-                    FireEvent.Severity.LOW,
-                    faultType, 1  // faultDelayTime > 0 required for STUCK_MID_FLIGHT to trigger during travel
-            );
-            Message msg = Message.fireEvent(faultEvent);
-            SwarmNetwork.sendMessage(tempSocket,
-                    InetAddress.getByName(SwarmNetwork.LOCALHOST),
-                    SwarmNetwork.SCHEDULER_PORT,
-                    msg, "[GUI]", "Injected fault", "to Scheduler");
-            tempSocket.close();
-            appendEvent("[GUI] Injected " + faultLabel(faultType) + " fault via event to Zone " + zoneId);
-        } catch (Exception ex) {
-            appendEvent("[GUI] Failed to inject fault: " + ex.getMessage());
+            if (schedulerRef != null) {
+                schedulerRef.requestFaultInjection(droneIndex, selectedFault);
+                appendEvent("[GUI] Injected " + faultLabel(selectedFault) + " on Drone " + droneIndex);
+            } else {
+                appendEvent("[GUI] Cannot inject fault: Scheduler not connected.");
+            }
         }
     }
 

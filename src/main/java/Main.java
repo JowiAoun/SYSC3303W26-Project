@@ -47,6 +47,7 @@ public class Main {
         } catch (SocketException e) {
             throw new RuntimeException(e);
         }
+        gui.setSchedulerRef(scheduler);
 
         // Launch threads.
         Thread fireThread = new Thread(fireIncident, "FireIncidentSubsystem");
