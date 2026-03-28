@@ -1,139 +1,208 @@
-<mxfile host="65bd71144e">
-    <diagram id="iteration1-sequence-diagram" name="Iteration 1 Sequence Diagram">
-        <mxGraphModel dx="951" dy="784" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1400" pageHeight="1000" math="0" shadow="0">
-            <root>
-                <mxCell id="0" />
-                <mxCell id="1" parent="0" />
-                <mxCell id="fire-actor" value="FireIncidentSubsystem" style="rounded=1;whiteSpace=wrap;html=1;fontStyle=1;" parent="1" vertex="1">
-                    <mxGeometry x="80" y="40" width="160" height="50" as="geometry" />
-                </mxCell>
-                <mxCell id="scheduler-actor" value="Scheduler" style="rounded=1;whiteSpace=wrap;html=1;fontStyle=1;" parent="1" vertex="1">
-                    <mxGeometry x="380" y="40" width="140" height="50" as="geometry" />
-                </mxCell>
-                <mxCell id="drone-actor" value="DroneSubsystem" style="rounded=1;whiteSpace=wrap;html=1;fontStyle=1;" parent="1" vertex="1">
-                    <mxGeometry x="660" y="40" width="140" height="50" as="geometry" />
-                </mxCell>
-                <mxCell id="fire-lifeline" value="" style="endArrow=none;html=1;rounded=0;dashed=1;dashPattern=8 8;" parent="1" edge="1">
-                    <mxGeometry width="50" height="50" relative="1" as="geometry">
-                        <mxPoint x="160" y="90" as="sourcePoint" />
-                        <mxPoint x="160" y="1030.0" as="targetPoint" />
-                    </mxGeometry>
-                </mxCell>
-                <mxCell id="scheduler-lifeline" value="" style="endArrow=none;html=1;rounded=0;dashed=1;dashPattern=8 8;" parent="1" edge="1">
-                    <mxGeometry width="50" height="50" relative="1" as="geometry">
-                        <mxPoint x="450" y="90" as="sourcePoint" />
-                        <mxPoint x="450" y="1030.0" as="targetPoint" />
-                    </mxGeometry>
-                </mxCell>
-                <mxCell id="drone-lifeline" value="" style="endArrow=none;html=1;rounded=0;dashed=1;dashPattern=8 8;" parent="1" edge="1">
-                    <mxGeometry width="50" height="50" relative="1" as="geometry">
-                        <mxPoint x="730" y="90" as="sourcePoint" />
-                        <mxPoint x="730" y="1030.0" as="targetPoint" />
-                    </mxGeometry>
-                </mxCell>
-                <mxCell id="loop-frame" value="loop [for each fire event in CSV]" style="shape=umlFrame;whiteSpace=wrap;html=1;pointerEvents=0;width=220;height=25;" parent="1" vertex="1">
-                    <mxGeometry x="40" y="120" width="760" height="850.0" as="geometry" />
-                </mxCell>
-                <mxCell id="msg1" value="" style="endArrow=classic;html=1;rounded=0;" parent="1" edge="1">
-                    <mxGeometry width="50" height="50" relative="1" as="geometry">
-                        <mxPoint x="160" y="210" as="sourcePoint" />
-                        <mxPoint x="450" y="210" as="targetPoint" />
-                    </mxGeometry>
-                </mxCell>
-                <mxCell id="msg1-label" value="FIRE_EVENT(FireEvent)" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;" parent="1" vertex="1">
-                    <mxGeometry x="230" y="185" width="150" height="20" as="geometry" />
-                </mxCell>
-                <mxCell id="msg2" value="" style="endArrow=classic;html=1;rounded=0;" parent="1" edge="1">
-                    <mxGeometry width="50" height="50" relative="1" as="geometry">
-                        <mxPoint x="730" y="260" as="sourcePoint" />
-                        <mxPoint x="450" y="260" as="targetPoint" />
-                    </mxGeometry>
-                </mxCell>
-                <mxCell id="msg2-label" value="DRONE_READY" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;" parent="1" vertex="1">
-                    <mxGeometry x="530" y="235" width="120" height="20" as="geometry" />
-                </mxCell>
-                <mxCell id="msg3" value="" style="endArrow=classic;html=1;rounded=0;" parent="1" edge="1">
-                    <mxGeometry width="50" height="50" relative="1" as="geometry">
-                        <mxPoint x="450" y="370.0" as="sourcePoint" />
-                        <mxPoint x="730" y="370.0" as="targetPoint" />
-                    </mxGeometry>
-                </mxCell>
-                <mxCell id="msg3-label" value="DRONE_ASSIGNMENT(FireEvent)" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;" parent="1" vertex="1">
-                    <mxGeometry x="490" y="345.0" width="200" height="20" as="geometry" />
-                </mxCell>
-                <mxCell id="activation1" value="" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" parent="1" vertex="1">
-                    <mxGeometry x="720" y="440.0" width="20" height="80" as="geometry" />
-                </mxCell>
-                <mxCell id="msg4" value="" style="endArrow=classic;html=1;rounded=0;" parent="1" edge="1">
-                    <mxGeometry width="50" height="50" relative="1" as="geometry">
-                        <mxPoint x="730" y="550.0" as="sourcePoint" />
-                        <mxPoint x="450" y="550.0" as="targetPoint" />
-                    </mxGeometry>
-                </mxCell>
-                <mxCell id="msg4-label" value="DRONE_COMPLETED(FireEvent)" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;" parent="1" vertex="1">
-                    <mxGeometry x="500" y="525.0" width="190" height="20" as="geometry" />
-                </mxCell>
-                <mxCell id="msg5" value="" style="endArrow=classic;html=1;rounded=0;" parent="1" edge="1">
-                    <mxGeometry width="50" height="50" relative="1" as="geometry">
-                        <mxPoint x="450" y="610.0" as="sourcePoint" />
-                        <mxPoint x="160" y="610.0" as="targetPoint" />
-                    </mxGeometry>
-                </mxCell>
-                <mxCell id="msg5-label" value="FIRE_ACK(FireEvent)" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;" parent="1" vertex="1">
-                    <mxGeometry x="240" y="585.0" width="140" height="20" as="geometry" />
-                </mxCell>
-                <mxCell id="msg6" value="" style="endArrow=classic;html=1;rounded=0;" parent="1" edge="1">
-                    <mxGeometry width="50" height="50" relative="1" as="geometry">
-                        <mxPoint x="730" y="660.0" as="sourcePoint" />
-                        <mxPoint x="450" y="660.0" as="targetPoint" />
-                    </mxGeometry>
-                </mxCell>
-                <mxCell id="msg6-label" value="DRONE_STATUS_UPDATE(IDLE, Zone)" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;" parent="1" vertex="1">
-                    <mxGeometry x="480" y="635.0" width="220" height="20" as="geometry" />
-                </mxCell>
-                <mxCell id="msg10" value="" style="endArrow=classic;html=1;rounded=0;" parent="1" edge="1">
-                    <mxGeometry width="50" height="50" relative="1" as="geometry">
-                        <mxPoint x="450" y="710.0" as="sourcePoint" />
-                        <mxPoint x="730" y="710.0" as="targetPoint" />
-                    </mxGeometry>
-                </mxCell>
-                <mxCell id="msg10-label" value="DRONE_RETURN_TO_BASE" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;" parent="1" vertex="1">
-                    <mxGeometry x="500" y="685.0" width="180" height="20" as="geometry" />
-                </mxCell>
-                <mxCell id="alt-frame" value="alt [all events processed]" style="shape=umlFrame;whiteSpace=wrap;html=1;pointerEvents=0;width=160;height=25;" parent="1" vertex="1">
-                    <mxGeometry x="100" y="750.0" width="660" height="200" as="geometry" />
-                </mxCell>
-                <mxCell id="msg7" value="" style="endArrow=classic;html=1;rounded=0;" parent="1" edge="1">
-                    <mxGeometry width="50" height="50" relative="1" as="geometry">
-                        <mxPoint x="160" y="800.0" as="sourcePoint" />
-                        <mxPoint x="450" y="800.0" as="targetPoint" />
-                    </mxGeometry>
-                </mxCell>
-                <mxCell id="msg7-label" value="SHUTDOWN (input complete)" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;" parent="1" vertex="1">
-                    <mxGeometry x="220" y="775.0" width="170" height="20" as="geometry" />
-                </mxCell>
-                <mxCell id="msg8" value="" style="endArrow=classic;html=1;rounded=0;" parent="1" edge="1">
-                    <mxGeometry width="50" height="50" relative="1" as="geometry">
-                        <mxPoint x="450" y="860.0" as="sourcePoint" />
-                        <mxPoint x="730" y="860.0" as="targetPoint" />
-                    </mxGeometry>
-                </mxCell>
-                <mxCell id="msg8-label" value="SHUTDOWN" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;" parent="1" vertex="1">
-                    <mxGeometry x="540" y="835.0" width="100" height="20" as="geometry" />
-                </mxCell>
-                <mxCell id="msg9" value="" style="endArrow=classic;html=1;rounded=0;" parent="1" edge="1">
-                    <mxGeometry width="50" height="50" relative="1" as="geometry">
-                        <mxPoint x="450" y="920.0" as="sourcePoint" />
-                        <mxPoint x="160" y="920.0" as="targetPoint" />
-                    </mxGeometry>
-                </mxCell>
-                <mxCell id="msg9-label" value="SHUTDOWN" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;" parent="1" vertex="1">
-                    <mxGeometry x="260" y="895.0" width="100" height="20" as="geometry" />
-                </mxCell>
-                <mxCell id="title" value="Basic Communication Pass-Through" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontStyle=1;fontSize=14;" parent="1" vertex="1">
-                    <mxGeometry x="280" y="10" width="300" height="20" as="geometry" />
-                </mxCell>
-            <mxCell id="msg2-status" parent="1" edge="1" style="endArrow=classic;html=1;rounded=0;"><mxGeometry width="50" height="50" relative="1" as="geometry"><mxPoint x="730" y="310" as="sourcePoint" /><mxPoint x="450" y="310" as="targetPoint" /></mxGeometry></mxCell><mxCell id="msg2-status-label" parent="1" vertex="1" value="STATUS(IDLE)" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;"><mxGeometry x="490.0" y="285" width="200" height="20" as="geometry" /></mxCell><mxCell id="msg3-status" parent="1" edge="1" style="endArrow=classic;html=1;rounded=0;"><mxGeometry width="50" height="50" relative="1" as="geometry"><mxPoint x="730" y="420" as="sourcePoint" /><mxPoint x="450" y="420" as="targetPoint" /></mxGeometry></mxCell><mxCell id="msg3-status-label" parent="1" vertex="1" value="STATUS(WORKING)" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;"><mxGeometry x="490.0" y="395" width="200" height="20" as="geometry" /></mxCell><mxCell id="msg6-status" parent="1" edge="1" style="endArrow=classic;html=1;rounded=0;"><mxGeometry width="50" height="50" relative="1" as="geometry"><mxPoint x="730" y="710" as="sourcePoint" /><mxPoint x="450" y="710" as="targetPoint" /></mxGeometry></mxCell><mxCell id="msg6-status-label" parent="1" vertex="1" value="STATUS(IDLE)" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;"><mxGeometry x="490.0" y="685" width="200" height="20" as="geometry" /></mxCell></root>
-        </mxGraphModel>
-    </diagram>
+<mxfile host="app.diagrams.net" agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36" version="29.6.6">
+  <diagram id="iteration1-sequence-diagram" name="Iteration 1 Sequence Diagram">
+    <mxGraphModel dx="1464" dy="1124" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1400" pageHeight="1000" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="fire-actor" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fontStyle=1;" value="FireIncidentSubsystem" vertex="1">
+          <mxGeometry height="50" width="160" x="80" y="40" as="geometry" />
+        </mxCell>
+        <mxCell id="scheduler-actor" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fontStyle=1;" value="Scheduler" vertex="1">
+          <mxGeometry height="50" width="140" x="380" y="40" as="geometry" />
+        </mxCell>
+        <mxCell id="drone-actor" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fontStyle=1;" value="DroneSubsystem" vertex="1">
+          <mxGeometry height="50" width="140" x="660" y="40" as="geometry" />
+        </mxCell>
+        <mxCell id="fire-lifeline" edge="1" parent="1" style="endArrow=none;html=1;rounded=0;dashed=1;dashPattern=8 8;" value="">
+          <mxGeometry height="50" relative="1" width="50" as="geometry">
+            <mxPoint x="160" y="90" as="sourcePoint" />
+            <mxPoint x="160" y="1470" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="scheduler-lifeline" edge="1" parent="1" style="endArrow=none;html=1;rounded=0;dashed=1;dashPattern=8 8;" value="">
+          <mxGeometry height="50" relative="1" width="50" as="geometry">
+            <mxPoint x="450" y="90" as="sourcePoint" />
+            <mxPoint x="440" y="1470" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="drone-lifeline" edge="1" parent="1" style="endArrow=none;html=1;rounded=0;dashed=1;dashPattern=8 8;" value="">
+          <mxGeometry height="50" relative="1" width="50" as="geometry">
+            <mxPoint x="730" y="90" as="sourcePoint" />
+            <mxPoint x="740" y="1460" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="loop-frame" parent="1" style="shape=umlFrame;whiteSpace=wrap;html=1;pointerEvents=0;width=220;height=25;" value="loop [for each fire event in CSV]" vertex="1">
+          <mxGeometry height="1040" width="760" x="40" y="120" as="geometry" />
+        </mxCell>
+        <mxCell id="msg1" edge="1" parent="1" style="endArrow=classic;html=1;rounded=0;" value="">
+          <mxGeometry height="50" relative="1" width="50" as="geometry">
+            <mxPoint x="160" y="210" as="sourcePoint" />
+            <mxPoint x="450" y="210" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="msg1-label" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;" value="FIRE_EVENT(FireEvent)" vertex="1">
+          <mxGeometry height="20" width="150" x="230" y="185" as="geometry" />
+        </mxCell>
+        <mxCell id="msg2" edge="1" parent="1" style="endArrow=classic;html=1;rounded=0;" value="">
+          <mxGeometry height="50" relative="1" width="50" as="geometry">
+            <mxPoint x="730" y="260" as="sourcePoint" />
+            <mxPoint x="450" y="260" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="msg2-label" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;" value="DRONE_READY" vertex="1">
+          <mxGeometry height="20" width="120" x="530" y="235" as="geometry" />
+        </mxCell>
+        <mxCell id="msg3" edge="1" parent="1" style="endArrow=classic;html=1;rounded=0;" value="">
+          <mxGeometry height="50" relative="1" width="50" as="geometry">
+            <mxPoint x="450" y="370" as="sourcePoint" />
+            <mxPoint x="730" y="370" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="msg3-label" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;" value="DRONE_ASSIGNMENT(FireEvent)" vertex="1">
+          <mxGeometry height="20" width="200" x="490" y="345" as="geometry" />
+        </mxCell>
+        <mxCell id="activation1" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" value="" vertex="1">
+          <mxGeometry height="80" width="20" x="720" y="440" as="geometry" />
+        </mxCell>
+        <mxCell id="msg4" edge="1" parent="1" style="endArrow=classic;html=1;rounded=0;" value="">
+          <mxGeometry height="50" relative="1" width="50" as="geometry">
+            <mxPoint x="730" y="550" as="sourcePoint" />
+            <mxPoint x="450" y="550" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="msg4-label" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;" value="DRONE_COMPLETED(FireEvent)" vertex="1">
+          <mxGeometry height="20" width="190" x="500" y="525" as="geometry" />
+        </mxCell>
+        <mxCell id="msg5" edge="1" parent="1" style="endArrow=classic;html=1;rounded=0;" value="">
+          <mxGeometry height="50" relative="1" width="50" as="geometry">
+            <mxPoint x="450" y="610" as="sourcePoint" />
+            <mxPoint x="160" y="610" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="msg5-label" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;" value="FIRE_ACK(FireEvent)" vertex="1">
+          <mxGeometry height="20" width="140" x="240" y="585" as="geometry" />
+        </mxCell>
+        <mxCell id="msg6" edge="1" parent="1" style="endArrow=classic;html=1;rounded=0;" value="">
+          <mxGeometry height="50" relative="1" width="50" as="geometry">
+            <mxPoint x="730" y="660" as="sourcePoint" />
+            <mxPoint x="450" y="660" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="msg6-label" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;" value="STUCK_MID_FLIGHT" vertex="1">
+          <mxGeometry height="20" width="220" x="480" y="635" as="geometry" />
+        </mxCell>
+        <mxCell id="msg10" edge="1" parent="1" style="endArrow=classic;html=1;rounded=0;" value="">
+          <mxGeometry height="50" relative="1" width="50" as="geometry">
+            <mxPoint x="450" y="710" as="sourcePoint" />
+            <mxPoint x="730" y="710" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="msg10-label" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;" value="DRONE_RETURN_TO_BASE" vertex="1">
+          <mxGeometry height="20" width="180" x="500" y="685" as="geometry" />
+        </mxCell>
+        <mxCell id="alt-frame" parent="1" style="shape=umlFrame;whiteSpace=wrap;html=1;pointerEvents=0;width=160;height=25;" value="alt [Recoverable fault&amp;nbsp;]" vertex="1">
+          <mxGeometry height="190" width="660" x="100" y="750" as="geometry" />
+        </mxCell>
+        <mxCell id="msg7-label" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;" value="STUCK_MID_FLIGHT" vertex="1">
+          <mxGeometry height="20" width="170" x="505" y="775" as="geometry" />
+        </mxCell>
+        <mxCell id="title" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontStyle=1;fontSize=14;" value="Basic Communication Pass-Through" vertex="1">
+          <mxGeometry height="20" width="300" x="280" y="10" as="geometry" />
+        </mxCell>
+        <mxCell id="msg2-status" edge="1" parent="1" style="endArrow=classic;html=1;rounded=0;">
+          <mxGeometry height="50" relative="1" width="50" as="geometry">
+            <mxPoint x="730" y="310" as="sourcePoint" />
+            <mxPoint x="450" y="310" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="msg2-status-label" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;" value="STATUS(IDLE)" vertex="1">
+          <mxGeometry height="20" width="200" x="490" y="285" as="geometry" />
+        </mxCell>
+        <mxCell id="msg3-status" edge="1" parent="1" style="endArrow=classic;html=1;rounded=0;">
+          <mxGeometry height="50" relative="1" width="50" as="geometry">
+            <mxPoint x="730" y="420" as="sourcePoint" />
+            <mxPoint x="450" y="420" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="msg3-status-label" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;" value="STATUS(WORKING)" vertex="1">
+          <mxGeometry height="20" width="200" x="490" y="395" as="geometry" />
+        </mxCell>
+        <mxCell id="msg6-status" edge="1" parent="1" style="endArrow=classic;html=1;rounded=0;">
+          <mxGeometry height="50" relative="1" width="50" as="geometry">
+            <mxPoint x="730" y="710" as="sourcePoint" />
+            <mxPoint x="450" y="710" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="msg6-status-label" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;" value="STATUS(IDLE)" vertex="1">
+          <mxGeometry height="20" width="200" x="490" y="685" as="geometry" />
+        </mxCell>
+        <mxCell id="XngY1oYMJrf4vrK3PX4--1" parent="1" style="shape=umlFrame;whiteSpace=wrap;html=1;pointerEvents=0;width=160;height=25;" value="alt [Hard fault]" vertex="1">
+          <mxGeometry height="130" width="660" x="100" y="980" as="geometry" />
+        </mxCell>
+        <mxCell id="XngY1oYMJrf4vrK3PX4--2" edge="1" parent="1" style="endArrow=classic;html=1;rounded=0;" value="">
+          <mxGeometry height="50" relative="1" width="50" as="geometry">
+            <mxPoint x="730" y="800" as="sourcePoint" />
+            <mxPoint x="450" y="800" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="XngY1oYMJrf4vrK3PX4--4" edge="1" parent="1" style="endArrow=classic;html=1;rounded=0;" value="">
+          <mxGeometry height="50" relative="1" width="50" as="geometry">
+            <mxPoint x="730" y="830" as="sourcePoint" />
+            <mxPoint x="450" y="830" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="XngY1oYMJrf4vrK3PX4--5" edge="1" parent="1" style="endArrow=classic;html=1;rounded=0;" value="">
+          <mxGeometry height="50" relative="1" width="50" as="geometry">
+            <mxPoint x="730" y="860" as="sourcePoint" />
+            <mxPoint x="450" y="860" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="XngY1oYMJrf4vrK3PX4--6" edge="1" parent="1" style="endArrow=classic;html=1;rounded=0;" value="">
+          <mxGeometry height="50" relative="1" width="50" as="geometry">
+            <mxPoint x="730" y="895" as="sourcePoint" />
+            <mxPoint x="450" y="895" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="XngY1oYMJrf4vrK3PX4--7" edge="1" parent="1" style="endArrow=classic;html=1;rounded=0;" value="">
+          <mxGeometry height="50" relative="1" width="50" as="geometry">
+            <mxPoint x="730" y="920" as="sourcePoint" />
+            <mxPoint x="450" y="920" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="XngY1oYMJrf4vrK3PX4--12" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;" value="DRONE_STATUS_UPDATE(DroneStatus)" vertex="1">
+          <mxGeometry height="20" width="170" x="520" y="810" as="geometry" />
+        </mxCell>
+        <mxCell id="XngY1oYMJrf4vrK3PX4--13" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;" value="STATUS(RETURNING)" vertex="1">
+          <mxGeometry height="20" width="170" x="510" y="840" as="geometry" />
+        </mxCell>
+        <mxCell id="XngY1oYMJrf4vrK3PX4--14" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;" value="STATUS(REFILLING)" vertex="1">
+          <mxGeometry height="20" width="170" x="505" y="870" as="geometry" />
+        </mxCell>
+        <mxCell id="XngY1oYMJrf4vrK3PX4--15" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;" value="DRONE_READY" vertex="1">
+          <mxGeometry height="20" width="170" x="510" y="895" as="geometry" />
+        </mxCell>
+        <mxCell id="XngY1oYMJrf4vrK3PX4--16" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;" value="DRONE_STATUS_UPDATE(DroneStatus)" vertex="1">
+          <mxGeometry height="20" width="170" x="505" y="1000" as="geometry" />
+        </mxCell>
+        <mxCell id="XngY1oYMJrf4vrK3PX4--17" edge="1" parent="1" style="endArrow=classic;html=1;rounded=0;" value="">
+          <mxGeometry height="50" relative="1" width="50" as="geometry">
+            <mxPoint x="730" y="1020" as="sourcePoint" />
+            <mxPoint x="450" y="1020" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="XngY1oYMJrf4vrK3PX4--18" edge="1" parent="1" style="endArrow=classic;html=1;rounded=0;" value="">
+          <mxGeometry height="50" relative="1" width="50" as="geometry">
+            <mxPoint x="450" y="1060" as="sourcePoint" />
+            <mxPoint x="730" y="1060" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="XngY1oYMJrf4vrK3PX4--21" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;" value="DRONE_ASSIGNMENT(FireEvent)" vertex="1">
+          <mxGeometry height="20" width="170" x="506" y="1037" as="geometry" />
+        </mxCell>
+        <mxCell id="XngY1oYMJrf4vrK3PX4--23" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;" value="(sent to a different drone, if one is available)" vertex="1">
+          <mxGeometry height="20" width="250" x="470" y="1060" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
 </mxfile>
