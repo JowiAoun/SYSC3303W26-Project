@@ -283,7 +283,7 @@ public class Scheduler implements Runnable {
     /**
      * Detect the drones that didn't reach their destination in time.
      */
-    private void checkForTimedOutDrones() {
+    public void checkForTimedOutDrones() {
         long now = System.currentTimeMillis();
 
         for (Integer droneId : new HashSet<>(assignmentDeadlines.keySet())) {

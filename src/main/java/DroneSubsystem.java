@@ -32,6 +32,9 @@ public class DroneSubsystem implements Runnable {
     private boolean corruptedMessageSent = false;
     private boolean terminated = false;
 
+    // Current Fault Status
+    private FaultType faultStatus = FaultType.NONE;
+
     // Grid position tracking
     private int currentCol = 0;
     private int currentRow = 0;
@@ -80,6 +83,10 @@ public class DroneSubsystem implements Runnable {
     public int getPort() { return socket.getPort(); }
 
     public void closeSocket() { socket.close(); }
+
+    public void setFaultStatus(FaultType fault) { this.faultStatus = fault; }
+
+    public FaultType getFaultStatus() { return faultStatus; }
 
     @Override
     public void run() {
@@ -540,7 +547,7 @@ public class DroneSubsystem implements Runnable {
     /**
      * Trigger a drone fault and notify the scheduler
      */
-    private void triggerFault(FaultType faultType, String message) throws Exception {
+    public void triggerFault(FaultType faultType, String message) throws Exception {
         System.out.println("[Drone " + droneId + "] " + message);
 
         if (faultType == FaultType.NOZZLE_JAM) {
@@ -553,7 +560,7 @@ public class DroneSubsystem implements Runnable {
     /**
      * Send one intentionally corrupted status packet to test the checksum handling.
      */
-    private void sendCorruptedStatus(int zoneId) throws Exception {
+    public void sendCorruptedStatus(int zoneId) throws Exception {
         byte[] data = Message.droneStatus(new DroneStatus(droneId, DroneState.FAULTED, zoneId, remainingLiters, currentCol, currentRow, FaultType.CORRUPTED_MESSAGE)).toBytes();
         data[data.length - 1] = (byte) (data[data.length - 1] == '0' ? '1' : '0');
         java.net.DatagramPacket packet = new java.net.DatagramPacket(data, data.length, schedulerAddr, schedulerPort);
