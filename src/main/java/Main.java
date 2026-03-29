@@ -3,12 +3,8 @@
  *
  * Starts the three subsystem threads and wires their queues together.
  */
-import java.io.BufferedReader;
-import java.io.InputStream;
-import java.io.InputStreamReader;
 import java.net.SocketException;
 import java.net.UnknownHostException;
-import java.nio.charset.StandardCharsets;
 
 public class Main {
     /**
@@ -47,7 +43,6 @@ public class Main {
         } catch (SocketException e) {
             throw new RuntimeException(e);
         }
-        gui.setSchedulerRef(scheduler);
 
         // Launch threads.
         Thread fireThread = new Thread(fireIncident, "FireIncidentSubsystem");

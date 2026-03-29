@@ -10,7 +10,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Queue;
 import java.util.Set;
-import java.util.concurrent.ConcurrentLinkedQueue;
 /**
  * Scheduler.java
  *
@@ -35,9 +34,7 @@ public class Scheduler implements Runnable {
     private final Set<Integer> shutdownSentToDrones = new HashSet<>();
     private final Map<Integer, FireEvent> activeAssignments = new HashMap<>();
     private final Map<Integer, Long> assignmentDeadlines = new HashMap<>();
-    private final Map<Integer, Long> faultHoldUntil = new HashMap<>();  // droneId → timestamp until fault is held
     private final Set<Integer> hardFaultedDrones = new HashSet<>();     // drones with permanent faults (returning to base)
-    private final ConcurrentLinkedQueue<long[]> faultInjectionQueue = new ConcurrentLinkedQueue<>();
 
     private final FireDroneGUI gui;
     private final List<ZoneDef> zones;
@@ -92,8 +89,6 @@ public class Scheduler implements Runnable {
                 }
 
                 checkForTimedOutDrones();
-                processFaultInjections();
-                releaseExpiredFaultHolds();
 
                 // Try to dispatch to ALL available idle drones
                 while (canDispatchPendingEvent()) {
@@ -169,6 +164,9 @@ public class Scheduler implements Runnable {
             case DRONE_COMPLETED:
             case DRONE_STATUS_UPDATE:
                 handleDroneMessage(msg, rm.getAddress(), rm.getPort());
+                break;
+            case FAULT_INJECTION:
+                handleFaultInjection(msg);
                 break;
             default:
                 System.out.println("[Scheduler] Unknown message type: " + msg.getType());
@@ -451,105 +449,85 @@ public class Scheduler implements Runnable {
     }
 
     /**
-     * Checks whether the fault is HardFault.
+     * Handles a FAULT_INJECTION message received via UDP (from the GUI).
+     * Extracts droneId, faultType, and duration from the FireEvent payload,
+     * then sends RTB commands to the targeted drone over UDP.
      */
-    /**
-     * Thread-safe method for the GUI to request a fault injection on a specific drone.
-     * @param durationMs how long the fault should be held (in milliseconds)
-     */
-    public void requestFaultInjection(int droneId, FaultType faultType, long durationMs) {
-        faultInjectionQueue.add(new long[]{droneId, faultType.ordinal(), durationMs});
-    }
+    private void handleFaultInjection(Message message) {
+        FireEvent payload = message.getEvent();
+        if (payload == null) {
+            System.out.println("[Scheduler] Received FAULT_INJECTION with no payload.");
+            return;
+        }
 
-    /**
-     * Processes any pending fault injections from the GUI.
-     */
-    private void processFaultInjections() {
-        long[] injection;
-        while ((injection = faultInjectionQueue.poll()) != null) {
-            int droneId = (int) injection[0];
-            FaultType faultType = FaultType.values()[(int) injection[1]];
-            long durationMs = injection[2];
-            DroneStatus current = droneStatuses.get(droneId);
+        int droneId = payload.getZoneId();  // droneId is encoded in zoneId
+        FaultType faultType = payload.getFaultType();
+        long durationMs = payload.getFaultDelayTime();
+        DroneStatus current = droneStatuses.get(droneId);
 
-            if (current == null) {
-                System.out.println("[Scheduler] Cannot inject fault: Drone " + droneId + " not registered.");
-                continue;
-            }
+        if (current == null) {
+            System.out.println("[Scheduler] Cannot inject fault: Drone " + droneId + " not registered.");
+            return;
+        }
 
-            // Requeue the drone's current assignment if any
-            FireEvent interrupted = activeAssignments.remove(droneId);
-            assignmentDeadlines.remove(droneId);
-            if (interrupted != null) {
-                pending.add(interrupted.withoutFault());
-            }
+        // Requeue the drone's current assignment if any
+        FireEvent interrupted = activeAssignments.remove(droneId);
+        assignmentDeadlines.remove(droneId);
+        if (interrupted != null) {
+            pending.add(interrupted.withoutFault());
+        }
 
-            DroneStatus faultedStatus = new DroneStatus(
-                    droneId, DroneState.FAULTED,
-                    current.getZoneId(), current.getRemainingLiters(),
-                    current.getCurrentCol(), current.getCurrentRow(),
-                    faultType
-            );
-            droneStatuses.put(droneId, faultedStatus);
+        DroneStatus faultedStatus = new DroneStatus(
+                droneId, DroneState.FAULTED,
+                current.getZoneId(), current.getRemainingLiters(),
+                current.getCurrentCol(), current.getCurrentRow(),
+                faultType
+        );
+        droneStatuses.put(droneId, faultedStatus);
 
-            if (isHardFault(faultType)) {
-                // Hard fault: keep drone in maps, track as hard-faulted.
-                // Drone will return to base showing as broken, then be removed.
-                hardFaultedDrones.add(droneId);
-                // Send RTB command directly (don't use sendReturnToBase which
-                // would overwrite the FAULTED status with an optimistic RETURNING)
-                try {
-                    InetAddress dAddr = droneAddresses.get(droneId);
-                    Integer dPort = dronePorts.get(droneId);
-                    if (dAddr != null && dPort != null) {
-                        SwarmNetwork.sendMessage(socket, dAddr, dPort,
-                                Message.droneReturnToBase(), "[Scheduler]",
-                                "sent RTB (hard fault)", "to Drone " + droneId);
-                    }
-                } catch (Exception e) {
-                    System.out.println("[Scheduler] Could not send RTB to hard-faulted Drone " + droneId);
+        if (isHardFault(faultType)) {
+            hardFaultedDrones.add(droneId);
+            try {
+                InetAddress dAddr = droneAddresses.get(droneId);
+                Integer dPort = dronePorts.get(droneId);
+                if (dAddr != null && dPort != null) {
+                    SwarmNetwork.sendMessage(socket, dAddr, dPort,
+                            Message.droneReturnToBase(), "[Scheduler]",
+                            "sent RTB (hard fault)", "to Drone " + droneId);
                 }
-            } else {
-                // Soft fault: send RTB with fault info so the drone actually
-                // stops, sleeps for the duration, then returns to base.
-                try {
-                    InetAddress dAddr = droneAddresses.get(droneId);
-                    Integer dPort = dronePorts.get(droneId);
-                    if (dAddr != null && dPort != null) {
-                        FireEvent faultPayload = new FireEvent(
-                                "00:00:00", 0,
-                                FireEvent.EventType.FIRE_DETECTED,
-                                FireEvent.Severity.LOW,
-                                faultType, durationMs
-                        );
-                        SwarmNetwork.sendMessage(socket, dAddr, dPort,
-                                Message.droneReturnToBase(faultPayload), "[Scheduler]",
-                                "sent RTB+fault", "to Drone " + droneId);
-                    }
-                } catch (Exception e) {
-                    System.out.println("[Scheduler] Could not send fault RTB to Drone " + droneId);
+            } catch (Exception e) {
+                System.out.println("[Scheduler] Could not send RTB to hard-faulted Drone " + droneId);
+            }
+        } else {
+            try {
+                InetAddress dAddr = droneAddresses.get(droneId);
+                Integer dPort = dronePorts.get(droneId);
+                if (dAddr != null && dPort != null) {
+                    FireEvent faultPayload = new FireEvent(
+                            "00:00:00", 0,
+                            FireEvent.EventType.FIRE_DETECTED,
+                            FireEvent.Severity.LOW,
+                            faultType, durationMs
+                    );
+                    SwarmNetwork.sendMessage(socket, dAddr, dPort,
+                            Message.droneReturnToBase(faultPayload), "[Scheduler]",
+                            "sent RTB+fault", "to Drone " + droneId);
                 }
+            } catch (Exception e) {
+                System.out.println("[Scheduler] Could not send fault RTB to Drone " + droneId);
             }
+        }
 
-            String msg = "[Scheduler] Fault injected on Drone " + droneId + ": " + faultType;
-            System.out.println(msg);
-            if (gui != null) {
-                gui.updateDroneStatus(faultedStatus);
-                gui.appendEvent(msg);
-            }
+        String msg = "[Scheduler] Fault injected on Drone " + droneId + ": " + faultType;
+        System.out.println(msg);
+        if (gui != null) {
+            gui.updateDroneStatus(faultedStatus);
+            gui.appendEvent(msg);
         }
     }
 
     private boolean isHardFault(FaultType faultType) {
         return faultType == FaultType.NOZZLE_JAM;
-    }
-
-    /**
-     * Releases expired fault holds (legacy, kept for potential future use).
-     */
-    private void releaseExpiredFaultHolds() {
-        // Soft faults are now handled entirely by the drone via RTB+fault payload.
-        // This method is kept as a stub for any future hold-based features.
     }
 
     /**
@@ -587,11 +565,6 @@ public class Scheduler implements Runnable {
     private void handleDroneMessage(Message message, InetAddress addr, int port) throws Exception {
         switch (message.getType()) {
             case DRONE_READY: {
-                // Suppress ready signals from drones in fault hold or hard-faulted
-                int readyDroneId = extractDroneIdFromAddr(addr, port);
-                if (readyDroneId != -1 && (isFaultHeld(readyDroneId) || hardFaultedDrones.contains(readyDroneId))) {
-                    break;
-                }
                 String readyMsg = "[Scheduler] Received Drone Ready Signal";
                 System.out.println(readyMsg);
                 if (gui != null) {
@@ -603,11 +576,6 @@ public class Scheduler implements Runnable {
             case DRONE_STATUS_UPDATE: {
                 DroneStatus status = message.getStatus();
                 int droneId = status.getDroneId();
-
-                // Suppress updates from drones in soft fault hold
-                if (isFaultHeld(droneId)) {
-                    break;
-                }
 
                 // Hard-faulted drones: accept position updates but override state to FAULTED
                 if (hardFaultedDrones.contains(droneId)) {
@@ -688,10 +656,10 @@ public class Scheduler implements Runnable {
             }
 
             case DRONE_COMPLETED: {
-                // Suppress completions from drones in fault hold or hard-faulted
+                // Suppress completions from hard-faulted drones
                 int senderDroneId = extractDroneIdFromAddr(addr, port);
-                if (senderDroneId != -1 && (isFaultHeld(senderDroneId) || hardFaultedDrones.contains(senderDroneId))) {
-                    System.out.println("[Scheduler] Suppressed completion from faulted Drone " + senderDroneId);
+                if (senderDroneId != -1 && hardFaultedDrones.contains(senderDroneId)) {
+                    System.out.println("[Scheduler] Suppressed completion from hard-faulted Drone " + senderDroneId);
                     break;
                 }
 
@@ -722,14 +690,6 @@ public class Scheduler implements Runnable {
             default:
                 break;
         }
-    }
-
-    /**
-     * Check if a drone is currently in a soft fault hold.
-     */
-    private boolean isFaultHeld(int droneId) {
-        Long holdUntil = faultHoldUntil.get(droneId);
-        return holdUntil != null && System.currentTimeMillis() < holdUntil;
     }
 
     /**

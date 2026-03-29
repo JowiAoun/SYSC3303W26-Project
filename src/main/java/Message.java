@@ -20,6 +20,7 @@ public class Message {
         DRONE_STATUS_UPDATE,
         DRONE_RETURN_TO_BASE,
         FIRE_ACK,
+        FAULT_INJECTION,
         SHUTDOWN
     }
 
@@ -90,6 +91,14 @@ public class Message {
     /**
      * Scheduler acknowledges completion to Fire Incident subsystem.
      */
+    /**
+     * GUI injects a fault on a specific drone via UDP.
+     * The faultInfo carries: droneId (in zoneId), faultType, duration (in faultDelayTime).
+     */
+    public static Message faultInjection(FireEvent faultInfo) {
+        return new Message(Type.FAULT_INJECTION, faultInfo, null);
+    }
+
     public static Message fireAck(FireEvent event) {
         return new Message(Type.FIRE_ACK, event, null);
     }

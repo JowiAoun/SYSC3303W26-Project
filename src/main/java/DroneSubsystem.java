@@ -35,6 +35,10 @@ public class DroneSubsystem implements Runnable {
     // Current Fault Status
     private FaultType faultStatus = FaultType.NONE;
 
+    // Non-blocking fault hold: timestamp when the soft fault expires
+    private long faultEndsAt = 0;
+    private FaultType pendingFaultType = FaultType.NONE;
+
     // Grid position tracking
     private int currentCol = 0;
     private int currentRow = 0;
@@ -176,10 +180,13 @@ public class DroneSubsystem implements Runnable {
                 if (faultInfo != null && faultInfo.hasFault()) {
                     FaultType ft = faultInfo.getFaultType();
                     long sleepMs = faultInfo.getFaultDelayTime();
-                    System.out.println("[Drone " + droneId + "] Fault injected: " + ft + ". Pausing for " + (sleepMs / 1000) + "s.");
+                    System.out.println("[Drone " + droneId + "] Fault injected: " + ft + ". Holding for " + (sleepMs / 1000) + "s.");
                     int cellZone = findZoneForCell(currentCol, currentRow);
+                    pendingFaultType = ft;
+                    faultEndsAt = System.currentTimeMillis() + sleepMs;
                     sendStatus(DroneState.FAULTED, cellZone, ft);
-                    Thread.sleep(sleepMs);
+                    // handleFaulted() will poll until faultEndsAt expires
+                    break;
                 }
                 System.out.println("[Drone " + droneId + "] Returning to base.");
                 sendStatus(DroneState.RETURNING, BASE_ZONE_ID);
@@ -289,7 +296,9 @@ public class DroneSubsystem implements Runnable {
     }
 
     /**
-     * FAULTED - simulate fault then handles it
+     * FAULTED - handles the fault hold period using non-blocking timestamp check.
+     * For soft faults with a faultEndsAt timer, polls with short sleeps until expired.
+     * For hard faults, shuts down the drone.
      */
     private void handleFaulted() throws Exception {
         if (hardFault) {
@@ -299,8 +308,16 @@ public class DroneSubsystem implements Runnable {
             return;
         }
 
-        System.out.println("[Drone " + droneId + "] Soft fault detected. Returning to base after reset.");
-        Thread.sleep(1000);
+        // Non-blocking fault hold: poll until the timer expires
+        if (faultEndsAt > 0 && System.currentTimeMillis() < faultEndsAt) {
+            Thread.sleep(100); // Short poll sleep — keeps thread responsive
+            return;
+        }
+
+        // Fault hold expired (or no timer set) — transition to RETURNING
+        System.out.println("[Drone " + droneId + "] Soft fault resolved. Returning to base.");
+        faultEndsAt = 0;
+        pendingFaultType = FaultType.NONE;
         currentAssignment = null;
         remainingRequired = 0;
         sendStatus(DroneState.RETURNING, BASE_ZONE_ID);
@@ -544,8 +561,9 @@ public class DroneSubsystem implements Runnable {
 
     /**
      * Non-blocking check for a DRONE_RETURN_TO_BASE command.
-     * If the RTB carries a fault event, the drone enters FAULTED state,
-     * sleeps for the fault delay duration, then transitions to RETURNING.
+     * If the RTB carries a fault event, the drone enters FAULTED state
+     * with a faultEndsAt timestamp (non-blocking). handleFaulted() will
+     * poll until the timer expires, then transition to RETURNING.
      * @return true if RTB was received and the caller should return immediately
      */
     private boolean checkForRTB() {
@@ -563,15 +581,18 @@ public class DroneSubsystem implements Runnable {
                 currentAssignment = null;
                 remainingRequired = 0;
 
-                // If RTB carries fault info, pause at current position for the specified duration
+                // If RTB carries fault info, enter FAULTED with timestamp
                 FireEvent faultInfo = msg.getEvent();
                 if (faultInfo != null && faultInfo.hasFault()) {
                     FaultType ft = faultInfo.getFaultType();
-                    long sleepMs = faultInfo.getFaultDelayTime();
-                    System.out.println("[Drone " + droneId + "] Fault injected: " + ft + ". Pausing for " + (sleepMs / 1000) + "s.");
+                    long durationMs = faultInfo.getFaultDelayTime();
+                    System.out.println("[Drone " + droneId + "] Fault injected: " + ft + ". Holding for " + (durationMs / 1000) + "s.");
                     int cellZone = findZoneForCell(currentCol, currentRow);
+                    pendingFaultType = ft;
+                    faultEndsAt = System.currentTimeMillis() + durationMs;
                     sendStatus(DroneState.FAULTED, cellZone, ft);
-                    Thread.sleep(sleepMs);
+                    // handleFaulted() will poll until faultEndsAt expires
+                    return true;
                 }
 
                 System.out.println("[Drone " + droneId + "] Returning to base.");

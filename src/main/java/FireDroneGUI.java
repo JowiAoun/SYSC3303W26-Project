@@ -1,6 +1,8 @@
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
 import java.awt.*;
+import java.net.DatagramSocket;
+import java.net.InetAddress;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -44,7 +46,6 @@ public class FireDroneGUI extends JFrame {
     private final Map<Integer, DroneStatus> droneCurrentStatuses = new HashMap<>();  // droneId → latest status
     private final Set<Integer> faultedDroneIds = new HashSet<>();            // drones currently faulted
     private final Set<Integer> permanentlyFaultedDrones = new HashSet<>();    // hard-faulted, never cleared
-    private Scheduler schedulerRef;  // set after construction for fault injection
     private JTextArea eventLog;
     private JLabel statusLeft;
     private JLabel statusRight;
@@ -682,13 +683,6 @@ public class FireDroneGUI extends JFrame {
     }
 
     /**
-     * Sets the Scheduler reference for direct fault injection.
-     */
-    public void setSchedulerRef(Scheduler scheduler) {
-        this.schedulerRef = scheduler;
-    }
-
-    /**
      * Shows a dialog allowing the user to select a drone and fault type to inject.
      */
     private void showFaultInjectionDialog() {
@@ -735,13 +729,33 @@ public class FireDroneGUI extends JFrame {
             FaultType selectedFault = injectableFaults[faultSelector.getSelectedIndex()];
             long durationMs = ((Number) durationSpinner.getValue()).longValue() * 1000;
 
-            if (schedulerRef != null) {
-                schedulerRef.requestFaultInjection(droneIndex, selectedFault, durationMs);
-                String durLabel = isHardFault(selectedFault) ? "permanent" : durationSpinner.getValue() + "s";
-                appendEvent("[GUI] Injected " + faultLabel(selectedFault) + " on Drone " + droneIndex + " (" + durLabel + ")");
-            } else {
-                appendEvent("[GUI] Cannot inject fault: Scheduler not connected.");
-            }
+            sendFaultInjectionViaUDP(droneIndex, selectedFault, durationMs);
+        }
+    }
+
+    /**
+     * Sends a FAULT_INJECTION message to the Scheduler via UDP so the fault
+     * is processed through the normal network pipeline.
+     */
+    private void sendFaultInjectionViaUDP(int droneId, FaultType faultType, long durationMs) {
+        try {
+            DatagramSocket tempSocket = new DatagramSocket();
+            FireEvent faultPayload = new FireEvent(
+                    "00:00:00", droneId,
+                    FireEvent.EventType.FIRE_DETECTED,
+                    FireEvent.Severity.LOW,
+                    faultType, durationMs
+            );
+            Message msg = Message.faultInjection(faultPayload);
+            SwarmNetwork.sendMessage(tempSocket,
+                    InetAddress.getByName(SwarmNetwork.LOCALHOST),
+                    SwarmNetwork.SCHEDULER_PORT,
+                    msg, "[GUI]", "Injected fault", "to Scheduler");
+            tempSocket.close();
+            String durLabel = isHardFault(faultType) ? "permanent" : (durationMs / 1000) + "s";
+            appendEvent("[GUI] Injected " + faultLabel(faultType) + " on Drone " + droneId + " (" + durLabel + ")");
+        } catch (Exception ex) {
+            appendEvent("[GUI] Failed to inject fault: " + ex.getMessage());
         }
     }
 
