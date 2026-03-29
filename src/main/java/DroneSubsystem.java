@@ -239,10 +239,14 @@ public class DroneSubsystem implements Runnable {
         int toDrop = Math.min(remainingLiters, remainingRequired);
         double dropSeconds = toDrop * DROP_SECONDS_PER_LITER;
         long sleepMs = Math.round(dropSeconds * 1000);
-        Thread.sleep(sleepMs);
 
-        // Check for RTB command after drop cycle (non-blocking)
-        if (checkForRTB()) return;
+        // Non-blocking: sleep in 100ms chunks, checking for RTB/SHUTDOWN
+        long dropEndsAt = System.currentTimeMillis() + sleepMs;
+        while (System.currentTimeMillis() < dropEndsAt) {
+            if (checkForRTB()) return;
+            long remaining = dropEndsAt - System.currentTimeMillis();
+            if (remaining > 0) Thread.sleep(Math.min(100, remaining));
+        }
 
         remainingLiters -= toDrop;
         remainingRequired -= toDrop;
@@ -282,7 +286,13 @@ public class DroneSubsystem implements Runnable {
      */
     private void handleRefilling() throws Exception {
         System.out.println("[Drone " + droneId + "] Refilling...");
-        Thread.sleep(2000);
+        // Non-blocking: sleep in 100ms chunks, stay responsive to SHUTDOWN
+        long refillEndsAt = System.currentTimeMillis() + 2000;
+        while (System.currentTimeMillis() < refillEndsAt) {
+            if (checkForRTB()) return;
+            long remaining = refillEndsAt - System.currentTimeMillis();
+            if (remaining > 0) Thread.sleep(Math.min(100, remaining));
+        }
         remainingLiters = MAX_CAPACITY_LITERS;
         System.out.println("[Drone " + droneId + "] Refilled. Capacity: " + remainingLiters);
 
@@ -308,9 +318,10 @@ public class DroneSubsystem implements Runnable {
             return;
         }
 
-        // Non-blocking fault hold: poll until the timer expires
+        // Non-blocking fault hold: poll for SHUTDOWN/RTB while waiting for timer
         if (faultEndsAt > 0 && System.currentTimeMillis() < faultEndsAt) {
-            Thread.sleep(100); // Short poll sleep — keeps thread responsive
+            if (checkForRTB()) return; // handles SHUTDOWN and fault-related RTB
+            Thread.sleep(100);
             return;
         }
 
@@ -597,6 +608,9 @@ public class DroneSubsystem implements Runnable {
 
                 System.out.println("[Drone " + droneId + "] Returning to base.");
                 sendStatus(DroneState.RETURNING, 0);
+                return true;
+            } else if (msg.getType() == Message.Type.SHUTDOWN) {
+                terminated = true;
                 return true;
             }
         } catch (java.net.SocketTimeoutException ignored) {

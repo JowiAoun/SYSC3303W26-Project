@@ -656,7 +656,11 @@ public class Scheduler implements Runnable {
             }
 
             case DRONE_COMPLETED: {
-                // Suppress completions from hard-faulted drones
+                // Guard against unavoidable UDP race: when a fault is injected,
+                // the drone may complete its current drop cycle and send DRONE_COMPLETED
+                // before it reads the RTB+fault message from the Scheduler.
+                // Without this check, the spurious completion would inflate the
+                // completed counter and could trigger premature shutdown.
                 int senderDroneId = extractDroneIdFromAddr(addr, port);
                 if (senderDroneId != -1 && hardFaultedDrones.contains(senderDroneId)) {
                     System.out.println("[Scheduler] Suppressed completion from hard-faulted Drone " + senderDroneId);
