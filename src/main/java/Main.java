@@ -13,7 +13,7 @@ public class Main {
      */
     public static void main(String[] args) {
         String inputPath = "./src/main/resources/data/events.csv";
-        int droneCount = 3;
+        int droneCount = 10;
 
         try {
             FlatDarkLaf.setup();

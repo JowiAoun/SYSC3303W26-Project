@@ -1,8 +1,9 @@
 import javax.swing.*;
 import java.awt.*;
+import java.awt.geom.*;
 import java.awt.image.BufferedImage;
+import java.util.*;
 import java.util.List;
-import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 public class TacticalMapPanel extends JPanel {
@@ -10,8 +11,13 @@ public class TacticalMapPanel extends JPanel {
     private List<ZoneDef> zones;
     private Map<Integer, Boolean> zoneFireActive = new ConcurrentHashMap<>();
     private Map<Integer, FireEvent.Severity> zoneSeverities = new ConcurrentHashMap<>();
+    private Map<Integer, Long> zoneExtinguishedFrame = new ConcurrentHashMap<>();
+    
     private Map<Integer, DroneStatus> droneStatuses = new ConcurrentHashMap<>();
-    private Timer animationTimer;
+    private Map<Integer, List<Point2D.Double>> droneTrails = new ConcurrentHashMap<>();
+    private static final int MAX_TRAIL_LENGTH = 8;
+    
+    private javax.swing.Timer animationTimer;
     private int radarAngle = 0;
     private long frameCount = 0;
 
@@ -20,12 +26,32 @@ public class TacticalMapPanel extends JPanel {
         mapImage = new BufferedImage(Theme.MAP_RESOLUTION, Theme.MAP_RESOLUTION, BufferedImage.TYPE_INT_ARGB);
         setPreferredSize(new Dimension(800, 800));
         
-        animationTimer = new Timer(Theme.FRAME_DELAY_MS, e -> {
+        animationTimer = new javax.swing.Timer(Theme.FRAME_DELAY_MS, e -> {
             radarAngle = (radarAngle + 2) % 360;
             frameCount++;
+            updateTrails();
             repaint();
         });
         animationTimer.start();
+    }
+
+    private void updateTrails() {
+        if (frameCount % 3 != 0) return; // Add to trail every 3rd frame
+        for (Map.Entry<Integer, DroneStatus> entry : droneStatuses.entrySet()) {
+            DroneStatus ds = entry.getValue();
+            if (ds.getState() == DroneState.IDLE) continue;
+            
+            double cx = ds.getCurrentCol() * Theme.ZONE_PIXEL_SIZE + Theme.ZONE_PIXEL_SIZE / 2.0;
+            double cy = ds.getCurrentRow() * Theme.ZONE_PIXEL_SIZE + Theme.ZONE_PIXEL_SIZE / 2.0;
+            
+            List<Point2D.Double> trail = droneTrails.computeIfAbsent(entry.getKey(), k -> new ArrayList<>());
+            if (trail.isEmpty() || trail.get(0).distance(cx, cy) > 5) {
+                trail.add(0, new Point2D.Double(cx, cy));
+                if (trail.size() > MAX_TRAIL_LENGTH) {
+                    trail.remove(trail.size() - 1);
+                }
+            }
+        }
     }
 
     private void renderMap() {
@@ -36,7 +62,7 @@ public class TacticalMapPanel extends JPanel {
         g.setColor(Theme.BG_MAIN);
         g.fillRect(0, 0, Theme.MAP_RESOLUTION, Theme.MAP_RESOLUTION);
 
-        // Layer 2 - Zone fills
+        // Layer 2 - Zone fills (Thermal pixels & Extinguish flash)
         for (ZoneDef zone : zones) {
             int pxX = zone.startCol * Theme.ZONE_PIXEL_SIZE;
             int pxY = zone.startRow * Theme.ZONE_PIXEL_SIZE;
@@ -44,21 +70,32 @@ public class TacticalMapPanel extends JPanel {
             int pxH = zone.heightRows * Theme.ZONE_PIXEL_SIZE;
 
             boolean hasFire = zoneFireActive.getOrDefault(zone.id, false);
+            Long extFrame = zoneExtinguishedFrame.get(zone.id);
+            
             if (hasFire) {
                 FireEvent.Severity sev = zoneSeverities.get(zone.id);
-                Color fireColor = Theme.FIRE_MODERATE;
-                if (sev == FireEvent.Severity.HIGH) fireColor = Theme.FIRE_HIGH;
-                else if (sev == FireEvent.Severity.LOW) fireColor = Theme.FIRE_LOW;
+                // Thermal base
+                g.setColor(new Color(42, 10, 10)); 
+                g.fillRect(pxX, pxY, pxW, pxH);
                 
-                // Simple flicker
-                if ((frameCount + zone.id) % 3 == 0) {
-                    fireColor = fireColor.darker();
+                // Thermal hot pixels
+                Random r = new Random(frameCount + zone.id);
+                int numPixels = (sev == FireEvent.Severity.HIGH) ? 200 : (sev == FireEvent.Severity.MODERATE ? 100 : 50);
+                for (int i=0; i<numPixels; i++) {
+                    int x = pxX + r.nextInt(pxW);
+                    int y = pxY + r.nextInt(pxH);
+                    int size = 4 + r.nextInt(8);
+                    g.setColor(r.nextBoolean() ? Theme.FIRE_HIGH : Theme.FIRE_MODERATE);
+                    g.fillRect(x, y, size, size);
                 }
-                g.setColor(fireColor);
+            } else if (extFrame != null && (frameCount - extFrame) < 15) {
+                // Flash green
+                g.setColor(Theme.TEXT_BRIGHT);
+                g.fillRect(pxX, pxY, pxW, pxH);
             } else {
                 g.setColor(Theme.ZONE_SAFE);
+                g.fillRect(pxX, pxY, pxW, pxH);
             }
-            g.fillRect(pxX, pxY, pxW, pxH);
         }
 
         // Layer 3 - Grid lines
@@ -80,16 +117,18 @@ public class TacticalMapPanel extends JPanel {
             g.drawRect(pxX, pxY, pxW, pxH);
         }
 
-        // Layer 4 - Drones
+        // Layer 4 - Drones & Trails
         for (DroneStatus ds : droneStatuses.values()) {
             if (ds.getState() == DroneState.IDLE && ds.getZoneId() != 0) {
                 continue;
             }
             
-            int centerX = ds.getCurrentCol() * Theme.ZONE_PIXEL_SIZE + Theme.ZONE_PIXEL_SIZE / 2;
-            int centerY = ds.getCurrentRow() * Theme.ZONE_PIXEL_SIZE + Theme.ZONE_PIXEL_SIZE / 2;
+            if (ds.getState() == DroneState.FAULTED && (frameCount % 30 < 15)) {
+                continue; // Blink faulted drones
+            }
             
             Color dColor = Theme.DRONE_IDLE;
+            boolean isHard = (ds.getFaultType() == FaultType.NOZZLE_JAM);
             switch(ds.getState()) {
                 case EN_ROUTE: dColor = Theme.DRONE_OUTBOUND; break;
                 case EXTINGUISHING: dColor = Theme.DRONE_FIGHTING; break;
@@ -97,22 +136,79 @@ public class TacticalMapPanel extends JPanel {
                 case REFILLING: dColor = Theme.DRONE_REFILLING; break;
                 case IDLE: dColor = Theme.DRONE_IDLE; break;
                 case FAULTED: 
-                    dColor = (ds.getFaultType() == FaultType.NOZZLE_JAM) ? Theme.FAULT_HARD : Theme.FAULT_SOFT;
+                    dColor = isHard ? Theme.FAULT_HARD : Theme.FAULT_SOFT;
                     break;
             }
-            g.setColor(dColor);
+
+            int centerX = ds.getCurrentCol() * Theme.ZONE_PIXEL_SIZE + Theme.ZONE_PIXEL_SIZE / 2;
+            int centerY = ds.getCurrentRow() * Theme.ZONE_PIXEL_SIZE + Theme.ZONE_PIXEL_SIZE / 2;
+
+            // Draw Trail
+            List<Point2D.Double> trail = droneTrails.get(ds.getDroneId());
+            if (trail != null && ds.getState() != DroneState.IDLE) {
+                for (int i = 0; i < trail.size(); i++) {
+                    Point2D.Double p = trail.get(i);
+                    float alpha = 0.5f * (1.0f - ((float)i / MAX_TRAIL_LENGTH));
+                    g.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, alpha));
+                    g.setColor(dColor);
+                    g.fillOval((int)p.x - 6, (int)p.y - 6, 12, 12);
+                }
+                g.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, 1.0f));
+            }
+
+            // Draw Pulse Glow
+            if (ds.getState() == DroneState.EXTINGUISHING || ds.getState() == DroneState.REFILLING) {
+                int pulseRadius = 20 + (int)(Math.sin(frameCount * 0.2) * 10);
+                g.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, 0.3f));
+                g.setColor(dColor);
+                g.fillOval(centerX - pulseRadius, centerY - pulseRadius, pulseRadius*2, pulseRadius*2);
+                g.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, 1.0f));
+            }
+
+            // Direction calculation
+            double targetX = centerX;
+            double targetY = centerY;
+            if (ds.getState() == DroneState.EN_ROUTE || ds.getState() == DroneState.RETURNING) {
+                ZoneDef targetZone = getZoneById(ds.getZoneId());
+                if (targetZone != null) {
+                    targetX = targetZone.startCol * Theme.ZONE_PIXEL_SIZE + (targetZone.widthCols * Theme.ZONE_PIXEL_SIZE) / 2.0;
+                    targetY = targetZone.startRow * Theme.ZONE_PIXEL_SIZE + (targetZone.heightRows * Theme.ZONE_PIXEL_SIZE) / 2.0;
+                }
+            }
+            double angle = Math.atan2(targetY - centerY, targetX - centerX);
+            if (targetX == centerX && targetY == centerY) {
+                angle = -Math.PI / 2; // Default point UP if no target direction
+            }
+
+            // Draw Chevron
+            AffineTransform oldTransform = g.getTransform();
+            g.translate(centerX, centerY);
+            g.rotate(angle);
             
-            int r = 24; // size of drone blip on 2000px map
-            int[] xPoints = {centerX, centerX + r, centerX, centerX - r};
-            int[] yPoints = {centerY - r, centerY, centerY + r, centerY};
-            g.fillPolygon(xPoints, yPoints, 4);
+            g.setColor(dColor);
+            int[] cx = {15, -10, -5, -10};
+            int[] cy = {0, -12, 0, 12};
+            g.fillPolygon(cx, cy, 4);
+            
+            g.setTransform(oldTransform);
         }
 
-        // Layer 5 - Radar sweep
-        g.setColor(Theme.RADAR_SWEEP);
-        g.fillArc(Theme.MAP_RESOLUTION/2 - Theme.MAP_RESOLUTION, Theme.MAP_RESOLUTION/2 - Theme.MAP_RESOLUTION,
-                  Theme.MAP_RESOLUTION*2, Theme.MAP_RESOLUTION*2,
-                  -radarAngle, 30);
+        // Layer 5 - Radar sweep (Filled arc with gradient fade effect)
+        int radCenter = Theme.MAP_RESOLUTION / 2;
+        int radRadius = Theme.MAP_RESOLUTION;
+        
+        for (int i = 0; i < 30; i++) {
+            float alpha = 0.4f * (1.0f - (i / 30.0f));
+            g.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, alpha));
+            g.setColor(Theme.RADAR_SWEEP);
+            g.fillArc(radCenter - radRadius, radCenter - radRadius,
+                      radRadius * 2, radRadius * 2,
+                      -radarAngle + i, 2);
+        }
+        g.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, 1.0f));
+        // Leading edge line
+        g.setColor(Theme.TEXT_BRIGHT);
+        g.drawArc(radCenter - radRadius, radCenter - radRadius, radRadius * 2, radRadius * 2, -radarAngle, 1);
 
         // Layer 6 - Scanlines
         g.setColor(Theme.SCANLINE);
@@ -122,6 +218,13 @@ public class TacticalMapPanel extends JPanel {
         }
 
         g.dispose();
+    }
+
+    private ZoneDef getZoneById(int id) {
+        for (ZoneDef z : zones) {
+            if (z.id == id) return z;
+        }
+        return null;
     }
 
     @Override
@@ -139,8 +242,10 @@ public class TacticalMapPanel extends JPanel {
         zoneFireActive.put(zoneId, active);
         if (active) {
             zoneSeverities.put(zoneId, severity);
+            zoneExtinguishedFrame.remove(zoneId);
         } else {
             zoneSeverities.remove(zoneId);
+            zoneExtinguishedFrame.put(zoneId, frameCount);
         }
     }
 
