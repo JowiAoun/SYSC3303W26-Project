@@ -20,27 +20,13 @@ public class FireDroneGUI extends JFrame {
     private static final int COLS = 16;
     private static final int ROWS = 16;
 
-    // grid reference so caller can change cell states
-    private ZoneCell[][] gridCells = new ZoneCell[ROWS][COLS];
-
-    // public state enum to use externally
-    public enum CellState {
-        EMPTY,
-        ACTIVE_FIRE,
-        EXTINGUISHED,
-        DRONE_OUTBOUND,
-        DRONE_EXTINGUISHED,
-        DRONE_RETURNING,
-        DRONE_FAULT_SOFT,   // recoverable faults (stuck mid-flight, arrival sensor)
-        DRONE_FAULT_HARD    // permanent faults (nozzle jam)
-    }
+    private TacticalMapPanel tacticalMap;
 
     //zone definitions
     private final List<ZoneDef> zones = new ArrayList<>();
     private final List<JLabel> droneLabels = new ArrayList<>();
     private final List<JLabel> zoneLabels = new ArrayList<>();
     private final Set<Integer> activeZoneIds = new HashSet<>();
-    private final Map<Integer, int[]> droneLastCell = new HashMap<>();         // droneId → {col, row}
     private final Set<Integer> activeDroneIds = new HashSet<>();               // non-idle drone IDs
     private final Map<Integer, FireEvent.Severity> zoneSeverities = new HashMap<>(); // zoneId → severity
     private final Map<Integer, DroneStatus> droneCurrentStatuses = new HashMap<>();  // droneId → latest status
@@ -66,15 +52,12 @@ public class FireDroneGUI extends JFrame {
 
         zones.addAll(ZoneLoader.loadZones("./src/main/resources/data/zones.csv", COLS, ROWS));
 
-        //grid panel showing the zones
-        JPanel gridPanel = createGridPanel(COLS, ROWS);
-        JScrollPane gridScroll = new JScrollPane(gridPanel);
-        gridScroll.getViewport().setPreferredSize(new Dimension(800, 800));
+        tacticalMap = new TacticalMapPanel(zones);
 
         //sidebar with Zones, Drones, Events, Legend
         JPanel sidebar = createSidebar();
 
-        JSplitPane split = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, gridScroll, sidebar);
+        JSplitPane split = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, tacticalMap, sidebar);
         split.setResizeWeight(0.75);
 
         add(createToolbar(), BorderLayout.NORTH);
@@ -86,46 +69,7 @@ public class FireDroneGUI extends JFrame {
         setLocationRelativeTo(null);
     }
 
-    // Create a grid of ZoneCell objects and store references in gridCells[][]
-    private JPanel createGridPanel(int cols, int rows) {
-        JPanel panel = new JPanel(new GridLayout(rows, cols));
-        panel.setBorder(new EmptyBorder(8, 8, 8, 8));
 
-        for (int r = 0; r < rows; r++) {
-            for (int c = 0; c < cols; c++) {
-                ZoneDef zone = findZoneForCell(c, r);
-                ZoneCell cell;
-                if (zone != null) {
-                    boolean isBottomRight = (c == zone.startCol + zone.widthCols - 1
-                                          && r == zone.startRow + zone.heightRows - 1);
-                    // bottom-right cell of the zone gets the zone label, others are blank
-                    if (isBottomRight) {
-                        cell = new ZoneCell(c, r, zone, String.format("Z%d", zone.id));
-                    } else {
-                        cell = new ZoneCell(c, r, zone, "");
-                    }
-                } else {
-                    // fallback (shouldn't happen if zones tile the grid)
-                    cell = new ZoneCell(c, r, null, "");
-                }
-                // Update border after creating the cell
-                cell.updateBorder(COLS, ROWS, zones);
-                gridCells[r][c] = cell;
-                panel.add(cell);
-            }
-        }
-        return panel;
-    }
-
-    private ZoneDef findZoneForCell(int col, int row) {
-        for (ZoneDef z : zones) {
-            if (col >= z.startCol && col < z.startCol + z.widthCols &&
-                    row >= z.startRow && row < z.startRow + z.heightRows) {
-                return z;
-            }
-        }
-        return null;
-    }
 
     //TODO: create method/class for the cards
     private JPanel createSidebar() {
@@ -139,8 +83,6 @@ public class FireDroneGUI extends JFrame {
         side.add(createCard("Drones", createDroneList(droneCount)));
         side.add(Box.createVerticalStrut(8));
         side.add(createCard("Event Log", createEventPreview()));
-        side.add(Box.createVerticalStrut(8));
-        side.add(createCard("Legend", createLegendPanel()));
 
         return side;
     }
@@ -196,40 +138,7 @@ public class FireDroneGUI extends JFrame {
         return new JScrollPane(eventLog);
     }
 
-    // Legend uses small ZoneCell examples
-    private JComponent createLegendPanel() {
-        JPanel p = new JPanel(new GridLayout(0, 1, 4, 4));
-        p.setBorder(new EmptyBorder(4,4,4,4));
 
-        p.add(createLegendRow("Zone Label", CellState.EMPTY, "Zn"));
-        p.add(createLegendRow("Active Fire", CellState.ACTIVE_FIRE, "F"));
-        p.add(createLegendRow("Extinguished Fire", CellState.EXTINGUISHED, "X"));
-        p.add(createLegendRow("Drone Outbound", CellState.DRONE_OUTBOUND, "D(n)"));
-        p.add(createLegendRow("Drone Extinguished Fire", CellState.DRONE_EXTINGUISHED, "D(n)"));
-        p.add(createLegendRow("Drone Returning", CellState.DRONE_RETURNING, "D(n)"));
-        p.add(createLegendRow("Fault (Recoverable)", CellState.DRONE_FAULT_SOFT, "D(n)"));
-        p.add(createLegendRow("Fault (Permanent)", CellState.DRONE_FAULT_HARD, "D(n)"));
-
-        return p;
-    }
-
-    // small helper to build legend lines
-    private JPanel createLegendRow(String text, CellState state, String exampleText) {
-        JPanel row = new JPanel(new BorderLayout(8, 0));
-        //create a tiny sample cell, this wont be part of main grid
-        ZoneCell sample = new ZoneCell(0, 0, null, exampleText);
-        sample.setPreferredSize(new Dimension(60, 24));
-        sample.setState(state);
-        sample.setHorizontalAlignment(SwingConstants.CENTER);
-
-        JLabel lbl = new JLabel(text);
-        lbl.setBorder(new EmptyBorder(2,2,2,2));
-
-        row.add(sample, BorderLayout.WEST);
-        row.add(lbl, BorderLayout.CENTER);
-
-        return row;
-    }
 
     private JComponent createStatusBar() {
         JPanel status = new JPanel(new BorderLayout());
@@ -241,23 +150,7 @@ public class FireDroneGUI extends JFrame {
         return status;
     }
 
-    //update a specific cell's state
-    public void setCellState(int col, int row, CellState state) {
-        runOnEdt(() -> {
-            if (row >= 0 && row < ROWS && col >= 0 && col < COLS) {
-                gridCells[row][col].setState(state);
-            }
-        });
-    }
 
-    //set a text on a cell
-    public void setCellText(int col, int row, String text) {
-        runOnEdt(() -> {
-            if (row >= 0 && row < ROWS && col >= 0 && col < COLS) {
-                gridCells[row][col].setText(text);
-            }
-        });
-    }
 
     private ZoneDef getZoneById(int id) {
         for (ZoneDef z : zones) {
@@ -284,12 +177,8 @@ public class FireDroneGUI extends JFrame {
             int col = status.getCurrentCol();
             int row = status.getCurrentRow();
 
-            // Save the old cell before updating
-            int[] lastCell = droneLastCell.get(droneId);
-
             // Update tracking maps
             droneCurrentStatuses.put(droneId, status);
-            droneLastCell.put(droneId, new int[]{col, row});
 
             // Track active drones via set
             if (status.getState() == DroneState.IDLE) {
@@ -311,13 +200,7 @@ public class FireDroneGUI extends JFrame {
             }
             setFaultedDrones(faultedDroneIds.size());
 
-            // Recompute the old cell (drone left it)
-            if (lastCell != null && (lastCell[0] != col || lastCell[1] != row)) {
-                recomputeCell(lastCell[0], lastCell[1]);
-            }
-
-            // Recompute the new cell (drone arrived or updated state)
-            recomputeCell(col, row);
+            tacticalMap.updateDrone(status);
 
             // Update sidebar label with zone + remaining liters + fault info
             int currentZoneId = status.getZoneId();
@@ -332,143 +215,7 @@ public class FireDroneGUI extends JFrame {
         });
     }
 
-    /**
-     * Checks whether a drone should be rendered on the grid.
-     * IDLE drones at non-base zones are hidden.
-     */
-    private boolean shouldRenderDrone(DroneStatus ds) {
-        if (ds.getState() == DroneState.IDLE) {
-            // Only show IDLE drones at base zone (zone 0)
-            return ds.getZoneId() == 0;
-        }
-        return true;
-    }
 
-    /**
-     * Recomputes a grid cell's text and state based on all drones currently at that (col, row).
-     * If no drones are present, reverts the cell to its default zone appearance.
-     */
-    private void recomputeCell(int col, int row) {
-        if (col < 0 || col >= COLS || row < 0 || row >= ROWS) return;
-
-        // Find all visible drones at this exact cell
-        List<DroneStatus> dronesHere = new ArrayList<>();
-        for (Map.Entry<Integer, int[]> entry : droneLastCell.entrySet()) {
-            int[] cell = entry.getValue();
-            if (cell[0] == col && cell[1] == row) {
-                DroneStatus ds = droneCurrentStatuses.get(entry.getKey());
-                if (ds != null && shouldRenderDrone(ds)) {
-                    dronesHere.add(ds);
-                }
-            }
-        }
-
-        if (dronesHere.isEmpty()) {
-            // No drones to display — revert to default cell appearance
-            restoreCellDefault(col, row);
-            return;
-        }
-
-        // Determine the highest-priority cell state and build text for all drones
-        CellState bestState = CellState.EMPTY;
-        StringBuilder htmlBuilder = new StringBuilder("<html><center>");
-        for (int i = 0; i < dronesHere.size(); i++) {
-            DroneStatus ds = dronesHere.get(i);
-            String label = droneShortLabel(ds);
-            CellState cs = droneCellState(ds);
-
-            if (statePriority(cs) > statePriority(bestState)) {
-                bestState = cs;
-            }
-
-            if (i > 0) htmlBuilder.append("<br>");
-            htmlBuilder.append(label);
-        }
-        htmlBuilder.append("</center></html>");
-
-        gridCells[row][col].setState(bestState);
-        gridCells[row][col].setText(htmlBuilder.toString());
-    }
-
-    /**
-     * Restores a cell to its default appearance: zone label, fire, or empty.
-     */
-    private void restoreCellDefault(int col, int row) {
-        if (col < 0 || col >= COLS || row < 0 || row >= ROWS) return;
-
-        ZoneDef zone = findZoneForCell(col, row);
-
-        // Check if this cell's zone has an active fire
-        if (zone != null && activeZoneIds.contains(zone.id)) {
-            // Only show fire state on the zone's start cell
-            if (col == zone.startCol && row == zone.startRow) {
-                FireEvent.Severity sev = zoneSeverities.get(zone.id);
-                gridCells[row][col].setState(CellState.ACTIVE_FIRE);
-                gridCells[row][col].setText("FIRE" + severityLabel(sev));
-                return;
-            }
-        }
-
-        // Restore zone label on the bottom-right cell of the zone
-        if (zone != null) {
-            boolean isBottomRight = (col == zone.startCol + zone.widthCols - 1
-                    && row == zone.startRow + zone.heightRows - 1);
-            gridCells[row][col].setState(CellState.EMPTY);
-            gridCells[row][col].setText(isBottomRight ? String.format("Z%d", zone.id) : "");
-        } else {
-            gridCells[row][col].setState(CellState.EMPTY);
-            gridCells[row][col].setText("");
-        }
-    }
-
-    /**
-     * Returns a short display label for a drone status, e.g. "D1 >>>".
-     */
-    private String droneShortLabel(DroneStatus ds) {
-        String prefix = "D" + ds.getDroneId();
-        switch (ds.getState()) {
-            case EN_ROUTE:       return prefix + " &gt;&gt;&gt;";
-            case EXTINGUISHING:  return prefix + " FIGHT";
-            case RETURNING:      return prefix + " &lt;&lt;&lt;";
-            case REFILLING:      return prefix + " FILL";
-            case IDLE:           return prefix + " IDLE";
-            case FAULTED:        return prefix + " \u26A0 " + faultShortLabel(ds.getFaultType());
-            default:             return prefix;
-        }
-    }
-
-    /**
-     * Maps a DroneState to the corresponding CellState.
-     */
-    private CellState droneCellState(DroneStatus ds) {
-        switch (ds.getState()) {
-            case EN_ROUTE:      return CellState.DRONE_OUTBOUND;
-            case EXTINGUISHING: return CellState.DRONE_EXTINGUISHED;
-            case RETURNING:
-            case REFILLING:
-            case IDLE:          return CellState.DRONE_RETURNING;
-            case FAULTED:
-                return isHardFault(ds.getFaultType())
-                        ? CellState.DRONE_FAULT_HARD
-                        : CellState.DRONE_FAULT_SOFT;
-            default:            return CellState.EMPTY;
-        }
-    }
-
-    /**
-     * Returns a priority value for cell states so the most important state wins
-     * when multiple drones share a cell.
-     */
-    private int statePriority(CellState state) {
-        switch (state) {
-            case DRONE_FAULT_HARD:   return 5;
-            case DRONE_FAULT_SOFT:   return 4;
-            case DRONE_EXTINGUISHED: return 3;
-            case DRONE_OUTBOUND:     return 2;
-            case DRONE_RETURNING:    return 1;
-            default:                 return 0;
-        }
-    }
 
     /**
      * Update a zone's fire state and active count (backward-compatible, no severity).
@@ -486,14 +233,11 @@ public class FireDroneGUI extends JFrame {
             if (zone != null) {
                 if (active) {
                     zoneSeverities.put(zoneId, severity);
-                    setCellState(zone.startCol, zone.startRow, CellState.ACTIVE_FIRE);
-                    setCellText(zone.startCol, zone.startRow, "FIRE" + severityLabel(severity));
                 } else {
                     zoneSeverities.remove(zoneId);
-                    setCellState(zone.startCol, zone.startRow, CellState.EXTINGUISHED);
-                    setCellText(zone.startCol, zone.startRow, "SAFE");
                 }
             }
+            tacticalMap.setZoneFire(zoneId, active, severity);
 
             if (active) {
                 if (activeZoneIds.add(zoneId)) {
@@ -509,18 +253,7 @@ public class FireDroneGUI extends JFrame {
         });
     }
 
-    /**
-     * Returns a severity suffix for cell text, e.g. " (H)", " (M)", " (L)".
-     */
-    private String severityLabel(FireEvent.Severity severity) {
-        if (severity == null) return "";
-        switch (severity) {
-            case HIGH:     return " (H)";
-            case MODERATE: return " (M)";
-            case LOW:      return " (L)";
-            default:       return "";
-        }
-    }
+
 
     /**
      * Returns a short severity label for sidebar, e.g. "H", "M", "L".
@@ -641,18 +374,7 @@ public class FireDroneGUI extends JFrame {
         return ft == FaultType.NOZZLE_JAM;
     }
 
-    /**
-     * Returns a short label for a fault type on the grid cell.
-     */
-    private String faultShortLabel(FaultType ft) {
-        switch (ft) {
-            case STUCK_MID_FLIGHT:       return "STUCK";
-            case NOZZLE_JAM:             return "NOZZLE";
-            case ARRIVAL_SENSOR_FAILURE: return "SENSOR";
-            case CORRUPTED_MESSAGE:      return "CORRUPT";
-            default:                     return "FAULT";
-        }
-    }
+
 
     /**
      * Returns a human-readable label for a fault type.
@@ -765,10 +487,7 @@ public class FireDroneGUI extends JFrame {
             FireDroneGUI window = new FireDroneGUI();
             window.setVisible(true);
 
-            //small demo with some example states
-            window.setCellState(2, 2, CellState.ACTIVE_FIRE);
-            window.setCellState(13, 1, CellState.DRONE_OUTBOUND);
-            window.setCellState(0, 8, CellState.DRONE_RETURNING);
+
         });
     }
 }
