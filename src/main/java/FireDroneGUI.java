@@ -1,40 +1,34 @@
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
+import javax.swing.text.*;
 import java.awt.*;
 import java.net.DatagramSocket;
 import java.net.InetAddress;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.HashSet;
+import java.text.SimpleDateFormat;
+import java.util.*;
 import java.util.List;
-import java.util.Map;
-import java.util.Set;
 
-/**
- * FireDroneGUI.java
- *
- * Main window for the firefighting drone simulation.
- * Displays a grid of zones and a sidebar with simulation status.
- */
 public class FireDroneGUI extends JFrame {
     private static final int COLS = 16;
     private static final int ROWS = 16;
 
     private TacticalMapPanel tacticalMap;
 
-    //zone definitions
     private final List<ZoneDef> zones = new ArrayList<>();
-    private final List<JLabel> droneLabels = new ArrayList<>();
-    private final List<JLabel> zoneLabels = new ArrayList<>();
+    private final List<DroneCard> droneCards = new ArrayList<>();
+    private final List<ZoneCard> zoneCards = new ArrayList<>();
     private final Set<Integer> activeZoneIds = new HashSet<>();
-    private final Set<Integer> activeDroneIds = new HashSet<>();               // non-idle drone IDs
-    private final Map<Integer, FireEvent.Severity> zoneSeverities = new HashMap<>(); // zoneId → severity
-    private final Map<Integer, DroneStatus> droneCurrentStatuses = new HashMap<>();  // droneId → latest status
-    private final Set<Integer> faultedDroneIds = new HashSet<>();            // drones currently faulted
-    private final Set<Integer> permanentlyFaultedDrones = new HashSet<>();    // hard-faulted, never cleared
-    private JTextArea eventLog;
-    private JLabel statusLeft;
-    private JLabel statusRight;
+    private final Set<Integer> activeDroneIds = new HashSet<>();
+    private final Set<Integer> faultedDroneIds = new HashSet<>();
+    private final Set<Integer> permanentlyFaultedDrones = new HashSet<>();
+    
+    // UI components
+    private JTextPane eventLog;
+    private JLabel firesCounter;
+    private JLabel dronesCounter;
+    private JLabel faultsCounter;
+    private JLabel clockLabel;
+    
     private int activeFires = 0;
     private int activeDrones = 0;
     private int faultedDrones = 0;
@@ -54,103 +48,331 @@ public class FireDroneGUI extends JFrame {
 
         tacticalMap = new TacticalMapPanel(zones);
 
-        //sidebar with Zones, Drones, Events, Legend
-        JPanel sidebar = createSidebar();
+        JPanel leftSidebar = createZonePanel();
+        JPanel rightSidebar = createDronePanel(droneCount);
 
-        JSplitPane split = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, tacticalMap, sidebar);
-        split.setResizeWeight(0.75);
+        JPanel centerPanel = new JPanel(new BorderLayout());
+        centerPanel.add(leftSidebar, BorderLayout.WEST);
+        centerPanel.add(tacticalMap, BorderLayout.CENTER);
+        centerPanel.add(rightSidebar, BorderLayout.EAST);
 
-        add(createToolbar(), BorderLayout.NORTH);
-        add(split, BorderLayout.CENTER);
-        add(createStatusBar(), BorderLayout.SOUTH);
+        add(createHeaderBar(), BorderLayout.NORTH);
+        add(centerPanel, BorderLayout.CENTER);
+        add(createCommsLog(), BorderLayout.SOUTH);
 
         pack();
-        setMinimumSize(new Dimension(1150, 850));
+        setMinimumSize(new Dimension(1200, 850));
         setLocationRelativeTo(null);
     }
 
+    // --- PHASE 3 UI COMPONENTS ---
 
+    private JPanel createHeaderBar() {
+        JPanel header = new JPanel(new BorderLayout());
+        header.setBackground(Theme.BG_PANEL);
+        header.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createMatteBorder(0, 0, 1, 0, Theme.GRID_LINE_ZONE),
+                new EmptyBorder(8, 16, 8, 16)
+        ));
+        header.setPreferredSize(new Dimension(0, 60));
 
-    //TODO: create method/class for the cards
-    private JPanel createSidebar() {
-        JPanel side = new JPanel();
-        side.setLayout(new BoxLayout(side, BoxLayout.Y_AXIS));
-        side.setBorder(new EmptyBorder(8, 8, 8, 8));
-        side.setPreferredSize(new Dimension(300, 700));
+        JLabel title = new JLabel("TACTICAL DRONE COMMAND");
+        title.setFont(Theme.FONT_HEADER);
+        title.setForeground(Theme.TEXT_PRIMARY);
 
-        side.add(createCard("Zones", createZonesList()));
-        side.add(Box.createVerticalStrut(8));
-        side.add(createCard("Drones", createDroneList(droneCount)));
-        side.add(Box.createVerticalStrut(8));
-        side.add(createCard("Event Log", createEventPreview()));
+        JPanel counters = new JPanel(new FlowLayout(FlowLayout.CENTER, 30, 0));
+        counters.setOpaque(false);
+        firesCounter = createCounterLabel("FIRES: 0");
+        dronesCounter = createCounterLabel("DRONES: 0");
+        faultsCounter = createCounterLabel("FAULTS: 0");
+        counters.add(firesCounter);
+        counters.add(dronesCounter);
+        counters.add(faultsCounter);
 
-        return side;
+        JPanel rightPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 15, 0));
+        rightPanel.setOpaque(false);
+
+        JButton injectBtn = new JButton("INJECT FAULT");
+        injectBtn.setBackground(Theme.BG_CARD);
+        injectBtn.setForeground(Theme.TEXT_PRIMARY);
+        injectBtn.setFont(Theme.FONT_MONO_BOLD);
+        injectBtn.setFocusPainted(false);
+        injectBtn.addActionListener(e -> showFaultInjectionDialog());
+
+        clockLabel = new JLabel();
+        clockLabel.setForeground(Theme.TEXT_BRIGHT);
+        clockLabel.setFont(Theme.FONT_MONO_BOLD);
+        updateClock();
+        new javax.swing.Timer(1000, e -> updateClock()).start();
+
+        rightPanel.add(injectBtn);
+        rightPanel.add(clockLabel);
+
+        header.add(title, BorderLayout.WEST);
+        header.add(counters, BorderLayout.CENTER);
+        header.add(rightPanel, BorderLayout.EAST);
+
+        return header;
     }
 
-    private JComponent createZonesList() {
-        JPanel p = new JPanel();
-        p.setLayout(new BoxLayout(p, BoxLayout.Y_AXIS));
-        zoneLabels.clear();
+    private JLabel createCounterLabel(String text) {
+        JLabel lbl = new JLabel(text);
+        lbl.setFont(Theme.FONT_MONO_BOLD);
+        lbl.setForeground(Theme.TEXT_BRIGHT);
+        return lbl;
+    }
+
+    private void updateClock() {
+        clockLabel.setText(new SimpleDateFormat("HH:mm:ss").format(new java.util.Date()));
+    }
+
+    private JPanel createZonePanel() {
+        JPanel container = new JPanel(new BorderLayout());
+        container.setBackground(Theme.BG_PANEL);
+        container.setPreferredSize(new Dimension(250, 0));
+
+        JPanel listPanel = new JPanel();
+        listPanel.setLayout(new BoxLayout(listPanel, BoxLayout.Y_AXIS));
+        listPanel.setBackground(Theme.BG_PANEL);
+        listPanel.setBorder(new EmptyBorder(8, 8, 8, 8));
+
+        zoneCards.clear();
         for (ZoneDef z : zones) {
-            String desc = String.format("Zone %d — (%d,%d) %dx%d", z.id, z.startCol, z.startRow, z.widthCols, z.heightRows);
-            JLabel lbl = new JLabel(desc);
-            lbl.setBorder(new EmptyBorder(4,4,4,4));
-            zoneLabels.add(lbl);
-            p.add(lbl);
+            ZoneCard card = new ZoneCard(z);
+            zoneCards.add(card);
+            listPanel.add(card);
+            listPanel.add(Box.createVerticalStrut(8));
         }
-        return p;
+
+        JScrollPane scroll = new JScrollPane(listPanel);
+        scroll.setBorder(null);
+        scroll.getVerticalScrollBar().setUnitIncrement(16);
+        container.add(scroll, BorderLayout.CENTER);
+        return container;
     }
 
-    /**
-     * Update a zone's sidebar label to reflect current fire status and severity.
-     */
-    private void updateZoneLabel(int zoneId, boolean active, FireEvent.Severity severity) {
-        // zoneLabels are ordered by zones list index, find the matching one
-        for (int i = 0; i < zones.size(); i++) {
-            ZoneDef z = zones.get(i);
-            if (z.id == zoneId && i < zoneLabels.size()) {
-                String base = String.format("Zone %d — (%d,%d) %dx%d", z.id, z.startCol, z.startRow, z.widthCols, z.heightRows);
-                if (active) {
-                    String sevStr = severityShortLabel(severity);
-                    base += " [FIRE" + (sevStr.isEmpty() ? "" : " " + sevStr) + "]";
-                }
-                zoneLabels.get(i).setText(base);
-                break;
+    private JPanel createDronePanel(int count) {
+        JPanel container = new JPanel(new BorderLayout());
+        container.setBackground(Theme.BG_PANEL);
+        container.setPreferredSize(new Dimension(300, 0));
+
+        JPanel listPanel = new JPanel();
+        listPanel.setLayout(new BoxLayout(listPanel, BoxLayout.Y_AXIS));
+        listPanel.setBackground(Theme.BG_PANEL);
+        listPanel.setBorder(new EmptyBorder(8, 8, 8, 8));
+
+        droneCards.clear();
+        for (int i = 1; i <= count; i++) {
+            DroneCard card = new DroneCard(i);
+            droneCards.add(card);
+            listPanel.add(card);
+            listPanel.add(Box.createVerticalStrut(8));
+        }
+
+        JScrollPane scroll = new JScrollPane(listPanel);
+        scroll.setBorder(null);
+        scroll.getVerticalScrollBar().setUnitIncrement(16);
+        container.add(scroll, BorderLayout.CENTER);
+        return container;
+    }
+
+    private JComponent createCommsLog() {
+        JPanel container = new JPanel(new BorderLayout());
+        container.setPreferredSize(new Dimension(0, 150));
+        
+        eventLog = new JTextPane();
+        eventLog.setEditable(false);
+        eventLog.setBackground(Theme.BG_MAIN);
+        eventLog.setFont(Theme.FONT_MONO);
+        
+        JScrollPane scroll = new JScrollPane(eventLog);
+        scroll.setBorder(BorderFactory.createMatteBorder(1, 0, 0, 0, Theme.GRID_LINE_ZONE));
+        container.add(scroll, BorderLayout.CENTER);
+        return container;
+    }
+
+    // --- CARDS ---
+
+    private class ZoneCard extends JPanel {
+        private final int zoneId;
+        private final JLabel statusLabel;
+
+        public ZoneCard(ZoneDef zone) {
+            this.zoneId = zone.id;
+            setLayout(new BorderLayout());
+            setBackground(Theme.BG_CARD);
+            setBorder(BorderFactory.createCompoundBorder(
+                    BorderFactory.createLineBorder(Theme.BORDER_DEFAULT, 1),
+                    new EmptyBorder(8, 8, 8, 8)
+            ));
+            setMaximumSize(new Dimension(Integer.MAX_VALUE, 60));
+
+            JPanel top = new JPanel(new BorderLayout());
+            top.setOpaque(false);
+            JLabel idLbl = new JLabel("ZONE " + zone.id);
+            idLbl.setFont(Theme.FONT_MONO_BOLD);
+            idLbl.setForeground(Theme.TEXT_PRIMARY);
+            
+            JLabel coordsLbl = new JLabel(String.format("(%d,%d)", zone.startCol, zone.startRow));
+            coordsLbl.setFont(Theme.FONT_MONO_SMALL);
+            coordsLbl.setForeground(Theme.TEXT_SECONDARY);
+            
+            top.add(idLbl, BorderLayout.WEST);
+            top.add(coordsLbl, BorderLayout.EAST);
+
+            statusLabel = new JLabel("CLEAR");
+            statusLabel.setFont(Theme.FONT_MONO_BOLD);
+            statusLabel.setForeground(Theme.TEXT_SECONDARY);
+
+            add(top, BorderLayout.NORTH);
+            add(statusLabel, BorderLayout.SOUTH);
+        }
+
+        public void update(boolean active, FireEvent.Severity severity) {
+            if (active) {
+                setBorder(BorderFactory.createCompoundBorder(
+                        BorderFactory.createLineBorder(Theme.FIRE_ACTIVE, 1),
+                        new EmptyBorder(8, 8, 8, 8)
+                ));
+                statusLabel.setText("FIRE " + severityShortLabel(severity));
+                if (severity == FireEvent.Severity.HIGH) statusLabel.setForeground(Theme.FIRE_HIGH);
+                else if (severity == FireEvent.Severity.MODERATE) statusLabel.setForeground(Theme.FIRE_MODERATE);
+                else statusLabel.setForeground(Theme.FIRE_LOW);
+            } else {
+                setBorder(BorderFactory.createCompoundBorder(
+                        BorderFactory.createLineBorder(Theme.BORDER_DEFAULT, 1),
+                        new EmptyBorder(8, 8, 8, 8)
+                ));
+                statusLabel.setText("CLEAR");
+                statusLabel.setForeground(Theme.TEXT_SECONDARY);
             }
         }
     }
 
-    //Simple titled container used by the sidebar
-    private JPanel createCard(String title, JComponent content) {
-        JPanel card = new JPanel(new BorderLayout());
-        card.setBorder(BorderFactory.createTitledBorder(title));
-        card.add(content, BorderLayout.CENTER);
-        return card;
+    private class WaterGauge extends JPanel {
+        private int capacity = 15;
+        private int current = 15;
+
+        public WaterGauge() {
+            setPreferredSize(new Dimension(0, 10));
+            setBackground(Theme.BG_MAIN);
+            setBorder(BorderFactory.createLineBorder(Theme.BORDER_DEFAULT));
+        }
+
+        public void update(int liters) {
+            this.current = liters;
+            repaint();
+        }
+
+        @Override
+        protected void paintComponent(Graphics g) {
+            super.paintComponent(g);
+            float ratio = (float) current / capacity;
+            int width = (int) (getWidth() * ratio);
+            
+            Color fill = Theme.TEXT_BRIGHT;
+            if (ratio <= 0.1f) fill = Theme.FIRE_HIGH;
+            else if (ratio <= 0.3f) fill = Theme.FIRE_LOW;
+            
+            g.setColor(fill);
+            g.fillRect(0, 0, width, getHeight());
+        }
     }
 
-    private JComponent createEventPreview() {
-        eventLog = new JTextArea();
-        eventLog.setEditable(false);
-        eventLog.setRows(8);
-        eventLog.setLineWrap(true);
-        eventLog.setWrapStyleWord(true);
-        eventLog.setText("Logs here");
-        return new JScrollPane(eventLog);
+    private class DroneCard extends JPanel {
+        private final JLabel idLabel;
+        private final JLabel stateLabel;
+        private final JLabel targetLabel;
+        private final JLabel faultLabel;
+        private final WaterGauge gauge;
+
+        public DroneCard(int droneId) {
+            setLayout(new BoxLayout(this, BoxLayout.Y_AXIS));
+            setBackground(Theme.BG_CARD);
+            setBorder(BorderFactory.createCompoundBorder(
+                    BorderFactory.createLineBorder(Theme.BORDER_DEFAULT, 1),
+                    new EmptyBorder(8, 8, 8, 8)
+            ));
+            
+            JPanel header = new JPanel(new BorderLayout());
+            header.setOpaque(false);
+            
+            idLabel = new JLabel("DRONE " + droneId);
+            idLabel.setFont(Theme.FONT_MONO_BOLD);
+            idLabel.setForeground(Theme.TEXT_PRIMARY);
+            
+            stateLabel = new JLabel("IDLE");
+            stateLabel.setFont(Theme.FONT_MONO_BOLD);
+            stateLabel.setForeground(Theme.DRONE_IDLE);
+            
+            header.add(idLabel, BorderLayout.WEST);
+            header.add(stateLabel, BorderLayout.EAST);
+            
+            JPanel infoPanel = new JPanel(new BorderLayout());
+            infoPanel.setOpaque(false);
+            
+            targetLabel = new JLabel("-> ZONE 0");
+            targetLabel.setFont(Theme.FONT_MONO);
+            targetLabel.setForeground(Theme.TEXT_SECONDARY);
+            
+            faultLabel = new JLabel("");
+            faultLabel.setFont(Theme.FONT_MONO_BOLD);
+            
+            infoPanel.add(targetLabel, BorderLayout.WEST);
+            infoPanel.add(faultLabel, BorderLayout.EAST);
+            
+            gauge = new WaterGauge();
+            
+            add(header);
+            add(Box.createVerticalStrut(4));
+            add(infoPanel);
+            add(Box.createVerticalStrut(6));
+            add(gauge);
+        }
+
+        public void update(DroneStatus ds, boolean isHardFaulted) {
+            if (isHardFaulted) {
+                setBorder(BorderFactory.createCompoundBorder(
+                    BorderFactory.createLineBorder(Theme.FAULT_HARD, 1),
+                    new EmptyBorder(8, 8, 8, 8)
+                ));
+                stateLabel.setText("OFFLINE");
+            } else {
+                setBorder(BorderFactory.createCompoundBorder(
+                    BorderFactory.createLineBorder(Theme.BORDER_DEFAULT, 1),
+                    new EmptyBorder(8, 8, 8, 8)
+                ));
+                stateLabel.setText(ds.getState().name());
+            }
+
+            Color stateColor = Theme.DRONE_IDLE;
+            switch(ds.getState()) {
+                case EN_ROUTE: stateColor = Theme.DRONE_OUTBOUND; break;
+                case EXTINGUISHING: stateColor = Theme.DRONE_FIGHTING; break;
+                case RETURNING: stateColor = Theme.DRONE_RETURNING; break;
+                case REFILLING: stateColor = Theme.DRONE_REFILLING; break;
+                case FAULTED: 
+                    stateColor = isHardFault(ds.getFaultType()) ? Theme.FAULT_HARD : Theme.FAULT_SOFT;
+                    break;
+            }
+            if (isHardFaulted) stateColor = Theme.FAULT_HARD;
+            stateLabel.setForeground(stateColor);
+            
+            targetLabel.setText("-> ZONE " + ds.getZoneId());
+            
+            if (ds.getState() == DroneState.FAULTED && ds.getFaultType() != FaultType.NONE) {
+                faultLabel.setText(faultShortLabel(ds.getFaultType()));
+                faultLabel.setForeground(isHardFault(ds.getFaultType()) ? Theme.FAULT_HARD : Theme.FAULT_SOFT);
+            } else {
+                faultLabel.setText("");
+            }
+            
+            gauge.update(ds.getRemainingLiters());
+        }
     }
 
 
-
-    private JComponent createStatusBar() {
-        JPanel status = new JPanel(new BorderLayout());
-        status.setBorder(BorderFactory.createMatteBorder(1,0,0,0,new Color(200,200,200)));
-        statusLeft = new JLabel("Simulation: Stopped | Active Fires: 0 | Active Drones: 0");
-        statusRight = new JLabel("Time: 00:00:00", SwingConstants.RIGHT);
-        status.add(statusLeft, BorderLayout.WEST);
-        status.add(statusRight, BorderLayout.EAST);
-        return status;
-    }
-
-
+    // --- API & LOGIC ---
 
     private ZoneDef getZoneById(int id) {
         for (ZoneDef z : zones) {
@@ -159,28 +381,15 @@ public class FireDroneGUI extends JFrame {
         return null; 
     }
 
-    /**
-     * Updates the GUI based on the drone's status.
-     * Tracks drone position by exact (col, row) cell, recomputes old and new cells
-     * so that multiple drones sharing a cell are all visible.
-     * Thread-safe.
-     */
     public void updateDroneStatus(DroneStatus status) {
         runOnEdt(() -> {
             int droneId = status.getDroneId();
 
-            // Hard-faulted drones are permanently frozen — ignore any further updates
             if (permanentlyFaultedDrones.contains(droneId)) {
                 return;
             }
 
-            int col = status.getCurrentCol();
-            int row = status.getCurrentRow();
-
-            // Update tracking maps
-            droneCurrentStatuses.put(droneId, status);
-
-            // Track active drones via set
+            // Track active drones
             if (status.getState() == DroneState.IDLE) {
                 activeDroneIds.remove(droneId);
             } else {
@@ -191,7 +400,6 @@ public class FireDroneGUI extends JFrame {
             // Track faulted drones
             if (status.getState() == DroneState.FAULTED) {
                 faultedDroneIds.add(droneId);
-                // Hard faults freeze permanently once the drone reaches base (zone 0)
                 if (isHardFault(status.getFaultType()) && status.getZoneId() == 0) {
                     permanentlyFaultedDrones.add(droneId);
                 }
@@ -202,41 +410,21 @@ public class FireDroneGUI extends JFrame {
 
             tacticalMap.updateDrone(status);
 
-            // Update sidebar label with zone + remaining liters + fault info
-            int currentZoneId = status.getZoneId();
-            String zoneInfo = currentZoneId > 0 ? " \u2192 Zone " + currentZoneId : "";
-            String litersInfo = " (" + status.getRemainingLiters() + "L)";
-            String faultInfo = "";
-            if (status.getState() == DroneState.FAULTED && status.getFaultType() != FaultType.NONE) {
-                faultInfo = " [" + faultLabel(status.getFaultType()) + "]";
+            // Update DroneCard
+            if (droneId - 1 >= 0 && droneId - 1 < droneCards.size()) {
+                boolean hard = permanentlyFaultedDrones.contains(droneId) || 
+                               (status.getState() == DroneState.FAULTED && isHardFault(status.getFaultType()));
+                droneCards.get(droneId - 1).update(status, hard);
             }
-            setDroneState(droneId, status.getState().name() + zoneInfo + litersInfo + faultInfo,
-                    status.getState() == DroneState.FAULTED);
         });
     }
 
-
-
-    /**
-     * Update a zone's fire state and active count (backward-compatible, no severity).
-     */
     public void setZoneFire(int zoneId, boolean active) {
         setZoneFire(zoneId, active, null);
     }
 
-    /**
-     * Update a zone's fire state, severity display, and active count.
-     */
     public void setZoneFire(int zoneId, boolean active, FireEvent.Severity severity) {
         runOnEdt(() -> {
-            ZoneDef zone = getZoneById(zoneId);
-            if (zone != null) {
-                if (active) {
-                    zoneSeverities.put(zoneId, severity);
-                } else {
-                    zoneSeverities.remove(zoneId);
-                }
-            }
             tacticalMap.setZoneFire(zoneId, active, severity);
 
             if (active) {
@@ -249,116 +437,52 @@ public class FireDroneGUI extends JFrame {
                 }
             }
 
-            updateZoneLabel(zoneId, active, severity);
+            // Update ZoneCard
+            for (int i = 0; i < zoneCards.size(); i++) {
+                if (zoneCards.get(i).zoneId == zoneId) {
+                    zoneCards.get(i).update(active, severity);
+                    break;
+                }
+            }
         });
     }
 
-
-
-    /**
-     * Returns a short severity label for sidebar, e.g. "H", "M", "L".
-     */
-    private String severityShortLabel(FireEvent.Severity severity) {
-        if (severity == null) return "";
-        switch (severity) {
-            case HIGH:     return "H";
-            case MODERATE: return "M";
-            case LOW:      return "L";
-            default:       return "";
-        }
-    }
-
-    /**
-     * append a line to the event log.
-     */
     public void appendEvent(String message) {
         runOnEdt(() -> {
-            if (eventLog == null) {
-                return;
-            }
-            eventLog.append(message + "\n");
-            eventLog.setCaretPosition(eventLog.getDocument().getLength());
+            if (eventLog == null) return;
+            
+            Color c = Theme.TEXT_SECONDARY;
+            String lower = message.toLowerCase();
+            if (lower.contains("fire")) c = Theme.FIRE_MODERATE;
+            else if (lower.contains("fault")) c = Theme.FAULT_SOFT;
+            else if (lower.contains("extinguished") || lower.contains("safe")) c = Theme.TEXT_BRIGHT;
+            
+            StyleContext sc = StyleContext.getDefaultStyleContext();
+            AttributeSet aset = sc.addAttribute(SimpleAttributeSet.EMPTY, StyleConstants.Foreground, c);
+            
+            try {
+                int len = eventLog.getDocument().getLength();
+                eventLog.getDocument().insertString(len, message + "\n", aset);
+                eventLog.setCaretPosition(eventLog.getDocument().getLength());
+            } catch (Exception e) {}
         });
     }
 
-    /**
-     * update the displayed drone state label.
-     */
-    public void setDroneState(int droneId, String state) {
-        setDroneState(droneId, state, false);
-    }
-
-    /**
-     * update the displayed drone state label with optional fault highlighting.
-     */
-    public void setDroneState(int droneId, String state, boolean faulted) {
-        runOnEdt(() -> {
-            int index = droneId - 1;
-            if (index >= 0 && index < droneLabels.size()) {
-                JLabel lbl = droneLabels.get(index);
-                lbl.setText("Drone " + droneId + " - " + state);
-                lbl.setForeground(faulted ? new Color(200, 40, 40) : Color.BLACK);
-            }
-        });
-    }
-
-    /**
-     * set the active fire count in the status bar.
-     */
     public void setActiveFires(int count) {
         this.activeFires = Math.max(0, count);
-        updateStatusBar();
+        if (firesCounter != null) firesCounter.setText("FIRES: " + activeFires);
     }
 
-    /**
-     * set the active drone count in the status bar.
-     */
     public void setActiveDrones(int count) {
         this.activeDrones = Math.max(0, count);
-        updateStatusBar();
+        if (dronesCounter != null) dronesCounter.setText("DRONES: " + activeDrones);
     }
 
-    /**
-     * set the faulted drone count in the status bar.
-     */
     public void setFaultedDrones(int count) {
         this.faultedDrones = Math.max(0, count);
-        updateStatusBar();
+        if (faultsCounter != null) faultsCounter.setText("FAULTS: " + faultedDrones);
     }
 
-    /**
-     * rebuild the status bar text.
-     */
-    private void updateStatusBar() {
-        runOnEdt(() -> {
-            if (statusLeft != null) {
-                String text = "Simulation: Running | Active Fires: " + activeFires
-                        + " | Active Drones: " + activeDrones
-                        + " | Faulted: " + faultedDrones;
-                statusLeft.setText(text);
-            }
-        });
-    }
-
-    /**
-     * create the drone list panel.
-     */
-    private JComponent createDroneList(int count) {
-        JPanel p = new JPanel();
-        p.setLayout(new BoxLayout(p, BoxLayout.Y_AXIS));
-        droneLabels.clear();
-        for (int i = 1; i <= count; i++) {
-            JLabel lbl = new JLabel("Drone " + i + " - Idle");
-            lbl.setBorder(new EmptyBorder(4,4,4,4));
-            droneLabels.add(lbl);
-            p.add(lbl);
-        }
-        return p;
-    }
-
-    /**
-     * run a task on the swing event thread.
-     */
     private void runOnEdt(Runnable task) {
         if (SwingUtilities.isEventDispatchThread()) {
             task.run();
@@ -367,18 +491,10 @@ public class FireDroneGUI extends JFrame {
         }
     }
 
-    /**
-     * Returns whether the given fault type is a hard (permanent) fault.
-     */
     private boolean isHardFault(FaultType ft) {
         return ft == FaultType.NOZZLE_JAM;
     }
 
-
-
-    /**
-     * Returns a human-readable label for a fault type.
-     */
     private String faultLabel(FaultType ft) {
         switch (ft) {
             case STUCK_MID_FLIGHT:       return "Stuck Mid-Flight";
@@ -389,76 +505,122 @@ public class FireDroneGUI extends JFrame {
         }
     }
 
-    /**
-     * Creates a toolbar with the fault injection button.
-     */
-    private JPanel createToolbar() {
-        JPanel toolbar = new JPanel(new FlowLayout(FlowLayout.LEFT));
-        toolbar.setBorder(BorderFactory.createMatteBorder(0, 0, 1, 0, new Color(200, 200, 200)));
-
-        JButton injectFaultBtn = new JButton("\u26A0 Inject Fault");
-        injectFaultBtn.setToolTipText("Manually inject a fault into a drone");
-        injectFaultBtn.addActionListener(e -> showFaultInjectionDialog());
-        toolbar.add(injectFaultBtn);
-
-        return toolbar;
+    private String faultShortLabel(FaultType ft) {
+        switch (ft) {
+            case STUCK_MID_FLIGHT:       return "STUCK";
+            case NOZZLE_JAM:             return "NOZZLE";
+            case ARRIVAL_SENSOR_FAILURE: return "SENSOR";
+            case CORRUPTED_MESSAGE:      return "CORRUPT";
+            default:                     return "FAULT";
+        }
     }
 
-    /**
-     * Shows a dialog allowing the user to select a drone and fault type to inject.
-     */
-    private void showFaultInjectionDialog() {
-        JPanel panel = new JPanel(new GridLayout(3, 2, 8, 8));
-        panel.setBorder(new EmptyBorder(8, 8, 8, 8));
+    private String severityShortLabel(FireEvent.Severity severity) {
+        if (severity == null) return "";
+        switch (severity) {
+            case HIGH:     return "H";
+            case MODERATE: return "M";
+            case LOW:      return "L";
+            default:       return "";
+        }
+    }
 
-        // Drone selector
+    private void showFaultInjectionDialog() {
+        JDialog dialog = new JDialog(this, "INJECT FAULT", true);
+        dialog.getContentPane().setBackground(Theme.BG_PANEL);
+        
+        JPanel panel = new JPanel(new GridLayout(3, 2, 8, 8));
+        panel.setBorder(new EmptyBorder(16, 16, 16, 16));
+        panel.setOpaque(false);
+
+        JLabel l1 = new JLabel("TARGET DRONE:");
+        l1.setFont(Theme.FONT_MONO);
+        l1.setForeground(Theme.TEXT_SECONDARY);
+        
         JComboBox<String> droneSelector = new JComboBox<>();
+        droneSelector.setBackground(Theme.BG_CARD);
+        droneSelector.setForeground(Theme.TEXT_BRIGHT);
+        droneSelector.setFont(Theme.FONT_MONO);
         for (int i = 1; i <= droneCount; i++) {
             droneSelector.addItem("Drone " + i);
         }
-        panel.add(new JLabel("Target Drone:"));
+        
+        panel.add(l1);
         panel.add(droneSelector);
 
-        // Fault type selector (exclude NONE and CORRUPTED_MESSAGE which is packet-level)
+        JLabel l2 = new JLabel("FAULT TYPE:");
+        l2.setFont(Theme.FONT_MONO);
+        l2.setForeground(Theme.TEXT_SECONDARY);
+        
         FaultType[] injectableFaults = {
             FaultType.STUCK_MID_FLIGHT,
             FaultType.NOZZLE_JAM,
             FaultType.ARRIVAL_SENSOR_FAILURE
         };
         JComboBox<String> faultSelector = new JComboBox<>();
+        faultSelector.setBackground(Theme.BG_CARD);
+        faultSelector.setForeground(Theme.TEXT_BRIGHT);
+        faultSelector.setFont(Theme.FONT_MONO);
         for (FaultType ft : injectableFaults) {
             faultSelector.addItem(faultLabel(ft));
         }
-        panel.add(new JLabel("Fault Type:"));
+        
+        panel.add(l2);
         panel.add(faultSelector);
 
-        // Duration spinner (seconds) — disabled for hard faults (permanent)
+        JLabel l3 = new JLabel("DURATION (SEC):");
+        l3.setFont(Theme.FONT_MONO);
+        l3.setForeground(Theme.TEXT_SECONDARY);
+        
         SpinnerNumberModel durationModel = new SpinnerNumberModel(10, 5, 60, 5);
         JSpinner durationSpinner = new JSpinner(durationModel);
+        durationSpinner.setFont(Theme.FONT_MONO);
+        durationSpinner.getEditor().getComponent(0).setBackground(Theme.BG_CARD);
+        durationSpinner.getEditor().getComponent(0).setForeground(Theme.TEXT_BRIGHT);
+        
         faultSelector.addActionListener(e -> {
             int idx = faultSelector.getSelectedIndex();
             boolean isHard = injectableFaults[idx] == FaultType.NOZZLE_JAM;
             durationSpinner.setEnabled(!isHard);
         });
-        panel.add(new JLabel("Duration (sec):"));
+        
+        panel.add(l3);
         panel.add(durationSpinner);
 
-        int result = JOptionPane.showConfirmDialog(this, panel,
-                "Inject Fault", JOptionPane.OK_CANCEL_OPTION, JOptionPane.WARNING_MESSAGE);
-
-        if (result == JOptionPane.OK_OPTION) {
+        JPanel btnPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 10, 0));
+        btnPanel.setOpaque(false);
+        btnPanel.setBorder(new EmptyBorder(0, 16, 16, 16));
+        
+        JButton confirmBtn = new JButton("CONFIRM");
+        confirmBtn.setBackground(Theme.BG_CARD);
+        confirmBtn.setForeground(Theme.TEXT_PRIMARY);
+        confirmBtn.setFont(Theme.FONT_MONO_BOLD);
+        
+        JButton abortBtn = new JButton("ABORT");
+        abortBtn.setBackground(Theme.BG_CARD);
+        abortBtn.setForeground(Theme.TEXT_SECONDARY);
+        abortBtn.setFont(Theme.FONT_MONO_BOLD);
+        
+        confirmBtn.addActionListener(e -> {
             int droneIndex = droneSelector.getSelectedIndex() + 1;
             FaultType selectedFault = injectableFaults[faultSelector.getSelectedIndex()];
             long durationMs = ((Number) durationSpinner.getValue()).longValue() * 1000;
-
             sendFaultInjectionViaUDP(droneIndex, selectedFault, durationMs);
-        }
+            dialog.dispose();
+        });
+        
+        abortBtn.addActionListener(e -> dialog.dispose());
+        
+        btnPanel.add(abortBtn);
+        btnPanel.add(confirmBtn);
+
+        dialog.add(panel, BorderLayout.CENTER);
+        dialog.add(btnPanel, BorderLayout.SOUTH);
+        dialog.pack();
+        dialog.setLocationRelativeTo(this);
+        dialog.setVisible(true);
     }
 
-    /**
-     * Sends a FAULT_INJECTION message to the Scheduler via UDP so the fault
-     * is processed through the normal network pipeline.
-     */
     private void sendFaultInjectionViaUDP(int droneId, FaultType faultType, long durationMs) {
         try {
             DatagramSocket tempSocket = new DatagramSocket();
@@ -479,15 +641,5 @@ public class FireDroneGUI extends JFrame {
         } catch (Exception ex) {
             appendEvent("[GUI] Failed to inject fault: " + ex.getMessage());
         }
-    }
-
-    public static void main(String[] args) {
-        SwingUtilities.invokeLater(() -> {
-            try { com.formdev.flatlaf.FlatDarkLaf.setup(); } catch (Exception ignored) {}
-            FireDroneGUI window = new FireDroneGUI();
-            window.setVisible(true);
-
-
-        });
     }
 }
