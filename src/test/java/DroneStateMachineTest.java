@@ -90,7 +90,7 @@ public class DroneStateMachineTest {
         consumeStartupMessages();
 
         // Send assignment
-        FireEvent e = new FireEvent("00:00:01", 5, FireEvent.EventType.FIRE_DETECTED, FireEvent.Severity.LOW);
+        FireEvent e = new FireEvent("00:00:01", 4, FireEvent.EventType.FIRE_DETECTED, FireEvent.Severity.LOW);
         // schedulerToDrone.put(Message.droneAssignment(e));
         SwarmNetwork.sendMessage(schedulerSocket, InetAddress.getByName(SwarmNetwork.LOCALHOST), lastDronePort, Message.droneAssignment(e), "[Scheduler]", "sent Assignment", "to Drone");
 
@@ -247,8 +247,8 @@ public class DroneStateMachineTest {
 
         assertEquals(2, dronePorts.size(), "Expected IDLE status from both drones");
 
-        FireEvent e1 = new FireEvent("00:00:01", 5, FireEvent.EventType.FIRE_DETECTED, FireEvent.Severity.LOW);
-        FireEvent e2 = new FireEvent("00:00:02", 6, FireEvent.EventType.FIRE_DETECTED, FireEvent.Severity.LOW);
+        FireEvent e1 = new FireEvent("00:00:01", 4, FireEvent.EventType.FIRE_DETECTED, FireEvent.Severity.LOW);
+        FireEvent e2 = new FireEvent("00:00:02", 3, FireEvent.EventType.FIRE_DETECTED, FireEvent.Severity.LOW);
 
         SwarmNetwork.sendMessage(schedulerSocket, InetAddress.getByName(SwarmNetwork.LOCALHOST), dronePorts.get(1),
                 Message.droneAssignment(e1), "[Scheduler]", "sent Assignment", "to Drone 1");

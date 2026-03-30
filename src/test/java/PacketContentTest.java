@@ -35,7 +35,7 @@ public class PacketContentTest {
         System.out.println("Test 1: UDP packet content round-trip");
 
         // 1. Build a fire event and wrap it in a Message
-        FireEvent event = new FireEvent("00:00:01", 7, FireEvent.EventType.FIRE_DETECTED, FireEvent.Severity.MODERATE);
+        FireEvent event = new FireEvent("00:00:01", 4, FireEvent.EventType.FIRE_DETECTED, FireEvent.Severity.MODERATE);
         Message outgoing = Message.fireEvent(event);
 
         // 2. Send message over UDP to a receiver socket

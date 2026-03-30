@@ -52,10 +52,10 @@ public final class Theme {
     public static final Font FONT_HEADER     = new Font(Font.MONOSPACED, Font.BOLD, 18);
     public static final Font FONT_TITLE      = new Font(Font.MONOSPACED, Font.BOLD, 14);
 
-    // === DIMENSIONS ===
-    public static final int MAP_RESOLUTION = 2000;  // tactical map BufferedImage size (pixels)
-    public static final int GRID_COLS = 16;
-    public static final int GRID_ROWS = 16;
+    // === MAP CONFIGURATION ===
+    public static final int MAP_RESOLUTION = 600; // 600x600 px map
+    public static final int GRID_COLS = 100;
+    public static final int GRID_ROWS = 100;
     public static final int ZONE_PIXEL_SIZE = MAP_RESOLUTION / GRID_COLS; // 125 pixels per zone cell
 
     // === ANIMATION ===

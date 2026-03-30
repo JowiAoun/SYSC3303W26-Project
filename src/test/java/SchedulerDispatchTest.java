@@ -67,7 +67,7 @@ public class SchedulerDispatchTest {
         scheduler.handleIncomingMessage(rm);
 
         // 2. Fire event arrives
-         FireEvent e = new FireEvent("00:00:01", 7, FireEvent.EventType.FIRE_DETECTED, FireEvent.Severity.LOW);
+         FireEvent e = new FireEvent("00:00:01", 4, FireEvent.EventType.FIRE_DETECTED, FireEvent.Severity.LOW);
         // toScheduler.put(Message.fireEvent(e));
         SwarmNetwork.sendMessage(scheduler.getSocket(), InetAddress.getByName(SwarmNetwork.LOCALHOST), SwarmNetwork.SCHEDULER_PORT,
                 Message.fireEvent(e), "[FireIncident]", "sent FireEvent", "to Scheduler");
@@ -103,7 +103,7 @@ public class SchedulerDispatchTest {
         System.out.println("Test 3: Scheduler dispatches queued event after drone becomes IDLE");
 
         // 1. Fire comes first (pending)
-        FireEvent e = new FireEvent("00:00:01", 8, FireEvent.EventType.FIRE_DETECTED, FireEvent.Severity.LOW);
+        FireEvent e = new FireEvent("00:00:01", 4, FireEvent.EventType.FIRE_DETECTED, FireEvent.Severity.LOW);
         // toScheduler.put(Message.fireEvent(e));
         SwarmNetwork.sendMessage(scheduler.getSocket(), InetAddress.getByName(SwarmNetwork.LOCALHOST), SwarmNetwork.SCHEDULER_PORT,
                 Message.fireEvent(e), "[FireIncident]", "sent FireEvent", "to Scheduler");
@@ -162,7 +162,7 @@ public class SchedulerDispatchTest {
         scheduler.handleIncomingMessage(rm);
 
         // 2. Fire event arrives (Zone 6, needs 5L)
-        FireEvent e = new FireEvent("00:00:01", 6, FireEvent.EventType.FIRE_DETECTED, FireEvent.Severity.LOW);
+        FireEvent e = new FireEvent("00:00:01", 4, FireEvent.EventType.FIRE_DETECTED, FireEvent.Severity.LOW);
         // toScheduler.put(Message.fireEvent(e));
         SwarmNetwork.sendMessage(scheduler.getSocket(), InetAddress.getByName(SwarmNetwork.LOCALHOST), SwarmNetwork.SCHEDULER_PORT,
                 Message.fireEvent(e), "[FireIncident]", "sent FireEvent", "to Scheduler");
@@ -196,7 +196,7 @@ public class SchedulerDispatchTest {
         scheduler.handleIncomingMessage(rm);
 
         // 2. Fire event arrives (Zone 6, needs 10L - LOW)
-        FireEvent e = new FireEvent("00:00:01", 6, FireEvent.EventType.FIRE_DETECTED, FireEvent.Severity.LOW);
+        FireEvent e = new FireEvent("00:00:01", 4, FireEvent.EventType.FIRE_DETECTED, FireEvent.Severity.LOW);
         // toScheduler.put(Message.fireEvent(e));
         SwarmNetwork.sendMessage(scheduler.getSocket(), InetAddress.getByName(SwarmNetwork.LOCALHOST), SwarmNetwork.SCHEDULER_PORT,
                 Message.fireEvent(e), "[FireIncident]", "sent FireEvent", "to Scheduler");

@@ -9,8 +9,9 @@ import java.util.*;
 import java.util.List;
 
 public class FireDroneGUI extends JFrame {
-    private static final int COLS = 16;
-    private static final int ROWS = 16;
+    private static final String APP_TITLE = "FIRE DRONE SIMULATOR - TACTICAL HUD";
+    private static final int COLS = 100;
+    private static final int ROWS = 100;
 
     private TacticalMapPanel tacticalMap;
     private JTextPane commsLogPane;

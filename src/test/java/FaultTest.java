@@ -100,7 +100,7 @@ public class FaultTest {
      * Drain messages until the drone reaches IDLE again.
      */
     private void drainUntilIdle() throws Exception {
-        for (int i = 0; i < 50; i++) {
+        for (int i = 0; i < 500; i++) {
             SwarmNetwork.ReceivedMessage rm = SwarmNetwork.receiveMessageWithSource(schedulerSocket);
             Message msg = rm.getMessage();
             lastDroneAddr = rm.getAddress();
@@ -112,7 +112,7 @@ public class FaultTest {
                 return;
             }
         }
-        fail("Never reached IDLE state within 50 messages");
+        fail("Never reached IDLE state within 500 messages");
     }
 
     private void sendAssignment(FireEvent event) throws Exception {
@@ -151,7 +151,7 @@ public class FaultTest {
 
         FireEvent e = new FireEvent(
                 "00:00:01",
-                5,
+                4,
                 FireEvent.EventType.FIRE_DETECTED,
                 FireEvent.Severity.LOW,
                 FaultType.NONE,
@@ -159,14 +159,14 @@ public class FaultTest {
         );
         sendAssignment(e);
 
-        Message enRoute = awaitState(DroneState.EN_ROUTE, 20);
-        assertEquals(5, enRoute.getStatus().getZoneId());
+        Message enRoute = awaitState(DroneState.EN_ROUTE, 200);
+        assertEquals(4, enRoute.getStatus().getZoneId());
         assertEquals(FaultType.NONE, enRoute.getStatus().getFaultType());
 
         boolean sawCompleted = false;
         boolean sawIdle = false;
 
-        for (int i = 0; i < 50; i++) {
+        for (int i = 0; i < 500; i++) {
             SwarmNetwork.ReceivedMessage rm = SwarmNetwork.receiveMessageWithSource(schedulerSocket);
             Message msg = rm.getMessage();
             lastDroneAddr = rm.getAddress();
@@ -202,7 +202,7 @@ public class FaultTest {
 
         FireEvent e = new FireEvent(
                 "00:00:01",
-                5,
+                4,
                 FireEvent.EventType.FIRE_DETECTED,
                 FireEvent.Severity.LOW,
                 FaultType.STUCK_MID_FLIGHT,
@@ -210,10 +210,10 @@ public class FaultTest {
         );
         sendAssignment(e);
 
-        Message faulted = awaitFault(FaultType.STUCK_MID_FLIGHT, 40);
+        Message faulted = awaitFault(FaultType.STUCK_MID_FLIGHT, 400);
         assertEquals(DroneState.FAULTED, faulted.getStatus().getState());
 
-        Message returning = awaitState(DroneState.RETURNING, 20);
+        Message returning = awaitState(DroneState.RETURNING, 200);
         assertEquals(DroneState.RETURNING, returning.getStatus().getState());
 
         sendShutdown();
@@ -232,7 +232,7 @@ public class FaultTest {
 
         FireEvent e = new FireEvent(
                 "00:00:01",
-                5,
+                4,
                 FireEvent.EventType.FIRE_DETECTED,
                 FireEvent.Severity.LOW,
                 FaultType.NOZZLE_JAM,
@@ -240,7 +240,7 @@ public class FaultTest {
         );
         sendAssignment(e);
 
-        Message faulted = awaitFault(FaultType.NOZZLE_JAM, 50);
+        Message faulted = awaitFault(FaultType.NOZZLE_JAM, 500);
         assertEquals(DroneState.FAULTED, faulted.getStatus().getState());
 
         t.join(12000);
@@ -259,7 +259,7 @@ public class FaultTest {
 
         FireEvent e = new FireEvent(
                 "00:00:01",
-                5,
+                4,
                 FireEvent.EventType.FIRE_DETECTED,
                 FireEvent.Severity.LOW,
                 FaultType.ARRIVAL_SENSOR_FAILURE,
@@ -267,10 +267,10 @@ public class FaultTest {
         );
         sendAssignment(e);
 
-        Message faulted = awaitFault(FaultType.ARRIVAL_SENSOR_FAILURE, 50);
+        Message faulted = awaitFault(FaultType.ARRIVAL_SENSOR_FAILURE, 500);
         assertEquals(DroneState.FAULTED, faulted.getStatus().getState());
 
-        Message returning = awaitState(DroneState.RETURNING, 20);
+        Message returning = awaitState(DroneState.RETURNING, 200);
         assertEquals(DroneState.RETURNING, returning.getStatus().getState());
 
         sendShutdown();
@@ -298,7 +298,7 @@ public class FaultTest {
 
         FireEvent e = new FireEvent(
                 "00:00:01",
-                5,
+                4,
                 FireEvent.EventType.FIRE_DETECTED,
                 FireEvent.Severity.LOW,
                 FaultType.CORRUPTED_MESSAGE,
@@ -389,7 +389,7 @@ public class FaultTest {
         // send one fire event
         FireEvent e = new FireEvent(
                 "00:00:01",
-                5,
+                4,
                 FireEvent.EventType.FIRE_DETECTED,
                 FireEvent.Severity.LOW,
                 FaultType.NONE,
@@ -413,7 +413,7 @@ public class FaultTest {
 
         Message assignment = SwarmNetwork.receiveMessage(droneSocket);
         assertEquals(Message.Type.DRONE_ASSIGNMENT, assignment.getType());
-        assertEquals(5, assignment.getEvent().getZoneId());
+        assertEquals(4, assignment.getEvent().getZoneId());
 
         // wait past the timeout window
         Thread.sleep(11000);
