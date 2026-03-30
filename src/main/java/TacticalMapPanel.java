@@ -20,6 +20,8 @@ public class TacticalMapPanel extends JPanel {
     private javax.swing.Timer animationTimer;
     private int radarAngle = 0;
     private long frameCount = 0;
+    private long bootFrameCount = 0;
+    private static final long BOOT_DURATION = 45; // ~1.35s
 
     public TacticalMapPanel(List<ZoneDef> zones) {
         this.zones = zones;
@@ -72,29 +74,50 @@ public class TacticalMapPanel extends JPanel {
             boolean hasFire = zoneFireActive.getOrDefault(zone.id, false);
             Long extFrame = zoneExtinguishedFrame.get(zone.id);
             
+            // Base Zone Highlight
             if (hasFire) {
-                FireEvent.Severity sev = zoneSeverities.get(zone.id);
-                // Thermal base
-                g.setColor(new Color(42, 10, 10)); 
-                g.fillRect(pxX, pxY, pxW, pxH);
-                
-                // Thermal hot pixels
-                Random r = new Random(frameCount + zone.id);
-                int numPixels = (sev == FireEvent.Severity.HIGH) ? 200 : (sev == FireEvent.Severity.MODERATE ? 100 : 50);
-                for (int i=0; i<numPixels; i++) {
-                    int x = pxX + r.nextInt(pxW);
-                    int y = pxY + r.nextInt(pxH);
-                    int size = 4 + r.nextInt(8);
-                    g.setColor(r.nextBoolean() ? Theme.FIRE_HIGH : Theme.FIRE_MODERATE);
-                    g.fillRect(x, y, size, size);
-                }
-            } else if (extFrame != null && (frameCount - extFrame) < 15) {
-                // Flash green
-                g.setColor(Theme.TEXT_BRIGHT);
+                g.setColor(new Color(30, 15, 15)); // Faint red warning fill
                 g.fillRect(pxX, pxY, pxW, pxH);
             } else {
                 g.setColor(Theme.ZONE_SAFE);
                 g.fillRect(pxX, pxY, pxW, pxH);
+            }
+            
+            // Fire Spot processing
+            if (hasFire) {
+                FireEvent.Severity sev = zoneSeverities.get(zone.id);
+                // Fixed spot per zone
+                Random spotRand = new Random(zone.id * 738L);
+                int margin = Math.min(pxW, pxH) / 4; 
+                int spotX = pxX + margin + spotRand.nextInt(Math.max(1, pxW - 2*margin));
+                int spotY = pxY + margin + spotRand.nextInt(Math.max(1, pxH - 2*margin));
+                int radius = (sev == FireEvent.Severity.HIGH) ? 45 : (sev == FireEvent.Severity.MODERATE ? 30 : 15);
+                
+                // Thermal base circle
+                g.setColor(new Color(42, 10, 10, 200)); 
+                g.fillOval(spotX - radius, spotY - radius, radius*2, radius*2);
+                
+                // Thermal hot pixels
+                Random r = new Random(frameCount + zone.id);
+                int numPixels = (sev == FireEvent.Severity.HIGH) ? 150 : (sev == FireEvent.Severity.MODERATE ? 80 : 30);
+                for (int i=0; i<numPixels; i++) {
+                    double ang = r.nextDouble() * 2 * Math.PI;
+                    double currRad = Math.sqrt(r.nextDouble()) * radius;
+                    int x = (int)(spotX + currRad * Math.cos(ang));
+                    int y = (int)(spotY + currRad * Math.sin(ang));
+                    int size = 3 + r.nextInt(5);
+                    g.setColor(r.nextBoolean() ? Theme.FIRE_HIGH : Theme.FIRE_MODERATE);
+                    g.fillRect(x - size/2, y - size/2, size, size);
+                }
+            } else if (extFrame != null && (frameCount - extFrame) < 15) {
+                Random spotRand = new Random(zone.id * 738L);
+                int margin = Math.min(pxW, pxH) / 4; 
+                int spotX = pxX + margin + spotRand.nextInt(Math.max(1, pxW - 2*margin));
+                int spotY = pxY + margin + spotRand.nextInt(Math.max(1, pxH - 2*margin));
+                int radius = 35;
+                // Flash green spot
+                g.setColor(Theme.TEXT_BRIGHT);
+                g.fillOval(spotX - radius, spotY - radius, radius*2, radius*2);
             }
         }
 
@@ -215,6 +238,35 @@ public class TacticalMapPanel extends JPanel {
         g.setStroke(new BasicStroke(1));
         for (int y = 0; y < Theme.MAP_RESOLUTION; y += 3) {
             g.drawLine(0, y, Theme.MAP_RESOLUTION, y);
+        }
+
+        // Layer 7 - CRT Boot Sequence Overlay
+        if (bootFrameCount < BOOT_DURATION) {
+            bootFrameCount++;
+            float alpha = 1.0f - ((float)bootFrameCount / BOOT_DURATION);
+            g.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, alpha));
+            
+            // Background blanking
+            g.setColor(Theme.BG_MAIN);
+            g.fillRect(0, 0, Theme.MAP_RESOLUTION, Theme.MAP_RESOLUTION);
+            
+            // Boot text
+            g.setColor(Theme.TEXT_BRIGHT);
+            g.setFont(Theme.FONT_TITLE.deriveFont(32f));
+            String text = "INITIALIZING TACTICAL DISPLAY...";
+            FontMetrics metrics = g.getFontMetrics();
+            int width = metrics.stringWidth(text);
+            g.drawString(text, (Theme.MAP_RESOLUTION - width) / 2, Theme.MAP_RESOLUTION / 2);
+            
+            // Random noise scanlines
+            Random r = new Random(frameCount);
+            g.setColor(Theme.SCANLINE);
+            for (int i = 0; i < 150; i++) {
+                int y = r.nextInt(Theme.MAP_RESOLUTION);
+                g.drawLine(0, y, Theme.MAP_RESOLUTION, y);
+            }
+            
+            g.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, 1.0f));
         }
 
         g.dispose();

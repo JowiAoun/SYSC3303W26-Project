@@ -13,10 +13,15 @@ public class FireDroneGUI extends JFrame {
     private static final int ROWS = 16;
 
     private TacticalMapPanel tacticalMap;
+    private JTextPane commsLogPane;
 
     private final List<ZoneDef> zones = new ArrayList<>();
     private final List<DroneCard> droneCards = new ArrayList<>();
     private final List<ZoneCard> zoneCards = new ArrayList<>();
+    
+    private boolean flashState500 = false;
+    private boolean flashState750 = false;
+    private javax.swing.Timer borderAnimTimer;
     private final Set<Integer> activeZoneIds = new HashSet<>();
     private final Set<Integer> activeDroneIds = new HashSet<>();
     private final Set<Integer> faultedDroneIds = new HashSet<>();
@@ -59,6 +64,16 @@ public class FireDroneGUI extends JFrame {
         add(createHeaderBar(), BorderLayout.NORTH);
         add(centerPanel, BorderLayout.CENTER);
         add(createCommsLog(), BorderLayout.SOUTH);
+
+        // Sidebar Animations
+        borderAnimTimer = new javax.swing.Timer(250, e -> {
+            long time = System.currentTimeMillis();
+            flashState500 = (time / 500) % 2 == 0;
+            flashState750 = (time / 750) % 2 == 0;
+            for (ZoneCard zc : zoneCards) zc.updateBorder();
+            for (DroneCard dc : droneCards) dc.updateBorder();
+        });
+        borderAnimTimer.start();
 
         pack();
         setMinimumSize(new Dimension(1200, 850));
@@ -196,6 +211,8 @@ public class FireDroneGUI extends JFrame {
     private class ZoneCard extends JPanel {
         private final int zoneId;
         private final JLabel statusLabel;
+        private boolean isActive = false;
+        private FireEvent.Severity currentSeverity = null;
 
         public ZoneCard(ZoneDef zone) {
             this.zoneId = zone.id;
@@ -229,22 +246,33 @@ public class FireDroneGUI extends JFrame {
         }
 
         public void update(boolean active, FireEvent.Severity severity) {
+            this.isActive = active;
+            this.currentSeverity = severity;
+            
             if (active) {
-                setBorder(BorderFactory.createCompoundBorder(
-                        BorderFactory.createLineBorder(Theme.FIRE_ACTIVE, 1),
-                        new EmptyBorder(8, 8, 8, 8)
-                ));
                 statusLabel.setText("FIRE " + severityShortLabel(severity));
                 if (severity == FireEvent.Severity.HIGH) statusLabel.setForeground(Theme.FIRE_HIGH);
                 else if (severity == FireEvent.Severity.MODERATE) statusLabel.setForeground(Theme.FIRE_MODERATE);
                 else statusLabel.setForeground(Theme.FIRE_LOW);
             } else {
+                statusLabel.setText("CLEAR");
+                statusLabel.setForeground(Theme.TEXT_SECONDARY);
+            }
+            updateBorder();
+        }
+        
+        public void updateBorder() {
+            if (isActive) {
+                Color c = flashState500 ? Theme.FIRE_ACTIVE : Theme.FIRE_HIGH;
+                setBorder(BorderFactory.createCompoundBorder(
+                        BorderFactory.createLineBorder(c, 1),
+                        new EmptyBorder(8, 8, 8, 8)
+                ));
+            } else {
                 setBorder(BorderFactory.createCompoundBorder(
                         BorderFactory.createLineBorder(Theme.BORDER_DEFAULT, 1),
                         new EmptyBorder(8, 8, 8, 8)
                 ));
-                statusLabel.setText("CLEAR");
-                statusLabel.setForeground(Theme.TEXT_SECONDARY);
             }
         }
     }
@@ -285,6 +313,8 @@ public class FireDroneGUI extends JFrame {
         private final JLabel targetLabel;
         private final JLabel faultLabel;
         private final WaterGauge gauge;
+        private DroneStatus currentStatus = null;
+        private boolean isHardFaulted = false;
 
         public DroneCard(int droneId) {
             setLayout(new BoxLayout(this, BoxLayout.Y_AXIS));
@@ -331,17 +361,12 @@ public class FireDroneGUI extends JFrame {
         }
 
         public void update(DroneStatus ds, boolean isHardFaulted) {
+            this.currentStatus = ds;
+            this.isHardFaulted = isHardFaulted;
+            
             if (isHardFaulted) {
-                setBorder(BorderFactory.createCompoundBorder(
-                    BorderFactory.createLineBorder(Theme.FAULT_HARD, 1),
-                    new EmptyBorder(8, 8, 8, 8)
-                ));
                 stateLabel.setText("OFFLINE");
             } else {
-                setBorder(BorderFactory.createCompoundBorder(
-                    BorderFactory.createLineBorder(Theme.BORDER_DEFAULT, 1),
-                    new EmptyBorder(8, 8, 8, 8)
-                ));
                 stateLabel.setText(ds.getState().name());
             }
 
@@ -368,6 +393,29 @@ public class FireDroneGUI extends JFrame {
             }
             
             gauge.update(ds.getRemainingLiters());
+            updateBorder();
+        }
+        
+        public void updateBorder() {
+            if (currentStatus != null && currentStatus.getState() == DroneState.FAULTED) {
+                Color c = isHardFault(currentStatus.getFaultType()) ? Theme.FAULT_HARD : Theme.FAULT_SOFT;
+                Color borderC = flashState750 ? c : Theme.BORDER_DEFAULT;
+                setBorder(BorderFactory.createCompoundBorder(
+                    BorderFactory.createLineBorder(borderC, 1),
+                    new EmptyBorder(8, 8, 8, 8)
+                ));
+            } else if (isHardFaulted) {
+                Color borderC = flashState750 ? Theme.FAULT_HARD : Theme.BORDER_DEFAULT;
+                setBorder(BorderFactory.createCompoundBorder(
+                    BorderFactory.createLineBorder(borderC, 1),
+                    new EmptyBorder(8, 8, 8, 8)
+                ));
+            } else {
+                setBorder(BorderFactory.createCompoundBorder(
+                    BorderFactory.createLineBorder(Theme.BORDER_DEFAULT, 1),
+                    new EmptyBorder(8, 8, 8, 8)
+                ));
+            }
         }
     }
 
