@@ -48,12 +48,36 @@ public class PathPlanner {
     }
 
     /**
-     * Compute the target cell for a zone — the top-left corner (startCol, startRow).
-     * This matches where fires and zone labels are rendered on the GUI.
+     * Compute the target cell for a zone.
+     * Matches the seeded visual randomization of the active fire hotspot in TacticalMapPanel.
      * @return int[2] {col, row}
      */
     public static int[] zoneCenterCell(ZoneDef zone) {
-        return new int[]{zone.startCol, zone.startRow};
+        if (zone.id == 0) {
+            // Base zone gets geometric center
+            return new int[]{
+                zone.startCol + zone.widthCols / 2,
+                zone.startRow + zone.heightRows / 2
+            };
+        }
+
+        // Perfectly sync drone target coordinate with visual fire spot drawn in TacticalMapPanel
+        java.util.Random spotRand = new java.util.Random(zone.id * 738L);
+        
+        int pxW = zone.widthCols * Theme.ZONE_PIXEL_SIZE;
+        int pxH = zone.heightRows * Theme.ZONE_PIXEL_SIZE;
+        int margin = Math.min(pxW, pxH) / 4; 
+        
+        int pxX = zone.startCol * Theme.ZONE_PIXEL_SIZE;
+        int pxY = zone.startRow * Theme.ZONE_PIXEL_SIZE;
+        
+        int spotX = pxX + margin + spotRand.nextInt(Math.max(1, pxW - 2 * margin));
+        int spotY = pxY + margin + spotRand.nextInt(Math.max(1, pxH - 2 * margin));
+        
+        return new int[]{
+            spotX / Theme.ZONE_PIXEL_SIZE,
+            spotY / Theme.ZONE_PIXEL_SIZE
+        };
     }
 
     /**
