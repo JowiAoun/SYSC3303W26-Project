@@ -761,7 +761,7 @@ public class FireDroneGUI extends JFrame {
 
     public static void main(String[] args) {
         SwingUtilities.invokeLater(() -> {
-            try { UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName()); } catch (Exception ignored) {}
+            try { com.formdev.flatlaf.FlatDarkLaf.setup(); } catch (Exception ignored) {}
             FireDroneGUI window = new FireDroneGUI();
             window.setVisible(true);
 

@@ -54,7 +54,7 @@ public final class ZoneLoader {
                 int widthCols = Math.max(1, (int) (endX - startX));
                 int heightRows = Math.max(1, (int) (endY - startY));
 
-                Color color = zoneId == 0 ? new Color(220, 220, 220) : pickColor(zoneId);
+                Color color = zoneId == 0 ? new Color(0x15, 0x25, 0x15) : pickColor(zoneId);
                 zones.add(new ZoneDef(
                         zoneId,
                         startCol,
@@ -98,13 +98,13 @@ public final class ZoneLoader {
      */
     private static Color pickColor(int zoneId) {
         Color[] palette = new Color[] {
-                new Color(235, 245, 255),
-                new Color(235, 255, 235),
-                new Color(255, 245, 235),
-                new Color(245, 235, 255),
-                new Color(235, 250, 245),
-                new Color(250, 240, 235),
-                new Color(255, 255, 235)
+                new Color(0x1B, 0x2A, 0x1B), // Dark Green
+                new Color(0x22, 0x33, 0x22), // Olive Green
+                new Color(0x1A, 0x24, 0x1A), // Deep Forest Green
+                new Color(0x18, 0x28, 0x18), // Dark Pine
+                new Color(0x2A, 0x3A, 0x2A), // Muted Green
+                new Color(0x20, 0x30, 0x20), // Swamp Green
+                new Color(0x1E, 0x2E, 0x1E)  // Dark Moss
         };
         return palette[Math.floorMod(zoneId, palette.length)];
     }

@@ -5,6 +5,7 @@
  */
 import java.net.SocketException;
 import java.net.UnknownHostException;
+import com.formdev.flatlaf.FlatDarkLaf;
 
 public class Main {
     /**
@@ -13,6 +14,10 @@ public class Main {
     public static void main(String[] args) {
         String inputPath = "./src/main/resources/data/events.csv";
         int droneCount = 3;
+
+        try {
+            FlatDarkLaf.setup();
+        } catch (Exception ignored) {}
 
         // Build GUI (on EDT)
         FireDroneGUI gui = new FireDroneGUI(droneCount);
