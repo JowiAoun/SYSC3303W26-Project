@@ -25,6 +25,7 @@ public class TacticalMapPanel extends JPanel {
 
     public TacticalMapPanel(List<ZoneDef> zones) {
         this.zones = zones;
+        SpriteManager.init();
         mapImage = new BufferedImage(Theme.MAP_RESOLUTION, Theme.MAP_RESOLUTION, BufferedImage.TYPE_INT_ARGB);
         setPreferredSize(new Dimension(800, 800));
         
@@ -74,12 +75,12 @@ public class TacticalMapPanel extends JPanel {
             boolean hasFire = zoneFireActive.getOrDefault(zone.id, false);
             Long extFrame = zoneExtinguishedFrame.get(zone.id);
             
-            // Base Zone Highlight
+            // Base Zone Highlight (Transparent overlay)
             if (hasFire) {
-                g.setColor(new Color(30, 15, 15)); // Faint red warning fill
+                g.setColor(new Color(255, 10, 10, 50)); 
                 g.fillRect(pxX, pxY, pxW, pxH);
             } else {
-                g.setColor(Theme.ZONE_SAFE);
+                g.setColor(new Color(Theme.ZONE_SAFE.getRed(), Theme.ZONE_SAFE.getGreen(), Theme.ZONE_SAFE.getBlue(), 30));
                 g.fillRect(pxX, pxY, pxW, pxH);
             }
             
@@ -94,20 +95,28 @@ public class TacticalMapPanel extends JPanel {
                 int radius = (sev == FireEvent.Severity.HIGH) ? 45 : (sev == FireEvent.Severity.MODERATE ? 30 : 15);
                 
                 // Thermal base circle
-                g.setColor(new Color(42, 10, 10, 200)); 
-                g.fillOval(spotX - radius, spotY - radius, radius*2, radius*2);
-                
-                // Thermal hot pixels
-                Random r = new Random(frameCount + zone.id);
-                int numPixels = (sev == FireEvent.Severity.HIGH) ? 150 : (sev == FireEvent.Severity.MODERATE ? 80 : 30);
-                for (int i=0; i<numPixels; i++) {
-                    double ang = r.nextDouble() * 2 * Math.PI;
-                    double currRad = Math.sqrt(r.nextDouble()) * radius;
-                    int x = (int)(spotX + currRad * Math.cos(ang));
-                    int y = (int)(spotY + currRad * Math.sin(ang));
-                    int size = 3 + r.nextInt(5);
-                    g.setColor(r.nextBoolean() ? Theme.FIRE_HIGH : Theme.FIRE_MODERATE);
-                    g.fillRect(x - size/2, y - size/2, size, size);
+                if (SpriteManager.fireSprites != null) {
+                    int fireFrame = (int) ((frameCount / 3) % SpriteManager.fireSprites.length);
+                    BufferedImage fImg = SpriteManager.fireSprites[fireFrame];
+                    int fw = radius * 3;
+                    int fh = radius * 3;
+                    g.drawImage(fImg, spotX - fw/2, spotY - fh/2, fw, fh, null);
+                } else {
+                    g.setColor(new Color(42, 10, 10, 200)); 
+                    g.fillOval(spotX - radius, spotY - radius, radius*2, radius*2);
+                    
+                    // Thermal hot pixels
+                    Random r = new Random(frameCount + zone.id);
+                    int numPixels = (sev == FireEvent.Severity.HIGH) ? 150 : (sev == FireEvent.Severity.MODERATE ? 80 : 30);
+                    for (int i=0; i<numPixels; i++) {
+                        double ang = r.nextDouble() * 2 * Math.PI;
+                        double currRad = Math.sqrt(r.nextDouble()) * radius;
+                        int x = (int)(spotX + currRad * Math.cos(ang));
+                        int y = (int)(spotY + currRad * Math.sin(ang));
+                        int size = 3 + r.nextInt(5);
+                        g.setColor(r.nextBoolean() ? Theme.FIRE_HIGH : Theme.FIRE_MODERATE);
+                        g.fillRect(x - size/2, y - size/2, size, size);
+                    }
                 }
             } else if (extFrame != null && (frameCount - extFrame) < 15) {
                 Random spotRand = new Random(zone.id * 738L);
@@ -203,17 +212,38 @@ public class TacticalMapPanel extends JPanel {
                 angle = -Math.PI / 2; // Default point UP if no target direction
             }
 
-            // Draw Chevron
-            AffineTransform oldTransform = g.getTransform();
-            g.translate(centerX, centerY);
-            g.rotate(angle);
-            
-            g.setColor(dColor);
-            int[] cx = {15, -10, -5, -10};
-            int[] cy = {0, -12, 0, 12};
-            g.fillPolygon(cx, cy, 4);
-            
-            g.setTransform(oldTransform);
+            // Draw Drone Sprite, Chevron, or Base Truck
+            if ((ds.getState() == DroneState.IDLE || ds.getState() == DroneState.REFILLING) 
+                && ds.getZoneId() == 0 && SpriteManager.truckSprites != null) {
+                int truckFrame = (int) ((frameCount / 10) % SpriteManager.truckSprites.length);
+                BufferedImage tImg = SpriteManager.truckSprites[truckFrame];
+                int tw = 60, th = 40; 
+                g.drawImage(tImg, centerX - tw/2, centerY - th/2, tw, th, null);
+                
+            } else if (SpriteManager.droneSprites != null) {
+                int droneFrame = (int) ((frameCount / 2) % 4); 
+                BufferedImage dImg = SpriteManager.droneSprites[droneFrame];
+                
+                AffineTransform oldTransform = g.getTransform();
+                g.translate(centerX, centerY);
+                g.rotate(angle - Math.PI / 2); // drones point DOWN in sprite
+                
+                int dw = 32, dh = 32;
+                g.drawImage(dImg, -dw/2, -dh/2, dw, dh, null);
+                
+                g.setTransform(oldTransform);
+            } else {
+                AffineTransform oldTransform = g.getTransform();
+                g.translate(centerX, centerY);
+                g.rotate(angle);
+                
+                g.setColor(dColor);
+                int[] cx = {15, -10, -5, -10};
+                int[] cy = {0, -12, 0, 12};
+                g.fillPolygon(cx, cy, 4);
+                
+                g.setTransform(oldTransform);
+            }
         }
 
         // Layer 5 - Radar sweep (Filled arc with gradient fade effect)
