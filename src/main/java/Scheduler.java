@@ -657,6 +657,13 @@ public class Scheduler implements Runnable {
                             gui.appendEvent(msg);
                         }
                     }
+                } else if (status.getState() == DroneState.RETURNING) {
+                    FireEvent incomplete = activeAssignments.remove(droneId);
+                    assignmentDeadlines.remove(droneId);
+                    if (incomplete != null) {
+                        System.out.println("[Scheduler] Drone " + droneId + " ran out of water. Re-enqueueing remainder of fire: " + incomplete);
+                        pending.add(incomplete.withoutFault());
+                    }
                 }
 
                 if (gui != null) {
@@ -764,7 +771,7 @@ public class Scheduler implements Runnable {
                                                           FireEvent.Severity.HIGH;
                             
                             java.time.LocalTime now = java.time.LocalTime.now();
-                            String timeStr = String.format("%02d:%02d:%02d.000", now.getHour(), now.getMinute(), now.getSecond());
+                            String timeStr = String.format("%02d:%02d:%02d.%03d", now.getHour(), now.getMinute(), now.getSecond(), now.getNano() / 1000000);
                             FireEvent newFire = new FireEvent(timeStr, randomZoneId, FireEvent.EventType.FIRE_DETECTED, severity, FaultType.NONE, 0);
                             
                             Message fireMsg = Message.fireEvent(newFire);
