@@ -174,9 +174,9 @@ public class TacticalMapPanel extends JPanel {
             if (SpriteManager.droneSprites != null) {
                 int frame = 0;
                 if (ds.getState() == DroneState.EXTINGUISHING) {
-                    frame = 4 + (int) ((frameCount / 3) % 4);
+                    frame = 8 + (int) ((frameCount / 3) % 8);
                 } else if (ds.getState() == DroneState.EN_ROUTE || ds.getState() == DroneState.RETURNING) {
-                    frame = (int) ((frameCount / 3) % 4);
+                    frame = (int) ((frameCount / 3) % 8);
                 }
                 
                 if (frame >= SpriteManager.droneSprites.length) {
