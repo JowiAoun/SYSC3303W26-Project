@@ -76,7 +76,7 @@ public class TacticalMapPanel extends JPanel {
                     BufferedImage fImg = SpriteManager.fireSprites[fireFrame];
                     int fw = radius * 3;
                     int fh = radius * 3;
-                    g.drawImage(fImg, spotX - fw/2, spotY - fh/2, fw, fh, null);
+                    g.drawImage(fImg, spotX - fw/2, spotY - fh/2 + 28, fw, fh, null);
                 } else {
                     g.setColor(new Color(42, 10, 10, 200)); 
                     g.fillOval(spotX - radius, spotY - radius, radius*2, radius*2);
@@ -208,7 +208,8 @@ public class TacticalMapPanel extends JPanel {
                 double scale = 0.12 * animScale;
                 int dw = (int) (dImg.getWidth() * scale);
                 int dh = (int) (dImg.getHeight() * scale);
-                g.drawImage(dImg, centerX - dw / 2, (int) (centerY - (32 * animScale)), dw, dh, null);
+                int yOffset = 0;
+                g.drawImage(dImg, centerX - dw / 2, (int) (centerY - (32 * animScale)) - yOffset, dw, dh, null);
             } else {
                 AffineTransform oldTransform = g.getTransform();
                 g.translate(centerX, centerY);

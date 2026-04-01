@@ -12,6 +12,7 @@ public class SpriteManager {
     public static BufferedImage[] droneSprites;
     public static BufferedImage[] fireSprites;
     public static BufferedImage[] truckSprites;
+    public static BufferedImage[] portraitSprites;
 
     private static boolean initialized = false;
 
@@ -28,6 +29,9 @@ public class SpriteManager {
             
             BufferedImage truckSheet = ImageIO.read(new File("assets/truck.png"));
             truckSprites = slice(truckSheet, 2, 2);
+
+            BufferedImage portraitSheet = ImageIO.read(new File("assets/character1.png"));
+            portraitSprites = slice(portraitSheet, 3, 2);
             
             initialized = true;
         } catch (IOException e) {

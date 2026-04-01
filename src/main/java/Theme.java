@@ -6,11 +6,11 @@ public final class Theme {
     // === BACKGROUNDS ===
     public static final Color BG_MAIN        = new Color(0x48, 0x64, 0x3C);       // #48643c olive green
     public static final Color BG_PANEL       = new Color(0x35, 0x4A, 0x2C);       // darker olive green
-    public static final Color BG_CARD        = new Color(0x35, 0x4A, 0x2C);       // darker olive green
+    public static final Color BG_CARD        = new Color(45, 62, 37);       // darker olive green
 
     // === TEXT ===
     public static final Color TEXT_PRIMARY   = new Color(0xDD, 0xC0, 0x26);       // #ddc026 gold/yellow
-    public static final Color TEXT_SECONDARY = new Color(0x99, 0x93, 0x81);       // #999381 sand
+    public static final Color TEXT_SECONDARY = new Color(156, 142, 102);       // #999381 sand
     public static final Color TEXT_TERTIARY  = new Color(0x84, 0x75, 0x52);       // #847552 khaki
     public static final Color TEXT_BRIGHT    = new Color(0xDD, 0xC0, 0x26);       // #ddc026 gold/yellow
 
@@ -21,17 +21,20 @@ public final class Theme {
     public static final Color ZONE_EXTINGUISHED = new Color(0x84, 0x75, 0x52);        // khaki
 
     // === FIRE COLORS ===
-    public static final Color FIRE_ACTIVE     = new Color(0x69, 0x2C, 0x1F);      // #692c1f dark red
-    public static final Color FIRE_HIGH       = new Color(0x69, 0x2C, 0x1F);      
+    public static final Color FIRE_ACTIVE     = new Color(200, 49, 18);      // #692c1f dark red
+    public static final Color FIRE_HIGH       = new Color(138, 52, 32);
     public static final Color FIRE_MODERATE   = new Color(0x69, 0x2C, 0x1F);      
-    public static final Color FIRE_LOW        = new Color(0xDD, 0xC0, 0x26);      // gold
+    public static final Color FIRE_LOW        = new Color(74, 32, 21);
 
     // === DRONE COLORS ===
     public static final Color DRONE_OUTBOUND    = new Color(0x84, 0x75, 0x52);    // khaki
-    public static final Color DRONE_FIGHTING    = new Color(0xDD, 0xC0, 0x26);    // gold
+    public static final Color DRONE_FIGHTING    = new Color(234, 201, 27);    // gold
     public static final Color DRONE_RETURNING   = new Color(0x99, 0x93, 0x81);    // sand
     public static final Color DRONE_REFILLING   = new Color(0x99, 0x93, 0x81);    
     public static final Color DRONE_IDLE        = new Color(0x84, 0x75, 0x52);    // khaki
+    public static final Color WATER_LEVEL       = new Color(60, 160, 240);        // blue
+    public static final Color WATER_LOW         = new Color(40, 100, 180);        // dark blue
+    public static final Color WATER_CRITICAL    = new Color(20, 50, 100);         // very dark blue
 
     // === FAULT COLORS ===
     public static final Color FAULT_SOFT      = new Color(0xDD, 0xC0, 0x26);      // gold

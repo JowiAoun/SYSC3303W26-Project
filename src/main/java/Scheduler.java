@@ -19,8 +19,10 @@ import java.util.Set;
  */
 public class Scheduler implements Runnable {
     private static final int EXPECTED_ARRIVAL_TIME = 10000;//time before assume drone is stuck
+    private static final long DISPATCH_COOLDOWN_MS = 800; // stagger dispatches by 2s
     private final DatagramSocket socket;
     private final Queue<FireEvent> pending = new ArrayDeque<>();
+    private long lastDispatchTime = 0;
 
     private int totalEvents = 0;
     private int completed = 0;
@@ -90,9 +92,10 @@ public class Scheduler implements Runnable {
 
                 checkForTimedOutDrones();
 
-                // Try to dispatch to ALL available idle drones
-                while (canDispatchPendingEvent()) {
+                // Dispatch one drone per cooldown period to stagger visuals
+                if (canDispatchPendingEvent() && System.currentTimeMillis() - lastDispatchTime >= DISPATCH_COOLDOWN_MS) {
                     dispatchPendingEvent();
+                    lastDispatchTime = System.currentTimeMillis();
                 }
                 if (!canDispatchPendingEvent()) {
                     checkAndSendReturnToBase();
@@ -247,13 +250,11 @@ public class Scheduler implements Runnable {
         InetAddress addr = droneAddresses.get(droneId);
         Integer port = dronePorts.get(droneId);
 
-        // If drone is at a remote zone (not base), check if it has enough agent
-        if (status.getZoneId() != 0) {
-            if (status.getRemainingLiters() < next.getRequiredLiters()) {
-                 // Not enough agent for this task — return to base first.
-                 sendReturnToBase(droneId);
-                 return;
-            }
+        // Check if drone has any agent left — partial drops are OK (multi-trip design)
+        if (status.getRemainingLiters() <= 0) {
+            // Empty tank — send back to base for refill
+            sendReturnToBase(droneId);
+            return;
         }
 
         // If we get here, we can dispatch
@@ -430,12 +431,8 @@ public class Scheduler implements Runnable {
      * Checks whether all events are complete and queues are empty.
      */
     boolean isProcessingComplete() {
-        if (!fireIncidentDone || !pending.isEmpty() || completed != totalEvents) return false;
-        if (droneStatuses.isEmpty()) return false;
-        for (DroneStatus s : droneStatuses.values()) {
-            if (s.getState() != DroneState.IDLE) return false;
-        }
-        return true;
+        // Infinite mode enabled: bypass completion to keep simulation alive natively
+        return false;
     }
 
     /**
@@ -704,14 +701,64 @@ public class Scheduler implements Runnable {
                 sendFireIncidentMessage(Message.fireAck(message.getEvent()), "sent FireAck");
 
                 if (!fireStillActive) {
+                    int extinguishedZoneId = message.getEvent().getZoneId();
                     String completedMsg = "[Scheduler] Completion ack forwarded: " + message.getEvent();
                     System.out.println(completedMsg);
 
                     // Update GUI: Fire Extinguished
                     if (gui != null) {
-                        gui.setZoneFire(message.getEvent().getZoneId(), false);
+                        gui.setZoneFire(extinguishedZoneId, false);
                         gui.appendEvent(completedMsg);
                     }
+
+                    // --- Recall en-route drones heading to the now-extinguished zone ---
+                    for (Map.Entry<Integer, FireEvent> entry : new HashMap<>(activeAssignments).entrySet()) {
+                        int otherDroneId = entry.getKey();
+                        FireEvent assignment = entry.getValue();
+                        if (assignment != null && assignment.getZoneId() == extinguishedZoneId) {
+                            DroneStatus otherStatus = droneStatuses.get(otherDroneId);
+                            if (otherStatus != null && otherStatus.getState() == DroneState.EN_ROUTE) {
+                                try {
+                                    activeAssignments.remove(otherDroneId);
+                                    assignmentDeadlines.remove(otherDroneId);
+                                    sendReturnToBase(otherDroneId);
+                                    String recallMsg = "[Scheduler] Recalled Drone " + otherDroneId + " — fire at Zone " + extinguishedZoneId + " already extinguished.";
+                                    System.out.println(recallMsg);
+                                    if (gui != null) gui.appendEvent(recallMsg);
+                                } catch (Exception e) {
+                                    System.err.println("[Scheduler] Error recalling Drone " + otherDroneId + ": " + e.getMessage());
+                                }
+                            }
+                        }
+                    }
+
+                    // --- Purge pending events for the extinguished zone ---
+                    pending.removeIf(p -> p.getZoneId() == extinguishedZoneId);
+                    
+                    // --- Infinite Simulation: Spawn a new random fire 1-6s after extinguishing ---
+                    new Thread(() -> {
+                        try {
+                            int delayMs = 1000 + (int)(Math.random() * 5000); // 1 to 6 seconds
+                            Thread.sleep(delayMs);
+                            
+                            // Zones 1 to 4 to avoid base (zone 0)
+                            int randomZoneId = 1 + (int)(Math.random() * 4);
+                            
+                            int severityLevel = 1 + (int)(Math.random() * 3);
+                            FireEvent.Severity severity = severityLevel == 1 ? FireEvent.Severity.LOW : 
+                                                          severityLevel == 2 ? FireEvent.Severity.MODERATE : 
+                                                          FireEvent.Severity.HIGH;
+                            
+                            java.time.LocalTime now = java.time.LocalTime.now();
+                            String timeStr = String.format("%02d:%02d:%02d.000", now.getHour(), now.getMinute(), now.getSecond());
+                            FireEvent newFire = new FireEvent(timeStr, randomZoneId, FireEvent.EventType.FIRE_DETECTED, severity, FaultType.NONE, 0);
+                            
+                            Message fireMsg = Message.fireEvent(newFire);
+                            SwarmNetwork.sendMessage(socket, InetAddress.getLocalHost(), socket.getLocalPort(), fireMsg, "[FireSpawner]", "sent", "to self");
+                        } catch (Exception e) {
+                            System.err.println("[Scheduler] Error naturally spawning new fire: " + e.getMessage());
+                        }
+                    }).start();
                 }
                 break;
             }

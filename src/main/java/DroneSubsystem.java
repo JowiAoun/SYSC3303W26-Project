@@ -12,7 +12,7 @@ import java.util.List;
  */
 public class DroneSubsystem implements Runnable {
     private static final int MAX_CAPACITY_LITERS = 15;
-    private static final double TRAVEL_SPEED_MPS = 60.0;
+    private static final double TRAVEL_SPEED_MPS = 120.0;
     private static final int METERS_PER_ZONE = 5;
     private static final double DROP_SECONDS_PER_LITER = 0.5;
     private static final int BASE_ZONE_ID = 0;
@@ -236,22 +236,29 @@ public class DroneSubsystem implements Runnable {
             }
         }
 
-        int toDrop = Math.min(remainingLiters, remainingRequired);
-        double dropSeconds = toDrop * DROP_SECONDS_PER_LITER;
-        long sleepMs = Math.round(dropSeconds * 1000);
-
-        // Non-blocking: sleep in 100ms chunks, checking for RTB/SHUTDOWN
-        long dropEndsAt = System.currentTimeMillis() + sleepMs;
-        while (System.currentTimeMillis() < dropEndsAt) {
+        // Non-blocking: sleep in chunk tracking 1L drops per DROP_SECONDS_PER_LITER (0.5s)
+        while (remainingRequired > 0 && remainingLiters > 0) {
             if (checkForRTB()) return;
-            long remaining = dropEndsAt - System.currentTimeMillis();
-            if (remaining > 0) Thread.sleep(Math.min(100, remaining));
-        }
 
-        remainingLiters -= toDrop;
-        remainingRequired -= toDrop;
-        System.out.println("[Drone " + droneId + "] Dropped " + toDrop + "L. Remaining in tank: "
-                + remainingLiters + "L. Fire needs: " + remainingRequired + "L");
+            long sleepMs = Math.round(DROP_SECONDS_PER_LITER * 1000); // 500ms per liter
+            long dropEndsAt = System.currentTimeMillis() + sleepMs;
+            
+            // Sleep in 100ms chunks to check for RTB responsively
+            while (System.currentTimeMillis() < dropEndsAt) {
+                if (checkForRTB()) return;
+                long remaining = dropEndsAt - System.currentTimeMillis();
+                if (remaining > 0) Thread.sleep(Math.min(100, remaining));
+            }
+
+            remainingLiters -= 1;
+            remainingRequired -= 1;
+            
+            System.out.println("[Drone " + droneId + "] Dropped 1L. Remaining in tank: "
+                    + remainingLiters + "L. Fire needs: " + remainingRequired + "L");
+                    
+            // Update network -> updates GUI water gauge instantaneously!
+            sendStatus(currentState, targetZone);
+        }
 
         if (remainingRequired <= 0) {
             System.out.println("[Drone " + droneId + "] Fire extinguished. Awaiting next command.");

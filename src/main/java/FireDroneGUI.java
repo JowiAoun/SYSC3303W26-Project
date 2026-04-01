@@ -2,6 +2,7 @@ import javax.swing.*;
 import javax.swing.border.EmptyBorder;
 import javax.swing.text.*;
 import java.awt.*;
+import java.awt.image.BufferedImage;
 import java.net.DatagramSocket;
 import java.net.InetAddress;
 import java.text.SimpleDateFormat;
@@ -164,6 +165,10 @@ public class FireDroneGUI extends JFrame {
         scroll.setBorder(null);
         scroll.getVerticalScrollBar().setUnitIncrement(16);
         container.add(scroll, BorderLayout.CENTER);
+
+        PortraitPanel portraitPanel = new PortraitPanel();
+        container.add(portraitPanel, BorderLayout.SOUTH);
+        
         return container;
     }
 
@@ -245,7 +250,6 @@ public class FireDroneGUI extends JFrame {
             add(top, BorderLayout.NORTH);
             add(statusLabel, BorderLayout.SOUTH);
         }
-
         public void update(boolean active, FireEvent.Severity severity) {
             this.isActive = active;
             this.currentSeverity = severity;
@@ -277,6 +281,230 @@ public class FireDroneGUI extends JFrame {
             }
         }
     }
+    private class PortraitPanel extends JPanel {
+        private int frameCount = 0;
+        private boolean isSpeaking = false;
+        private String speechText = "";
+        private float bubbleScale = 0.0f;
+        private int speechTimer = 0;
+
+        public PortraitPanel() {
+            setPreferredSize(new Dimension(250, 420));
+            setBackground(Theme.BG_PANEL);
+            setBorder(null);
+
+            new javax.swing.Timer(50, e -> {
+                frameCount++;
+                if (isSpeaking) {
+                    bubbleScale = Math.min(1.0f, bubbleScale + 0.30f);
+                } else {
+                    bubbleScale = Math.max(0.0f, bubbleScale - 0.40f);
+                }
+                
+                if (speechTimer > 0) {
+                    speechTimer--;
+                    if (speechTimer == 0) {
+                        setIdle();
+                    }
+                } else if (Math.random() < 0.005) { // Roughly every 10 seconds empty
+                    triggerRandomSpeech();
+                }
+                
+                repaint();
+            }).start();
+        }
+
+        private void triggerRandomSpeech() {
+            int fires = activeZoneIds.size();
+            int faults = faultedDroneIds.size();
+            
+            String[] options;
+            if (fires > 0 && faults > 0) {
+                options = new String[]{
+                    "Warning! We have " + fires + " active fires and " + faults + " drones offline!",
+                    "Deploy drones carefully, " + faults + " units are currently faulted.",
+                    "We need to put out those " + fires + " fires immediately."
+                };
+            } else if (fires > 0) {
+                options = new String[]{
+                    "Target acquired: " + fires + " fires remaining.",
+                    "All units, converge on the " + fires + " active thermal signatures.",
+                    "Do not let those " + fires + " fires spread to adjacent zones!"
+                };
+            } else if (faults > 0) {
+                options = new String[]{
+                    "Maintenance team, we have " + faults + " units requiring repairs.",
+                    "Keep an eye on telemetry. " + faults + " drones are currently grounded."
+                };
+            } else {
+                options = new String[]{
+                    "All sectors clear. Awaiting further orders.",
+                    "Swarm is fully operational and standing by.",
+                    "Simulated environment stable. No anomalies detected."
+                };
+            }
+            
+            setSpeech(options[(int)(Math.random() * options.length)], 80); // 4 seconds
+        }
+
+        public void setSpeech(String text, int ticks) {
+            this.speechText = text;
+            this.isSpeaking = true;
+            this.speechTimer = ticks;
+        }
+
+        public void setIdle() {
+            this.isSpeaking = false;
+        }
+
+        @Override
+        protected void paintComponent(Graphics g) {
+            super.paintComponent(g);
+            Graphics2D g2 = (Graphics2D) g;
+            g2.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
+
+            if (SpriteManager.portraitSprites != null && SpriteManager.portraitSprites.length >= 6) {
+                int frame = 0;
+                if (isSpeaking) {
+                    int[] speakFrames = {3, 4, 5, 4};
+                    frame = speakFrames[(frameCount / 3) % speakFrames.length]; // Animation timing adjustment
+                } else {
+                    if (frameCount % 120 < 9) { // Blink timing adjustment
+                        int[] blinkFrames = {0, 1, 2};
+                        frame = blinkFrames[(frameCount % 120) / 3];
+                    } else {
+                        frame = 0; // open eyes
+                    }
+                }
+                
+                BufferedImage pImg = SpriteManager.portraitSprites[frame];
+                // Math config
+                int px = 20;
+                int pPad = 12;
+                int py = 45; // Antenna room
+                int pw = getWidth() - (px * 2);
+                int ph = pw;
+                
+                // Draw Antenna
+                g2.setColor(Color.BLACK);
+                g2.setStroke(new BasicStroke(2));
+                int cx = px + (pw / 2);
+                g2.drawLine(cx, py - pPad, cx - 25, py - pPad - 25);
+                g2.drawLine(cx, py - pPad, cx + 25, py - pPad - 25);
+                g2.fillOval(cx - 28, py - pPad - 28, 6, 6);
+                g2.fillOval(cx + 22, py - pPad - 28, 6, 6);
+                g2.setStroke(new BasicStroke(1));
+                
+                // Draw TV Border Chassis
+                g2.setColor(new Color(0x22, 0x22, 0x22));
+                g2.fillRoundRect(px - pPad, py - pPad, pw + (pPad * 2), ph + (pPad * 2) + 8, 10, 10);
+                g2.setColor(new Color(0x3D, 0x3D, 0x3D));
+                g2.drawRoundRect(px - pPad, py - pPad, pw + (pPad * 2), ph + (pPad * 2) + 8, 10, 10);
+                
+                // Draw Knobs
+                g2.setColor(Color.GRAY);
+                g2.fillOval(px + pw - 15, py + ph + 8, 8, 8);
+                g2.fillOval(px + pw - 30, py + ph + 8, 8, 8);
+                
+                // Draw Screen Backdrop
+                g2.setColor(Color.BLACK);
+                g2.fillRect(px, py, pw, ph);
+
+                // Draw Character Image (Flipped horizontally to look right)
+                g2.drawImage(pImg, px + pw, py, -pw, ph, null);
+                
+                // Overlay TV Scanlines
+                g2.setColor(new Color(0, 0, 0, 40));
+                for(int i = py; i < py + ph; i += 4) {
+                    g2.drawLine(px, i, px + pw, i);
+                }
+                
+                // Overlay Random Static Drops
+                if (frameCount % 70 < 8) {
+                    g2.setColor(new Color(255, 255, 255, 40));
+                    int staticHeight = 25;
+                    int staticY = py + (int)(Math.random() * (ph - staticHeight));
+                    g2.fillRect(px, staticY, pw, staticHeight);
+                    
+                    g2.setColor(new Color(0, 0, 0, 60));
+                    staticY = py + (int)(Math.random() * (ph - staticHeight));
+                    g2.fillRect(px, staticY, pw, staticHeight);
+                }
+                
+                // TV "LIVE" Broadcast Overlay Banner
+                int barHeight = 26;
+                int barY = py + ph - barHeight;
+                g2.setColor(new Color(0, 0, 0, 180));
+                g2.fillRect(px, barY, pw, barHeight);
+                
+                if (frameCount % 10 < 5) {
+                    g2.setColor(Theme.FIRE_HIGH);
+                    g2.fillOval(px + 8, barY + 8, 10, 10);
+                }
+                
+                g2.setColor(Color.WHITE);
+                g2.setFont(Theme.FONT_MONO_BOLD);
+                g2.drawString("LIVE: Cmdt. Luke", px + 24, barY + 18);
+                
+                // Speech bubble (Animated Scale & Shake)
+                if (bubbleScale > 0) {
+                    int bx = 15;
+                    int baseBy = py + ph + pPad + 18;
+                    int maxBh = getHeight() - baseBy - 10;
+                    
+                    int bh = (int)(maxBh * bubbleScale);
+                    int by = baseBy;
+                    int bw = getWidth() - 30;
+
+                    int shakeX = (isSpeaking && bubbleScale > 0.95f) ? (int)(Math.random() * 4) - 2 : 0;
+                    int shakeY = (isSpeaking && bubbleScale > 0.95f) ? (int)(Math.random() * 4) - 2 : 0;
+
+                    g2.setColor(Color.WHITE);
+                    g2.fillRoundRect(bx + shakeX, by + shakeY, bw, bh, 10, 10);
+                    g2.setColor(Color.BLACK);
+                    g2.drawRoundRect(bx + shakeX, by + shakeY, bw, bh, 10, 10);
+
+                    // Draw polygon tail only if bubble is big enough
+                    if (bubbleScale > 0.5f) {
+                        int tx = getWidth() / 2;
+                        int ty = by - 8;
+                        int[] xPoints = {tx - 6 + shakeX, tx + 6 + shakeX, tx + shakeX};
+                        int[] yPoints = {by + shakeY, by + shakeY, ty + shakeY};
+                        g2.setColor(Color.WHITE);
+                        g2.fillPolygon(xPoints, yPoints, 3);
+                        g2.setColor(Color.BLACK);
+                        g2.drawLine(tx - 6 + shakeX, by + shakeY, tx + shakeX, ty + shakeY);
+                        g2.drawLine(tx + 6 + shakeX, by + shakeY, tx + shakeX, ty + shakeY);
+                        g2.setColor(Color.WHITE);
+                        g2.drawLine(tx - 5 + shakeX, by + shakeY, tx + 5 + shakeX, by + shakeY);
+                    }
+                    
+                    // Draw text only if fully open
+                    if (bubbleScale > 0.95f) {
+                        g2.setColor(Color.BLACK);
+                        g2.setFont(Theme.FONT_MONO.deriveFont(18f));
+                        
+                        FontMetrics fm = g2.getFontMetrics();
+                        int textY = by + 24 + shakeY;
+                        String[] words = speechText.split(" ");
+                        StringBuilder line = new StringBuilder();
+                        for (String word : words) {
+                            if (fm.stringWidth(line.toString() + word) < bw - 16) {
+                                line.append(word).append(" ");
+                            } else {
+                                g2.drawString(line.toString(), bx + 8 + shakeX, textY);
+                                line = new StringBuilder(word + " ");
+                                textY += fm.getHeight();
+                            }
+                        }
+                        if (line.length() > 0) {
+                            g2.drawString(line.toString(), bx + 8 + shakeX, textY);
+                        }
+                    }
+                }
+            }
+        }
+    }
 
     private class WaterGauge extends JPanel {
         private int capacity = 15;
@@ -299,9 +527,9 @@ public class FireDroneGUI extends JFrame {
             float ratio = (float) current / capacity;
             int width = (int) (getWidth() * ratio);
             
-            Color fill = Theme.TEXT_BRIGHT;
-            if (ratio <= 0.1f) fill = Theme.FIRE_HIGH;
-            else if (ratio <= 0.3f) fill = Theme.FIRE_LOW;
+            Color fill = Theme.WATER_LEVEL;
+            if (ratio <= 0.1f) fill = Theme.WATER_CRITICAL;
+            else if (ratio <= 0.3f) fill = Theme.WATER_LOW;
             
             g.setColor(fill);
             g.fillRect(0, 0, width, getHeight());
