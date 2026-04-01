@@ -189,7 +189,7 @@ public class TacticalMapPanel extends JPanel {
                 double scale = (double) maxW / dImg.getWidth();
                 int dw = maxW;
                 int dh = (int) (dImg.getHeight() * scale);
-                g.drawImage(dImg, centerX - dw / 2, centerY - dh / 2, dw, dh, null);
+                g.drawImage(dImg, centerX - dw / 2, centerY - 32, dw, dh, null);
             } else {
                 AffineTransform oldTransform = g.getTransform();
                 g.translate(centerX, centerY);
