@@ -315,7 +315,7 @@ public class FireDroneGUI extends JFrame {
         }
 
         private void triggerRandomSpeech() {
-            int fires = activeZoneIds.size();
+            int fires = tacticalMap.getActiveFiresCount();
             int faults = faultedDroneIds.size();
             
             String[] options;

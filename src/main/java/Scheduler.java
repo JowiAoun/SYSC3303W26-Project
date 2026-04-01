@@ -722,7 +722,6 @@ public class Scheduler implements Runnable {
                 sendFireIncidentMessage(Message.fireAck(message.getEvent()), "sent FireAck");
 
                 if (!fireStillActive) {
-                    int extinguishedZoneId = message.getEvent().getZoneId();
                     String completedMsg = "[Scheduler] Completion ack forwarded: " + message.getEvent();
                     System.out.println(completedMsg);
 
