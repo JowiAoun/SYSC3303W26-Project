@@ -76,9 +76,27 @@ public class SpriteManager {
                 }
 
                 if (minX <= maxX && minY <= maxY) {
-                    int cw = maxX - minX + 1;
-                    int ch = maxY - minY + 1;
-                    sprites[row * cols + col] = frame.getSubimage(minX, minY, cw, ch);
+                    long sumX = 0;
+                    int count = 0;
+                    for (int py = minY; py <= maxY; py++) {
+                        for (int px = minX; px <= maxX; px++) {
+                            int alpha = (frame.getRGB(px, py) >> 24) & 0xFF;
+                            if (alpha > 20) {
+                                sumX += px;
+                                count++;
+                            }
+                        }
+                    }
+                    int anchorX = count > 0 ? (int)(sumX / count) : (minX + maxX) / 2;
+                    int leftExtent = anchorX - minX;
+                    int rightExtent = maxX - anchorX;
+                    int halfWidth = Math.max(leftExtent, rightExtent);
+                    int paddedWidth = halfWidth * 2 + 1;
+                    int croppedHeight = maxY - minY + 1;
+
+                    BufferedImage padded = new BufferedImage(paddedWidth, croppedHeight, BufferedImage.TYPE_INT_ARGB);
+                    padded.getGraphics().drawImage(frame.getSubimage(minX, minY, maxX - minX + 1, croppedHeight), halfWidth - leftExtent, 0, null);
+                    sprites[row * cols + col] = padded;
                 } else {
                     // Empty frame fallback
                     sprites[row * cols + col] = frame;
