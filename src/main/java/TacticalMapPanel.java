@@ -172,11 +172,12 @@ public class TacticalMapPanel extends JPanel {
 
             // Draw Drone Sprite or Chevron
             if (SpriteManager.droneSprites != null) {
-                int frame = 0;
+                int frame = 4; // default to dry frame
                 if (ds.getState() == DroneState.EXTINGUISHING) {
-                    frame = 4 + (int) ((frameCount / 4) % 4);
+                    frame = (int) ((frameCount / 4) % 4); // top row has water (0-3)
                 } else if (ds.getState() == DroneState.EN_ROUTE || ds.getState() == DroneState.RETURNING) {
-                    frame = (int) ((frameCount / 4) % 4);
+                    int[] flyFrames = {4, 7}; // frames without water
+                    frame = flyFrames[(int) ((frameCount / 4) % 2)];
                 }
                 
                 if (frame >= SpriteManager.droneSprites.length) {
@@ -184,7 +185,7 @@ public class TacticalMapPanel extends JPanel {
                 }
                 
                 BufferedImage dImg = SpriteManager.droneSprites[frame];
-                double scale = 0.25;
+                double scale = 0.12;
                 int dw = (int) (dImg.getWidth() * scale);
                 int dh = (int) (dImg.getHeight() * scale);
                 g.drawImage(dImg, centerX - dw / 2, centerY - 32, dw, dh, null);
