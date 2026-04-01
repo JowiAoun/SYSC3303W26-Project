@@ -172,7 +172,18 @@ public class TacticalMapPanel extends JPanel {
 
             // Draw Drone Sprite or Chevron
             if (SpriteManager.droneSprites != null) {
-                BufferedImage dImg = SpriteManager.droneSprites[0]; // Fix flickering by freezing frame
+                int frame = 0;
+                if (ds.getState() == DroneState.EXTINGUISHING) {
+                    frame = 4 + (int) ((frameCount / 3) % 4);
+                } else if (ds.getState() == DroneState.EN_ROUTE || ds.getState() == DroneState.RETURNING) {
+                    frame = (int) ((frameCount / 3) % 4);
+                }
+                
+                if (frame >= SpriteManager.droneSprites.length) {
+                    frame = 0;
+                }
+                
+                BufferedImage dImg = SpriteManager.droneSprites[frame];
                 int dw = 64, dh = 64;
                 g.drawImage(dImg, centerX - dw/2, centerY - dh/2, dw, dh, null);
             } else {
