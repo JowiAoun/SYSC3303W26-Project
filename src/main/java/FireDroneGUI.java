@@ -699,9 +699,8 @@ public class FireDroneGUI extends JFrame {
     public void addFireEvent(FireEvent event) {
         runOnEdt(() -> {
             tacticalMap.addActiveFire(event);
-            if (activeZoneIds.add(event.getZoneId())) {
-                setActiveFires(activeZoneIds.size());
-            }
+            activeZoneIds.add(event.getZoneId());
+            setActiveFires(tacticalMap.getActiveFiresCount());
             
             // Update ZoneCard
             for (ZoneCard card : zoneCards) {
@@ -717,18 +716,24 @@ public class FireDroneGUI extends JFrame {
         runOnEdt(() -> {
             tacticalMap.removeActiveFire(event);
             
-            // A zone is 'clear' only if NO active fires remain in it.
-            // Check tacticalMap.getActiveFiresCount() or just loosely remove it for UI counter correctness:
-            activeZoneIds.remove(event.getZoneId());
-            setActiveFires(activeZoneIds.size());
-            
-            // Update ZoneCard
-            for (ZoneCard card : zoneCards) {
-                if (card.zoneId == event.getZoneId()) {
-                    card.update(false, null);
+            boolean zoneStillActive = false;
+            for (FireEvent mapFire : tacticalMap.getActiveFires().values()) {
+                if (mapFire.getZoneId() == event.getZoneId()) {
+                    zoneStillActive = true;
                     break;
                 }
             }
+
+            if (!zoneStillActive) {
+                activeZoneIds.remove(event.getZoneId());
+                for (ZoneCard card : zoneCards) {
+                    if (card.zoneId == event.getZoneId()) {
+                        card.update(false, null);
+                        break;
+                    }
+                }
+            }
+            setActiveFires(tacticalMap.getActiveFiresCount());
         });
     }
 

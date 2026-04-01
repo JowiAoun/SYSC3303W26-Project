@@ -304,6 +304,10 @@ public class TacticalMapPanel extends JPanel {
     public int getActiveFiresCount() {
         return activeFires.size();
     }
+    
+    public Map<String, FireEvent> getActiveFires() {
+        return new HashMap<>(activeFires);
+    }
 
     public int[] screenToGrid(int screenX, int screenY) {
         int col = screenX * Theme.GRID_COLS / getWidth();

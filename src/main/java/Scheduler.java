@@ -732,18 +732,18 @@ public class Scheduler implements Runnable {
                         gui.appendEvent(completedMsg);
                     }
 
-                    // --- Recall en-route drones heading to the now-extinguished zone ---
+                    // --- Recall en-route drones heading to the now-extinguished fire ---
                     for (Map.Entry<Integer, FireEvent> entry : new HashMap<>(activeAssignments).entrySet()) {
                         int otherDroneId = entry.getKey();
                         FireEvent assignment = entry.getValue();
-                        if (assignment != null && assignment.getZoneId() == extinguishedZoneId) {
+                        if (assignment != null && assignment.getTime().equals(message.getEvent().getTime())) {
                             DroneStatus otherStatus = droneStatuses.get(otherDroneId);
                             if (otherStatus != null && otherStatus.getState() == DroneState.EN_ROUTE) {
                                 try {
                                     activeAssignments.remove(otherDroneId);
                                     assignmentDeadlines.remove(otherDroneId);
                                     sendReturnToBase(otherDroneId);
-                                    String recallMsg = "[Scheduler] Recalled Drone " + otherDroneId + " — fire at Zone " + extinguishedZoneId + " already extinguished.";
+                                    String recallMsg = "[Scheduler] Recalled Drone " + otherDroneId + " — fire fully extinguished.";
                                     System.out.println(recallMsg);
                                     if (gui != null) gui.appendEvent(recallMsg);
                                 } catch (Exception e) {
@@ -753,8 +753,8 @@ public class Scheduler implements Runnable {
                         }
                     }
 
-                    // --- Purge pending events for the extinguished zone ---
-                    pending.removeIf(p -> p.getZoneId() == extinguishedZoneId);
+                    // --- Purge pending events for the exact same fire in case leftovers existed ---
+                    pending.removeIf(p -> p.getTime().equals(message.getEvent().getTime()));
                     
                     // --- Infinite Simulation: Spawn a new random fire 1-6s after extinguishing ---
                     new Thread(() -> {
