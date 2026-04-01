@@ -110,8 +110,8 @@ public class TacticalMapPanel extends JPanel {
         // Layer 4 - Drones & Base
         ZoneDef baseZone = getZoneById(0);
         if (baseZone != null && SpriteManager.truckSprites != null) {
-            int cx = baseZone.startCol * Theme.ZONE_PIXEL_SIZE + (baseZone.widthCols * Theme.ZONE_PIXEL_SIZE) / 2 + 15;
-            int cy = baseZone.startRow * Theme.ZONE_PIXEL_SIZE + (baseZone.heightRows * Theme.ZONE_PIXEL_SIZE) / 2 + 45;
+            int cx = baseZone.startCol * Theme.ZONE_PIXEL_SIZE + (baseZone.widthCols * Theme.ZONE_PIXEL_SIZE) / 2 + 5;
+            int cy = baseZone.startRow * Theme.ZONE_PIXEL_SIZE + (baseZone.heightRows * Theme.ZONE_PIXEL_SIZE) / 2 + 30;
             int truckFrame = (int) ((frameCount / 10) % SpriteManager.truckSprites.length);
             BufferedImage tImg = SpriteManager.truckSprites[truckFrame];
             int tw = 90, th = 60; 
@@ -173,15 +173,8 @@ public class TacticalMapPanel extends JPanel {
             // Draw Drone Sprite or Chevron
             if (SpriteManager.droneSprites != null) {
                 BufferedImage dImg = SpriteManager.droneSprites[0]; // Fix flickering by freezing frame
-                
-                AffineTransform oldTransform = g.getTransform();
-                g.translate(centerX, centerY);
-                g.rotate(angle + Math.PI / 2); // drones point UP in fixed sprite
-                
                 int dw = 64, dh = 64;
-                g.drawImage(dImg, -dw/2, -dh/2, dw, dh, null);
-                
-                g.setTransform(oldTransform);
+                g.drawImage(dImg, centerX - dw/2, centerY - dh/2, dw, dh, null);
             } else {
                 AffineTransform oldTransform = g.getTransform();
                 g.translate(centerX, centerY);

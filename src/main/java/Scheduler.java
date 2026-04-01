@@ -650,7 +650,9 @@ public class Scheduler implements Runnable {
 
                 if (gui != null) {
                     gui.updateDroneStatus(status);
-                    gui.appendEvent(statusMsg);
+                    if (status.getState() != DroneState.EN_ROUTE) {
+                        gui.appendEvent(statusMsg);
+                    }
                 }
                 break;
             }
