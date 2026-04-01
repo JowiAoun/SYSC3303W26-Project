@@ -21,7 +21,7 @@ public class SpriteManager {
             mapSprite = ImageIO.read(new File("assets/map.png"));
             
             BufferedImage droneSheet = ImageIO.read(new File("assets/drone.png"));
-            droneSprites = slice(droneSheet, 4, 4);
+            droneSprites = slice(droneSheet, 4, 2);
             
             BufferedImage fireSheet = ImageIO.read(new File("assets/fire.png"));
             fireSprites = slice(fireSheet, 6, 3);
