@@ -62,8 +62,12 @@ public class TacticalMapPanel extends JPanel {
         g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
 
         // Layer 1 - Background
-        g.setColor(Theme.BG_MAIN);
-        g.fillRect(0, 0, Theme.MAP_RESOLUTION, Theme.MAP_RESOLUTION);
+        if (SpriteManager.mapSprite != null) {
+            g.drawImage(SpriteManager.mapSprite, 0, 0, Theme.MAP_RESOLUTION, Theme.MAP_RESOLUTION, null);
+        } else {
+            g.setColor(Theme.BG_MAIN);
+            g.fillRect(0, 0, Theme.MAP_RESOLUTION, Theme.MAP_RESOLUTION);
+        }
 
         // Layer 2 - Zone fills (Thermal pixels & Extinguish flash)
         for (ZoneDef zone : zones) {
@@ -130,24 +134,7 @@ public class TacticalMapPanel extends JPanel {
             }
         }
 
-        // Layer 3 - Grid lines
-        g.setColor(Theme.GRID_LINE_FAINT);
-        for (int i = 0; i <= Theme.GRID_COLS; i++) {
-            g.drawLine(i * Theme.ZONE_PIXEL_SIZE, 0, i * Theme.ZONE_PIXEL_SIZE, Theme.MAP_RESOLUTION);
-        }
-        for (int i = 0; i <= Theme.GRID_ROWS; i++) {
-            g.drawLine(0, i * Theme.ZONE_PIXEL_SIZE, Theme.MAP_RESOLUTION, i * Theme.ZONE_PIXEL_SIZE);
-        }
-        
-        g.setColor(Theme.GRID_LINE_ZONE);
-        g.setStroke(new BasicStroke(3));
-        for (ZoneDef zone : zones) {
-            int pxX = zone.startCol * Theme.ZONE_PIXEL_SIZE;
-            int pxY = zone.startRow * Theme.ZONE_PIXEL_SIZE;
-            int pxW = zone.widthCols * Theme.ZONE_PIXEL_SIZE;
-            int pxH = zone.heightRows * Theme.ZONE_PIXEL_SIZE;
-            g.drawRect(pxX, pxY, pxW, pxH);
-        }
+        // Layer 3 - Grid lines (Removed as per map sprite integration)
 
         // Layer 4 - Drones & Trails
         for (DroneStatus ds : droneStatuses.values()) {
