@@ -114,7 +114,7 @@ public class TacticalMapPanel extends JPanel {
             int cy = baseZone.startRow * Theme.ZONE_PIXEL_SIZE + (baseZone.heightRows * Theme.ZONE_PIXEL_SIZE) / 2;
             int truckFrame = (int) ((frameCount / 10) % SpriteManager.truckSprites.length);
             BufferedImage tImg = SpriteManager.truckSprites[truckFrame];
-            int tw = 60, th = 40; 
+            int tw = 120, th = 80; 
             g.drawImage(tImg, cx - tw/2, cy - th/2, tw, th, null);
         }
 
