@@ -681,15 +681,37 @@ public class Scheduler implements Runnable {
                         }
                     }
                 }
+
+                boolean fireStillActive = false;
+                if (message.getEvent() != null) {
+                    for (FireEvent active : activeAssignments.values()) {
+                        if (active != null && active.getZoneId() == message.getEvent().getZoneId()
+                                && active.getTime().equals(message.getEvent().getTime())) {
+                            fireStillActive = true;
+                            break;
+                        }
+                    }
+                    if (!fireStillActive) {
+                        for (FireEvent p : pending) {
+                            if (p.getZoneId() == message.getEvent().getZoneId() && p.getTime().equals(message.getEvent().getTime())) {
+                                fireStillActive = true;
+                                break;
+                            }
+                        }
+                    }
+                }
+
                 sendFireIncidentMessage(Message.fireAck(message.getEvent()), "sent FireAck");
 
-                String completedMsg = "[Scheduler] Completion ack forwarded: " + message.getEvent();
-                System.out.println(completedMsg);
+                if (!fireStillActive) {
+                    String completedMsg = "[Scheduler] Completion ack forwarded: " + message.getEvent();
+                    System.out.println(completedMsg);
 
-                // Update GUI: Fire Extinguished
-                if (gui != null) {
-                    gui.setZoneFire(message.getEvent().getZoneId(), false);
-                    gui.appendEvent(completedMsg);
+                    // Update GUI: Fire Extinguished
+                    if (gui != null) {
+                        gui.setZoneFire(message.getEvent().getZoneId(), false);
+                        gui.appendEvent(completedMsg);
+                    }
                 }
                 break;
             }
