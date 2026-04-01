@@ -14,8 +14,6 @@ public class TacticalMapPanel extends JPanel {
     private Map<Integer, Long> zoneExtinguishedFrame = new ConcurrentHashMap<>();
     
     private Map<Integer, DroneStatus> droneStatuses = new ConcurrentHashMap<>();
-    private Map<Integer, List<Point2D.Double>> droneTrails = new ConcurrentHashMap<>();
-    private static final int MAX_TRAIL_LENGTH = 8;
     
     private javax.swing.Timer animationTimer;
     private int radarAngle = 0;
@@ -32,29 +30,9 @@ public class TacticalMapPanel extends JPanel {
         animationTimer = new javax.swing.Timer(Theme.FRAME_DELAY_MS, e -> {
             radarAngle = (radarAngle + 2) % 360;
             frameCount++;
-            updateTrails();
             repaint();
         });
         animationTimer.start();
-    }
-
-    private void updateTrails() {
-        if (frameCount % 3 != 0) return; // Add to trail every 3rd frame
-        for (Map.Entry<Integer, DroneStatus> entry : droneStatuses.entrySet()) {
-            DroneStatus ds = entry.getValue();
-            if (ds.getState() == DroneState.IDLE) continue;
-            
-            double cx = ds.getCurrentCol() * Theme.ZONE_PIXEL_SIZE + Theme.ZONE_PIXEL_SIZE / 2.0;
-            double cy = ds.getCurrentRow() * Theme.ZONE_PIXEL_SIZE + Theme.ZONE_PIXEL_SIZE / 2.0;
-            
-            List<Point2D.Double> trail = droneTrails.computeIfAbsent(entry.getKey(), k -> new ArrayList<>());
-            if (trail.isEmpty() || trail.get(0).distance(cx, cy) > 5) {
-                trail.add(0, new Point2D.Double(cx, cy));
-                if (trail.size() > MAX_TRAIL_LENGTH) {
-                    trail.remove(trail.size() - 1);
-                }
-            }
-        }
     }
 
     private void renderMap() {
@@ -79,14 +57,7 @@ public class TacticalMapPanel extends JPanel {
             boolean hasFire = zoneFireActive.getOrDefault(zone.id, false);
             Long extFrame = zoneExtinguishedFrame.get(zone.id);
             
-            // Base Zone Highlight (Transparent overlay)
-            if (hasFire) {
-                g.setColor(new Color(255, 10, 10, 50)); 
-                g.fillRect(pxX, pxY, pxW, pxH);
-            } else {
-                g.setColor(new Color(Theme.ZONE_SAFE.getRed(), Theme.ZONE_SAFE.getGreen(), Theme.ZONE_SAFE.getBlue(), 30));
-                g.fillRect(pxX, pxY, pxW, pxH);
-            }
+            // Base Zone Highlight removed as per request
             
             // Fire Spot processing
             if (hasFire) {
@@ -96,7 +67,7 @@ public class TacticalMapPanel extends JPanel {
                 int margin = Math.min(pxW, pxH) / 4; 
                 int spotX = pxX + margin + spotRand.nextInt(Math.max(1, pxW - 2*margin));
                 int spotY = pxY + margin + spotRand.nextInt(Math.max(1, pxH - 2*margin));
-                int radius = (sev == FireEvent.Severity.HIGH) ? 45 : (sev == FireEvent.Severity.MODERATE ? 30 : 15);
+                int radius = (sev == FireEvent.Severity.HIGH) ? 30 : (sev == FireEvent.Severity.MODERATE ? 20 : 10);
                 
                 // Thermal base circle
                 if (SpriteManager.fireSprites != null) {
@@ -136,8 +107,21 @@ public class TacticalMapPanel extends JPanel {
 
         // Layer 3 - Grid lines (Removed as per map sprite integration)
 
-        // Layer 4 - Drones & Trails
+        // Layer 4 - Drones & Base
+        ZoneDef baseZone = getZoneById(0);
+        if (baseZone != null && SpriteManager.truckSprites != null) {
+            int cx = baseZone.startCol * Theme.ZONE_PIXEL_SIZE + (baseZone.widthCols * Theme.ZONE_PIXEL_SIZE) / 2;
+            int cy = baseZone.startRow * Theme.ZONE_PIXEL_SIZE + (baseZone.heightRows * Theme.ZONE_PIXEL_SIZE) / 2;
+            int truckFrame = (int) ((frameCount / 10) % SpriteManager.truckSprites.length);
+            BufferedImage tImg = SpriteManager.truckSprites[truckFrame];
+            int tw = 60, th = 40; 
+            g.drawImage(tImg, cx - tw/2, cy - th/2, tw, th, null);
+        }
+
         for (DroneStatus ds : droneStatuses.values()) {
+            if ((ds.getState() == DroneState.IDLE || ds.getState() == DroneState.REFILLING) && ds.getZoneId() == 0) {
+                continue; // don't draw drone when inside base truck
+            }
             if (ds.getState() == DroneState.IDLE && ds.getZoneId() != 0) {
                 continue;
             }
@@ -162,20 +146,7 @@ public class TacticalMapPanel extends JPanel {
             int centerX = ds.getCurrentCol() * Theme.ZONE_PIXEL_SIZE + Theme.ZONE_PIXEL_SIZE / 2;
             int centerY = ds.getCurrentRow() * Theme.ZONE_PIXEL_SIZE + Theme.ZONE_PIXEL_SIZE / 2;
 
-            // Draw Trail
-            List<Point2D.Double> trail = droneTrails.get(ds.getDroneId());
-            if (trail != null && ds.getState() != DroneState.IDLE) {
-                for (int i = 0; i < trail.size(); i++) {
-                    Point2D.Double p = trail.get(i);
-                    float alpha = 0.5f * (1.0f - ((float)i / MAX_TRAIL_LENGTH));
-                    g.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, alpha));
-                    g.setColor(dColor);
-                    g.fillOval((int)p.x - 6, (int)p.y - 6, 12, 12);
-                }
-                g.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, 1.0f));
-            }
-
-            // Draw Pulse Glow
+            // Draw Pulse Glow (Trail removed)
             if (ds.getState() == DroneState.EXTINGUISHING || ds.getState() == DroneState.REFILLING) {
                 int pulseRadius = 20 + (int)(Math.sin(frameCount * 0.2) * 10);
                 g.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, 0.3f));
@@ -199,21 +170,13 @@ public class TacticalMapPanel extends JPanel {
                 angle = -Math.PI / 2; // Default point UP if no target direction
             }
 
-            // Draw Drone Sprite, Chevron, or Base Truck
-            if ((ds.getState() == DroneState.IDLE || ds.getState() == DroneState.REFILLING) 
-                && ds.getZoneId() == 0 && SpriteManager.truckSprites != null) {
-                int truckFrame = (int) ((frameCount / 10) % SpriteManager.truckSprites.length);
-                BufferedImage tImg = SpriteManager.truckSprites[truckFrame];
-                int tw = 60, th = 40; 
-                g.drawImage(tImg, centerX - tw/2, centerY - th/2, tw, th, null);
-                
-            } else if (SpriteManager.droneSprites != null) {
-                int droneFrame = (int) ((frameCount / 2) % 4); 
-                BufferedImage dImg = SpriteManager.droneSprites[droneFrame];
+            // Draw Drone Sprite or Chevron
+            if (SpriteManager.droneSprites != null) {
+                BufferedImage dImg = SpriteManager.droneSprites[0]; // Fix flickering by freezing frame
                 
                 AffineTransform oldTransform = g.getTransform();
                 g.translate(centerX, centerY);
-                g.rotate(angle - Math.PI / 2); // drones point DOWN in sprite
+                g.rotate(angle + Math.PI / 2); // drones point UP in fixed sprite
                 
                 int dw = 32, dh = 32;
                 g.drawImage(dImg, -dw/2, -dh/2, dw, dh, null);
