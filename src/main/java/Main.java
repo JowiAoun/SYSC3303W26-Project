@@ -15,6 +15,12 @@ public class Main {
         String inputPath = "./src/main/resources/data/events.csv";
         int droneCount = 10;
 
+        java.io.PrintStream dummyStream = new java.io.PrintStream(new java.io.OutputStream() {
+            public void write(int b) {}
+        });
+        System.setOut(dummyStream);
+        System.setErr(dummyStream);
+
         try {
             FlatDarkLaf.setup();
         } catch (Exception ignored) {}
