@@ -744,7 +744,7 @@ public class Scheduler implements Runnable {
                     // --- Infinite Simulation: Spawn a new random fire 1-6s after extinguishing ---
                     new Thread(() -> {
                         try {
-                            int delayMs = 500 + (int)(Math.random() * 1500); // 0.5 to 2 seconds
+                            int delayMs = 300 + (int)(Math.random() * 900); // 0.3 to 1.2 seconds
                             Thread.sleep(delayMs);
                             
                             // Zones 1 to 4 to avoid base (zone 0)

@@ -105,11 +105,11 @@ public class FireEvent {
     public int getRequiredLiters() {
         switch (severity) {
             case LOW:
-                return 10;
+                return 4;
             case MODERATE:
-                return 20;
+                return 6;
             case HIGH:
-                return 30;
+                return 8;
             default:
                 return 0;
         }
