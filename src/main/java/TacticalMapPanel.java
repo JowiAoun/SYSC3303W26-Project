@@ -184,10 +184,8 @@ public class TacticalMapPanel extends JPanel {
                 }
                 
                 BufferedImage dImg = SpriteManager.droneSprites[frame];
-                // Scale to fit within 80px wide, preserving aspect ratio
-                int maxW = 80;
-                double scale = (double) maxW / dImg.getWidth();
-                int dw = maxW;
+                double scale = 0.25;
+                int dw = (int) (dImg.getWidth() * scale);
                 int dh = (int) (dImg.getHeight() * scale);
                 g.drawImage(dImg, centerX - dw / 2, centerY - 32, dw, dh, null);
             } else {
