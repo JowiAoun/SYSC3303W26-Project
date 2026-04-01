@@ -9,9 +9,8 @@ import java.util.concurrent.ConcurrentHashMap;
 public class TacticalMapPanel extends JPanel {
     private BufferedImage mapImage;
     private List<ZoneDef> zones;
-    private Map<Integer, Boolean> zoneFireActive = new ConcurrentHashMap<>();
-    private Map<Integer, FireEvent.Severity> zoneSeverities = new ConcurrentHashMap<>();
-    private Map<Integer, Long> zoneExtinguishedFrame = new ConcurrentHashMap<>();
+    private Map<String, FireEvent> activeFires = new ConcurrentHashMap<>();
+    private Map<String, Long> fireExtinguishedFrame = new ConcurrentHashMap<>();
     
     private Map<Integer, DroneStatus> droneStatuses = new ConcurrentHashMap<>();
     private Map<Integer, Double> takeoffScales = new ConcurrentHashMap<>();
@@ -49,59 +48,27 @@ public class TacticalMapPanel extends JPanel {
         }
 
         // Layer 2 - Zone fills (Thermal pixels & Extinguish flash)
-        for (ZoneDef zone : zones) {
-            int pxX = zone.startCol * Theme.ZONE_PIXEL_SIZE;
-            int pxY = zone.startRow * Theme.ZONE_PIXEL_SIZE;
-            int pxW = zone.widthCols * Theme.ZONE_PIXEL_SIZE;
-            int pxH = zone.heightRows * Theme.ZONE_PIXEL_SIZE;
-
-            boolean hasFire = zoneFireActive.getOrDefault(zone.id, false);
-            Long extFrame = zoneExtinguishedFrame.get(zone.id);
+        // Layer 2 - Drawing precise active fires
+        for (FireEvent fire : activeFires.values()) {
+            ZoneDef zone = getZoneById(fire.getZoneId());
+            if (zone == null) continue;
             
-            // Base Zone Highlight removed as per request
+            FireEvent.Severity sev = fire.getSeverity();
+            int[] targetCell = PathPlanner.fireTargetCell(zone, fire.getTime());
             
-            // Fire Spot processing
-            if (hasFire) {
-                FireEvent.Severity sev = zoneSeverities.get(zone.id);
-                // Fixed spot per zone
-                Random spotRand = new Random(zone.id * 738L);
-                int margin = Math.min(pxW, pxH) / 4; 
-                int spotX = pxX + margin + spotRand.nextInt(Math.max(1, pxW - 2*margin));
-                int spotY = pxY + margin + spotRand.nextInt(Math.max(1, pxH - 2*margin));
-                int radius = (sev == FireEvent.Severity.HIGH) ? 30 : (sev == FireEvent.Severity.MODERATE ? 20 : 10);
-                
-                // Thermal base circle
-                if (SpriteManager.fireSprites != null) {
-                    int fireFrame = (int) ((frameCount / 3) % SpriteManager.fireSprites.length);
-                    BufferedImage fImg = SpriteManager.fireSprites[fireFrame];
-                    int fw = radius * 3;
-                    int fh = radius * 3;
-                    g.drawImage(fImg, spotX - fw/2, spotY - fh/2 + 28, fw, fh, null);
-                } else {
-                    g.setColor(new Color(42, 10, 10, 200)); 
-                    g.fillOval(spotX - radius, spotY - radius, radius*2, radius*2);
-                    
-                    // Thermal hot pixels
-                    Random r = new Random(frameCount + zone.id);
-                    int numPixels = (sev == FireEvent.Severity.HIGH) ? 150 : (sev == FireEvent.Severity.MODERATE ? 80 : 30);
-                    for (int i=0; i<numPixels; i++) {
-                        double ang = r.nextDouble() * 2 * Math.PI;
-                        double currRad = Math.sqrt(r.nextDouble()) * radius;
-                        int x = (int)(spotX + currRad * Math.cos(ang));
-                        int y = (int)(spotY + currRad * Math.sin(ang));
-                        int size = 3 + r.nextInt(5);
-                        g.setColor(r.nextBoolean() ? Theme.FIRE_HIGH : Theme.FIRE_MODERATE);
-                        g.fillRect(x - size/2, y - size/2, size, size);
-                    }
-                }
-            } else if (extFrame != null && (frameCount - extFrame) < 15) {
-                Random spotRand = new Random(zone.id * 738L);
-                int margin = Math.min(pxW, pxH) / 4; 
-                int spotX = pxX + margin + spotRand.nextInt(Math.max(1, pxW - 2*margin));
-                int spotY = pxY + margin + spotRand.nextInt(Math.max(1, pxH - 2*margin));
-                int radius = 35;
-                // Flash green spot
-                g.setColor(Theme.TEXT_BRIGHT);
+            int spotX = targetCell[0] * Theme.ZONE_PIXEL_SIZE + (Theme.ZONE_PIXEL_SIZE / 2);
+            int spotY = targetCell[1] * Theme.ZONE_PIXEL_SIZE + (Theme.ZONE_PIXEL_SIZE / 2);
+            int radius = (sev == FireEvent.Severity.HIGH) ? 30 : (sev == FireEvent.Severity.MODERATE ? 20 : 10);
+            
+            if (SpriteManager.fireSprites != null) {
+                int fireFrame = (int) ((frameCount / 3) % SpriteManager.fireSprites.length);
+                BufferedImage fImg = SpriteManager.fireSprites[fireFrame];
+                int fw = radius * 3;
+                int fh = radius * 3;
+                // Render at target cell, shifted +28px down to place fire beneath drone visually
+                g.drawImage(fImg, spotX - fw/2, spotY - fh/2 + 28, fw, fh, null);
+            } else {
+                g.setColor(new Color(42, 10, 10, 200)); 
                 g.fillOval(spotX - radius, spotY - radius, radius*2, radius*2);
             }
         }
@@ -324,15 +291,18 @@ public class TacticalMapPanel extends JPanel {
         droneStatuses.put(status.getDroneId(), status);
     }
 
-    public synchronized void setZoneFire(int zoneId, boolean active, FireEvent.Severity severity) {
-        zoneFireActive.put(zoneId, active);
-        if (active) {
-            zoneSeverities.put(zoneId, severity);
-            zoneExtinguishedFrame.remove(zoneId);
-        } else {
-            zoneSeverities.remove(zoneId);
-            zoneExtinguishedFrame.put(zoneId, frameCount);
-        }
+    public synchronized void addActiveFire(FireEvent event) {
+        activeFires.put(event.getTime(), event);
+        fireExtinguishedFrame.remove(event.getTime());
+    }
+
+    public synchronized void removeActiveFire(FireEvent event) {
+        activeFires.remove(event.getTime());
+        fireExtinguishedFrame.put(event.getTime(), frameCount);
+    }
+    
+    public int getActiveFiresCount() {
+        return activeFires.size();
     }
 
     public int[] screenToGrid(int screenX, int screenY) {

@@ -47,12 +47,7 @@ public class PathPlanner {
         return path;
     }
 
-    /**
-     * Compute the target cell for a zone.
-     * Matches the seeded visual randomization of the active fire hotspot in TacticalMapPanel.
-     * @return int[2] {col, row}
-     */
-    public static int[] zoneCenterCell(ZoneDef zone) {
+    public static int[] fireTargetCell(ZoneDef zone, String eventTime) {
         if (zone.id == 0) {
             // Base zone gets geometric center
             return new int[]{
@@ -61,8 +56,12 @@ public class PathPlanner {
             };
         }
 
-        // Perfectly sync drone target coordinate with visual fire spot drawn in TacticalMapPanel
-        java.util.Random spotRand = new java.util.Random(zone.id * 738L);
+        // Distinct pseudo-random spot based on event's unique timestamp
+        long seed = zone.id * 738L;
+        if (eventTime != null && !eventTime.isEmpty()) {
+            seed ^= eventTime.hashCode();
+        }
+        java.util.Random spotRand = new java.util.Random(seed);
         
         int pxW = zone.widthCols * Theme.ZONE_PIXEL_SIZE;
         int pxH = zone.heightRows * Theme.ZONE_PIXEL_SIZE;

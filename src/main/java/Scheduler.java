@@ -194,11 +194,11 @@ public class Scheduler implements Runnable {
      * Find the closest idle drone to a target zone using Euclidean distance.
      * @return the drone ID of the closest idle drone, or null if none available
      */
-    private Integer findClosestIdleDrone(int targetZoneId) {
-        ZoneDef targetZone = getSchedulerZoneById(targetZoneId);
+    private Integer findClosestIdleDrone(FireEvent event) {
+        ZoneDef targetZone = getSchedulerZoneById(event.getZoneId());
         if (targetZone == null) return findIdleDrone(); // fallback
 
-        int[] targetCenter = PathPlanner.zoneCenterCell(targetZone);
+        int[] targetCenter = PathPlanner.fireTargetCell(targetZone, event.getTime());
         Integer bestDrone = null;
         double bestDistance = Double.MAX_VALUE;
 
@@ -233,7 +233,7 @@ public class Scheduler implements Runnable {
      */
     boolean canDispatchPendingEvent() {
         if (pending.isEmpty()) return false;
-        return findClosestIdleDrone(pending.peek().getZoneId()) != null;
+        return findClosestIdleDrone(pending.peek()) != null;
     }
 
     /**
@@ -243,7 +243,7 @@ public class Scheduler implements Runnable {
         FireEvent next = pending.peek();
         if (next == null) return;
 
-        Integer droneId = findClosestIdleDrone(next.getZoneId());
+        Integer droneId = findClosestIdleDrone(next);
         if (droneId == null) return;
 
         DroneStatus status = droneStatuses.get(droneId);
@@ -548,7 +548,7 @@ public class Scheduler implements Runnable {
 
             // Update GUI: New Fire with severity
             if (gui != null) {
-                gui.setZoneFire(event.getZoneId(), true, event.getSeverity());
+                if (gui != null) gui.addFireEvent(event);
                 gui.appendEvent(msg);
             }
 
@@ -713,7 +713,7 @@ public class Scheduler implements Runnable {
 
                     // Update GUI: Fire Extinguished
                     if (gui != null) {
-                        gui.setZoneFire(extinguishedZoneId, false);
+                        if (gui != null) gui.removeFireEvent(message.getEvent());
                         gui.appendEvent(completedMsg);
                     }
 

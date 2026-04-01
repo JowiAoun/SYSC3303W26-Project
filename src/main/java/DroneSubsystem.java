@@ -67,7 +67,7 @@ public class DroneSubsystem implements Runnable {
         this.zones = ZoneLoader.loadZones("./src/main/resources/data/zones.csv", 200, 200);
         ZoneDef baseZone = getZoneById(BASE_ZONE_ID);
         if (baseZone != null) {
-            int[] baseCenter = PathPlanner.zoneCenterCell(baseZone);
+            int[] baseCenter = PathPlanner.fireTargetCell(baseZone, null);
             this.currentCol = baseCenter[0];
             this.currentRow = baseCenter[1];
         }
@@ -549,7 +549,7 @@ public class DroneSubsystem implements Runnable {
             Thread.sleep(2000);
             return true;
         }
-        int[] targetCenter = PathPlanner.zoneCenterCell(targetZone);
+        int[] targetCenter = PathPlanner.fireTargetCell(targetZone, currentAssignment != null ? currentAssignment.getTime() : null);
         List<int[]> path = PathPlanner.computePath(currentCol, currentRow, targetCenter[0], targetCenter[1]);
 
         // Skip first cell (current position), traverse remaining cells

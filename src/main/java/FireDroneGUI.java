@@ -444,7 +444,7 @@ public class FireDroneGUI extends JFrame {
                 
                 g2.setColor(Color.WHITE);
                 g2.setFont(Theme.FONT_MONO_BOLD);
-                g2.drawString("LIVE: Cmdt. Luke", px + 24, barY + 18);
+                g2.drawString("LIVE: Cmdt. Sabouni", px + 24, barY + 18);
                 
                 // Speech bubble (Animated Scale & Shake)
                 if (bubbleScale > 0) {
@@ -696,28 +696,36 @@ public class FireDroneGUI extends JFrame {
         });
     }
 
-    public void setZoneFire(int zoneId, boolean active) {
-        setZoneFire(zoneId, active, null);
-    }
-
-    public void setZoneFire(int zoneId, boolean active, FireEvent.Severity severity) {
+    public void addFireEvent(FireEvent event) {
         runOnEdt(() -> {
-            tacticalMap.setZoneFire(zoneId, active, severity);
-
-            if (active) {
-                if (activeZoneIds.add(zoneId)) {
-                    setActiveFires(activeZoneIds.size());
-                }
-            } else {
-                if (activeZoneIds.remove(zoneId)) {
-                    setActiveFires(activeZoneIds.size());
+            tacticalMap.addActiveFire(event);
+            if (activeZoneIds.add(event.getZoneId())) {
+                setActiveFires(activeZoneIds.size());
+            }
+            
+            // Update ZoneCard
+            for (ZoneCard card : zoneCards) {
+                if (card.zoneId == event.getZoneId()) {
+                    card.update(true, event.getSeverity());
+                    break;
                 }
             }
+        });
+    }
 
+    public void removeFireEvent(FireEvent event) {
+        runOnEdt(() -> {
+            tacticalMap.removeActiveFire(event);
+            
+            // A zone is 'clear' only if NO active fires remain in it.
+            // Check tacticalMap.getActiveFiresCount() or just loosely remove it for UI counter correctness:
+            activeZoneIds.remove(event.getZoneId());
+            setActiveFires(activeZoneIds.size());
+            
             // Update ZoneCard
-            for (int i = 0; i < zoneCards.size(); i++) {
-                if (zoneCards.get(i).zoneId == zoneId) {
-                    zoneCards.get(i).update(active, severity);
+            for (ZoneCard card : zoneCards) {
+                if (card.zoneId == event.getZoneId()) {
+                    card.update(false, null);
                     break;
                 }
             }
@@ -883,7 +891,6 @@ public class FireDroneGUI extends JFrame {
             FaultType selectedFault = injectableFaults[faultSelector.getSelectedIndex()];
             long durationMs = ((Number) durationSpinner.getValue()).longValue() * 1000;
             sendFaultInjectionViaUDP(droneIndex, selectedFault, durationMs);
-            dialog.dispose();
         });
         
         abortBtn.addActionListener(e -> dialog.dispose());
