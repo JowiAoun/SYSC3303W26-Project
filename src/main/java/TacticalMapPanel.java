@@ -144,10 +144,6 @@ public class TacticalMapPanel extends JPanel {
                 continue;
             }
             
-            if (ds.getState() == DroneState.FAULTED && (frameCount % 30 < 15)) {
-                continue; // Blink faulted drones
-            }
-            
             Color dColor = Theme.DRONE_IDLE;
             boolean isHard = (ds.getFaultType() == FaultType.NOZZLE_JAM);
             switch(ds.getState()) {
@@ -231,6 +227,25 @@ public class TacticalMapPanel extends JPanel {
                 g.fillPolygon(cx, cy, 4);
                 
                 g.setTransform(oldTransform);
+            }
+
+            // Draw spark effect if faulted
+            if (ds.getState() == DroneState.FAULTED) {
+                // Update sparkles every 3 frames (slower flicker)
+                Random r = new Random((frameCount / 3) + ds.getDroneId());
+                int numSparks = 1 + r.nextInt(3); // 1 to 3 sparks instead of 4-8
+                Graphics2D g2 = (Graphics2D) g.create();
+                g2.setStroke(new BasicStroke(1.5f));
+                int sparkCenterY = (int)(centerY - (32 * animScale));
+                for (int i = 0; i < numSparks; i++) {
+                    g2.setColor(r.nextBoolean() ? Color.YELLOW : Color.WHITE);
+                    int x1 = centerX - 15 + r.nextInt(31);
+                    int y1 = sparkCenterY - 15 + r.nextInt(31);
+                    int x2 = x1 - 8 + r.nextInt(17);
+                    int y2 = y1 - 8 + r.nextInt(17);
+                    g2.drawLine(x1, y1, x2, y2);
+                }
+                g2.dispose();
             }
         }
 
