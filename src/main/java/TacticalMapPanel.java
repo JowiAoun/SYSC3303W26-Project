@@ -14,6 +14,7 @@ public class TacticalMapPanel extends JPanel {
     private Map<Integer, Long> zoneExtinguishedFrame = new ConcurrentHashMap<>();
     
     private Map<Integer, DroneStatus> droneStatuses = new ConcurrentHashMap<>();
+    private Map<Integer, Double> takeoffScales = new ConcurrentHashMap<>();
     
     private javax.swing.Timer animationTimer;
     private int radarAngle = 0;
@@ -119,9 +120,26 @@ public class TacticalMapPanel extends JPanel {
         }
 
         for (DroneStatus ds : droneStatuses.values()) {
-            if ((ds.getState() == DroneState.IDLE || ds.getState() == DroneState.REFILLING) && ds.getZoneId() == 0) {
-                continue; // don't draw drone when inside base truck
+            double animScale = takeoffScales.getOrDefault(ds.getDroneId(), 0.0);
+            boolean atBaseIdle = (ds.getState() == DroneState.IDLE || ds.getState() == DroneState.REFILLING) && ds.getZoneId() == 0;
+
+            if (atBaseIdle) {
+                if (animScale > 0.0) {
+                    animScale -= 0.05;
+                    if (animScale <= 0.0) animScale = 0.0;
+                }
+            } else {
+                if (animScale < 1.0) {
+                    animScale += 0.05;
+                    if (animScale > 1.0) animScale = 1.0;
+                }
             }
+            takeoffScales.put(ds.getDroneId(), animScale);
+
+            if (animScale <= 0.0 && atBaseIdle) {
+                continue; // Fully landed and hidden inside base truck
+            }
+
             if (ds.getState() == DroneState.IDLE && ds.getZoneId() != 0) {
                 continue;
             }
@@ -186,10 +204,10 @@ public class TacticalMapPanel extends JPanel {
                 }
                 
                 BufferedImage dImg = SpriteManager.droneSprites[frame];
-                double scale = 0.12;
+                double scale = 0.12 * animScale;
                 int dw = (int) (dImg.getWidth() * scale);
                 int dh = (int) (dImg.getHeight() * scale);
-                g.drawImage(dImg, centerX - dw / 2, centerY - 32, dw, dh, null);
+                g.drawImage(dImg, centerX - dw / 2, (int) (centerY - (32 * animScale)), dw, dh, null);
             } else {
                 AffineTransform oldTransform = g.getTransform();
                 g.translate(centerX, centerY);
@@ -198,6 +216,13 @@ public class TacticalMapPanel extends JPanel {
                 g.setColor(dColor);
                 int[] cx = {15, -10, -5, -10};
                 int[] cy = {0, -12, 0, 12};
+                
+                // Scale chevron visually
+                for (int i=0; i<4; i++) {
+                    cx[i] = (int)(cx[i] * animScale);
+                    cy[i] = (int)(cy[i] * animScale);
+                }
+                
                 g.fillPolygon(cx, cy, 4);
                 
                 g.setTransform(oldTransform);
