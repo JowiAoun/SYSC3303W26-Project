@@ -21,7 +21,7 @@ public class SpriteManager {
             mapSprite = ImageIO.read(new File("assets/map.png"));
             
             BufferedImage droneSheet = ImageIO.read(new File("assets/drone.png"));
-            droneSprites = slice(droneSheet, 8, 4);
+            droneSprites = sliceAndCrop(droneSheet, 4, 2);
             
             BufferedImage fireSheet = ImageIO.read(new File("assets/fire.png"));
             fireSprites = slice(fireSheet, 6, 3);
@@ -42,6 +42,47 @@ public class SpriteManager {
         for (int y = 0; y < rows; y++) {
             for (int x = 0; x < cols; x++) {
                 sprites[y * cols + x] = sheet.getSubimage(x * w, y * h, w, h);
+            }
+        }
+        return sprites;
+    }
+
+    /**
+     * Slice a sprite sheet then auto-crop each frame to its visible (alpha > 0)
+     * bounding box. This eliminates positional drift between frames that causes
+     * "teleporting" when rendering at a fixed location.
+     */
+    private static BufferedImage[] sliceAndCrop(BufferedImage sheet, int cols, int rows) {
+        int fw = sheet.getWidth() / cols;
+        int fh = sheet.getHeight() / rows;
+        BufferedImage[] sprites = new BufferedImage[cols * rows];
+
+        for (int row = 0; row < rows; row++) {
+            for (int col = 0; col < cols; col++) {
+                BufferedImage frame = sheet.getSubimage(col * fw, row * fh, fw, fh);
+
+                // Find alpha bounding box
+                int minX = fw, maxX = 0, minY = fh, maxY = 0;
+                for (int py = 0; py < fh; py++) {
+                    for (int px = 0; px < fw; px++) {
+                        int alpha = (frame.getRGB(px, py) >> 24) & 0xFF;
+                        if (alpha > 10) {
+                            if (px < minX) minX = px;
+                            if (px > maxX) maxX = px;
+                            if (py < minY) minY = py;
+                            if (py > maxY) maxY = py;
+                        }
+                    }
+                }
+
+                if (minX <= maxX && minY <= maxY) {
+                    int cw = maxX - minX + 1;
+                    int ch = maxY - minY + 1;
+                    sprites[row * cols + col] = frame.getSubimage(minX, minY, cw, ch);
+                } else {
+                    // Empty frame fallback
+                    sprites[row * cols + col] = frame;
+                }
             }
         }
         return sprites;

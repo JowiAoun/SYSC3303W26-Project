@@ -174,9 +174,9 @@ public class TacticalMapPanel extends JPanel {
             if (SpriteManager.droneSprites != null) {
                 int frame = 0;
                 if (ds.getState() == DroneState.EXTINGUISHING) {
-                    frame = 8 + (int) ((frameCount / 3) % 8);
+                    frame = 4 + (int) ((frameCount / 4) % 4);
                 } else if (ds.getState() == DroneState.EN_ROUTE || ds.getState() == DroneState.RETURNING) {
-                    frame = (int) ((frameCount / 3) % 8);
+                    frame = (int) ((frameCount / 4) % 4);
                 }
                 
                 if (frame >= SpriteManager.droneSprites.length) {
@@ -184,8 +184,12 @@ public class TacticalMapPanel extends JPanel {
                 }
                 
                 BufferedImage dImg = SpriteManager.droneSprites[frame];
-                int dw = 64, dh = 64;
-                g.drawImage(dImg, centerX - dw/2, centerY - dh/2, dw, dh, null);
+                // Scale to fit within 80px wide, preserving aspect ratio
+                int maxW = 80;
+                double scale = (double) maxW / dImg.getWidth();
+                int dw = maxW;
+                int dh = (int) (dImg.getHeight() * scale);
+                g.drawImage(dImg, centerX - dw / 2, centerY - dh / 2, dw, dh, null);
             } else {
                 AffineTransform oldTransform = g.getTransform();
                 g.translate(centerX, centerY);
