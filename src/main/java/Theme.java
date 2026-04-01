@@ -4,46 +4,46 @@ public final class Theme {
     private Theme() {}
 
     // === BACKGROUNDS ===
-    public static final Color BG_MAIN        = new Color(0x0A, 0x0A, 0x0A);       // #0A0A0A near-black
-    public static final Color BG_PANEL       = new Color(0x0D, 0x1A, 0x0D);       // #0D1A0D dark olive
-    public static final Color BG_CARD        = new Color(0x1A, 0x2A, 0x1A);       // #1A2A1A slightly lighter olive
+    public static final Color BG_MAIN        = new Color(0x48, 0x64, 0x3C);       // #48643c olive green
+    public static final Color BG_PANEL       = new Color(0x35, 0x4A, 0x2C);       // darker olive green
+    public static final Color BG_CARD        = new Color(0x35, 0x4A, 0x2C);       // darker olive green
 
     // === TEXT ===
-    public static final Color TEXT_PRIMARY   = new Color(0xFF, 0xB0, 0x00);       // #FFB000 amber
-    public static final Color TEXT_SECONDARY = new Color(0x44, 0xAA, 0x44);       // #44AA44 dim green
-    public static final Color TEXT_TERTIARY  = new Color(0xAA, 0x88, 0x00);       // #AA8800 dim amber
-    public static final Color TEXT_BRIGHT    = new Color(0x00, 0xFF, 0x41);       // #00FF41 CRT green
+    public static final Color TEXT_PRIMARY   = new Color(0xDD, 0xC0, 0x26);       // #ddc026 gold/yellow
+    public static final Color TEXT_SECONDARY = new Color(0x99, 0x93, 0x81);       // #999381 sand
+    public static final Color TEXT_TERTIARY  = new Color(0x84, 0x75, 0x52);       // #847552 khaki
+    public static final Color TEXT_BRIGHT    = new Color(0xDD, 0xC0, 0x26);       // #ddc026 gold/yellow
 
     // === GRID / MAP ===
-    public static final Color GRID_LINE_FAINT  = new Color(0x1A, 0x3A, 0x1A);    // #1A3A1A dim green
-    public static final Color GRID_LINE_ZONE   = new Color(0x2A, 0x5A, 0x2A);    // #2A5A2A medium green
-    public static final Color ZONE_SAFE        = new Color(0x0D, 0x1A, 0x0D);    // #0D1A0D base dark olive
-    public static final Color ZONE_EXTINGUISHED = new Color(0x11, 0x44, 0x11);   // #114411 darker green
+    public static final Color GRID_LINE_FAINT  = new Color(0x84, 0x75, 0x52, 50);     // faint khaki
+    public static final Color GRID_LINE_ZONE   = new Color(0x84, 0x75, 0x52, 100);    // khaki
+    public static final Color ZONE_SAFE        = new Color(0x48, 0x64, 0x3C);         // olive green
+    public static final Color ZONE_EXTINGUISHED = new Color(0x84, 0x75, 0x52);        // khaki
 
     // === FIRE COLORS ===
-    public static final Color FIRE_ACTIVE     = new Color(0xFF, 0x22, 0x00);      // #FF2200 bright red
-    public static final Color FIRE_HIGH       = new Color(0xFF, 0x00, 0x00);      // #FF0000 pulsing red
-    public static final Color FIRE_MODERATE   = new Color(0xFF, 0x66, 0x00);      // #FF6600 orange
-    public static final Color FIRE_LOW        = new Color(0xFF, 0xAA, 0x00);      // #FFAA00 yellow-amber
+    public static final Color FIRE_ACTIVE     = new Color(0x69, 0x2C, 0x1F);      // #692c1f dark red
+    public static final Color FIRE_HIGH       = new Color(0x69, 0x2C, 0x1F);      
+    public static final Color FIRE_MODERATE   = new Color(0x69, 0x2C, 0x1F);      
+    public static final Color FIRE_LOW        = new Color(0xDD, 0xC0, 0x26);      // gold
 
     // === DRONE COLORS ===
-    public static final Color DRONE_OUTBOUND    = new Color(0x00, 0xFF, 0x41);    // #00FF41 bright green
-    public static final Color DRONE_FIGHTING    = new Color(0xFF, 0xB0, 0x00);    // #FFB000 bright amber
-    public static final Color DRONE_RETURNING   = new Color(0x00, 0xDD, 0xAA);    // #00DDAA cyan-green
-    public static final Color DRONE_REFILLING   = new Color(0x00, 0xAA, 0xDD);    // #00AADD blue-green
-    public static final Color DRONE_IDLE        = new Color(0x22, 0xAA, 0x22);    // #22AA22 dim green
+    public static final Color DRONE_OUTBOUND    = new Color(0x84, 0x75, 0x52);    // khaki
+    public static final Color DRONE_FIGHTING    = new Color(0xDD, 0xC0, 0x26);    // gold
+    public static final Color DRONE_RETURNING   = new Color(0x99, 0x93, 0x81);    // sand
+    public static final Color DRONE_REFILLING   = new Color(0x99, 0x93, 0x81);    
+    public static final Color DRONE_IDLE        = new Color(0x84, 0x75, 0x52);    // khaki
 
     // === FAULT COLORS ===
-    public static final Color FAULT_SOFT      = new Color(0xFF, 0xAA, 0x00);      // #FFAA00 amber
-    public static final Color FAULT_HARD      = new Color(0xFF, 0x00, 0x00);      // #FF0000 bright red
+    public static final Color FAULT_SOFT      = new Color(0xDD, 0xC0, 0x26);      // gold
+    public static final Color FAULT_HARD      = new Color(0x69, 0x2C, 0x1F);      // dark red
 
     // === BORDERS ===
-    public static final Color BORDER_DEFAULT  = new Color(0x2A, 0x3A, 0x2A);     // dim green border
-    public static final Color BORDER_ACTIVE   = new Color(0x00, 0xFF, 0x41);     // bright green for active elements
+    public static final Color BORDER_DEFAULT  = new Color(0x84, 0x75, 0x52);      // khaki
+    public static final Color BORDER_ACTIVE   = new Color(0xDD, 0xC0, 0x26);      // gold
 
     // === OVERLAY EFFECTS ===
-    public static final Color SCANLINE        = new Color(0x00, 0xFF, 0x08, 0x08); // very faint green scanline
-    public static final Color RADAR_SWEEP     = new Color(0x00, 0xFF, 0x41, 0x20); // translucent green sweep
+    public static final Color SCANLINE        = new Color(0x84, 0x75, 0x52, 20);  // faint khaki
+    public static final Color RADAR_SWEEP     = new Color(0xDD, 0xC0, 0x26, 40);  // translucent gold
 
     // === FONTS ===
     public static final Font FONT_MONO       = new Font(Font.MONOSPACED, Font.PLAIN, 12);
