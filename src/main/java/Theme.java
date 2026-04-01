@@ -54,8 +54,8 @@ public final class Theme {
 
     // === MAP CONFIGURATION ===
     public static final int MAP_RESOLUTION = 600; // 600x600 px map
-    public static final int GRID_COLS = 100;
-    public static final int GRID_ROWS = 100;
+    public static final int GRID_COLS = 200;
+    public static final int GRID_ROWS = 200;
     public static final int ZONE_PIXEL_SIZE = MAP_RESOLUTION / GRID_COLS; // 125 pixels per zone cell
 
     // === ANIMATION ===

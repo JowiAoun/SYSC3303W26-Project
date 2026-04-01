@@ -62,7 +62,7 @@ public class Scheduler implements Runnable {
         this.gui = gui;
         this.socket = new DatagramSocket(schedulerPort);
         this.socket.setSoTimeout(500);
-        this.zones = ZoneLoader.loadZones(zonesPath, 100, 100);
+        this.zones = ZoneLoader.loadZones(zonesPath, 200, 200);
     }
 
     public int getTotalEvents() { return totalEvents; }
@@ -650,7 +650,7 @@ public class Scheduler implements Runnable {
 
                 if (gui != null) {
                     gui.updateDroneStatus(status);
-                    if (status.getState() != DroneState.EN_ROUTE) {
+                    if (status.getState() != DroneState.EN_ROUTE && status.getState() != DroneState.RETURNING) {
                         gui.appendEvent(statusMsg);
                     }
                 }

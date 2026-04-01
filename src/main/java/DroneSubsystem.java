@@ -12,8 +12,8 @@ import java.util.List;
  */
 public class DroneSubsystem implements Runnable {
     private static final int MAX_CAPACITY_LITERS = 15;
-    private static final double TRAVEL_SPEED_MPS = 30.0;
-    private static final int METERS_PER_ZONE = 10;
+    private static final double TRAVEL_SPEED_MPS = 60.0;
+    private static final int METERS_PER_ZONE = 5;
     private static final double DROP_SECONDS_PER_LITER = 0.5;
     private static final int BASE_ZONE_ID = 0;
     private int remainingLiters = MAX_CAPACITY_LITERS;
@@ -64,7 +64,7 @@ public class DroneSubsystem implements Runnable {
         this.schedulerPort = schedulerPort;
 
         // Load zone geometry for path planning
-        this.zones = ZoneLoader.loadZones("./src/main/resources/data/zones.csv", 100, 100);
+        this.zones = ZoneLoader.loadZones("./src/main/resources/data/zones.csv", 200, 200);
         ZoneDef baseZone = getZoneById(BASE_ZONE_ID);
         if (baseZone != null) {
             int[] baseCenter = PathPlanner.zoneCenterCell(baseZone);
