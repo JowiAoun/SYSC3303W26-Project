@@ -19,7 +19,7 @@ import java.util.Set;
  */
 public class Scheduler implements Runnable {
     private static final int EXPECTED_ARRIVAL_TIME = 10000;//time before assume drone is stuck
-    private static final long DISPATCH_COOLDOWN_MS = 800; // stagger dispatches by 2s
+    private static final long DISPATCH_COOLDOWN_MS = 500; // stagger dispatches by 0.5s
     private final DatagramSocket socket;
     private final Queue<FireEvent> pending = new ArrayDeque<>();
     private long lastDispatchTime = 0;
@@ -282,6 +282,12 @@ public class Scheduler implements Runnable {
         System.out.println(dispatchMsg);
         if (gui != null) {
             gui.appendEvent(dispatchMsg);
+        }
+
+        // If this drone can't fully cover the fire, re-enqueue so another drone assists
+        if (status.getRemainingLiters() < next.getRequiredLiters()) {
+            pending.add(next.withoutFault());
+            System.out.println("[Scheduler] Fire needs " + next.getRequiredLiters() + "L but Drone " + droneId + " only has " + status.getRemainingLiters() + "L — requesting backup.");
         }
     }
 
@@ -738,7 +744,7 @@ public class Scheduler implements Runnable {
                     // --- Infinite Simulation: Spawn a new random fire 1-6s after extinguishing ---
                     new Thread(() -> {
                         try {
-                            int delayMs = 1000 + (int)(Math.random() * 5000); // 1 to 6 seconds
+                            int delayMs = 500 + (int)(Math.random() * 1500); // 0.5 to 2 seconds
                             Thread.sleep(delayMs);
                             
                             // Zones 1 to 4 to avoid base (zone 0)
