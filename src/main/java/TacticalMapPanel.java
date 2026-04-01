@@ -174,7 +174,8 @@ public class TacticalMapPanel extends JPanel {
             if (SpriteManager.droneSprites != null) {
                 int frame = 4; // default to dry frame
                 if (ds.getState() == DroneState.EXTINGUISHING) {
-                    frame = (int) ((frameCount / 4) % 4); // top row has water (0-3)
+                    int[] extFrames = {0, 3, 1, 2, 6, 5};
+                    frame = extFrames[(int) ((frameCount / 4) % extFrames.length)];
                 } else if (ds.getState() == DroneState.EN_ROUTE || ds.getState() == DroneState.RETURNING) {
                     int[] flyFrames = {4, 7}; // frames without water
                     frame = flyFrames[(int) ((frameCount / 4) % 2)];
