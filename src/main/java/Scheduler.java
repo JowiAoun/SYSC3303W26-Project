@@ -92,10 +92,9 @@ public class Scheduler implements Runnable {
 
                 checkForTimedOutDrones();
 
-                // Dispatch one drone per cooldown period to stagger visuals
-                if (canDispatchPendingEvent() && System.currentTimeMillis() - lastDispatchTime >= DISPATCH_COOLDOWN_MS) {
+                // Burst dispatch multiple drones if pending fires exist and drones are idle
+                while (canDispatchPendingEvent()) {
                     dispatchPendingEvent();
-                    lastDispatchTime = System.currentTimeMillis();
                 }
                 if (!canDispatchPendingEvent()) {
                     checkAndSendReturnToBase();
@@ -254,6 +253,15 @@ public class Scheduler implements Runnable {
         if (status.getRemainingLiters() <= 0) {
             // Empty tank — send back to base for refill
             sendReturnToBase(droneId);
+            // Optimistically update status to prevent infinite assignment cycling THIS tick!
+            droneStatuses.put(droneId, new DroneStatus(
+                    droneId,
+                    DroneState.RETURNING,
+                    status.getZoneId(),
+                    status.getRemainingLiters(),
+                    status.getCurrentCol(),
+                    status.getCurrentRow()
+            ));
             return;
         }
 
