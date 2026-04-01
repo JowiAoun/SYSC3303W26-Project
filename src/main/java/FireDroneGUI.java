@@ -407,11 +407,11 @@ public class FireDroneGUI extends JFrame {
                 g2.fillOval(px + pw - 30, py + ph + 8, 8, 8);
                 
                 // Draw Screen Backdrop
-                g2.setColor(Color.BLACK);
+                g2.setColor(Color.WHITE);
                 g2.fillRect(px, py, pw, ph);
 
-                // Draw Character Image (Flipped horizontally to look right)
-                g2.drawImage(pImg, px + pw, py, -pw, ph, null);
+                // Draw Character Image
+                g2.drawImage(pImg, px, py, pw, ph, null);
                 
                 // Overlay TV Scanlines
                 g2.setColor(new Color(0, 0, 0, 40));
