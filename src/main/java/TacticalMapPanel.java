@@ -178,7 +178,7 @@ public class TacticalMapPanel extends JPanel {
                 g.translate(centerX, centerY);
                 g.rotate(angle + Math.PI / 2); // drones point UP in fixed sprite
                 
-                int dw = 32, dh = 32;
+                int dw = 64, dh = 64;
                 g.drawImage(dImg, -dw/2, -dh/2, dw, dh, null);
                 
                 g.setTransform(oldTransform);
