@@ -110,8 +110,8 @@ public class TacticalMapPanel extends JPanel {
         // Layer 4 - Drones & Base
         ZoneDef baseZone = getZoneById(0);
         if (baseZone != null && SpriteManager.truckSprites != null) {
-            int cx = baseZone.startCol * Theme.ZONE_PIXEL_SIZE + (baseZone.widthCols * Theme.ZONE_PIXEL_SIZE) / 2;
-            int cy = baseZone.startRow * Theme.ZONE_PIXEL_SIZE + (baseZone.heightRows * Theme.ZONE_PIXEL_SIZE) / 2 + 30;
+            int cx = baseZone.startCol * Theme.ZONE_PIXEL_SIZE + (baseZone.widthCols * Theme.ZONE_PIXEL_SIZE) / 2 + 15;
+            int cy = baseZone.startRow * Theme.ZONE_PIXEL_SIZE + (baseZone.heightRows * Theme.ZONE_PIXEL_SIZE) / 2 + 45;
             int truckFrame = (int) ((frameCount / 10) % SpriteManager.truckSprites.length);
             BufferedImage tImg = SpriteManager.truckSprites[truckFrame];
             int tw = 90, th = 60; 
