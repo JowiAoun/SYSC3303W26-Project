@@ -45,6 +45,12 @@ public class Scheduler implements Runnable {
     // State machine
     private SchedulerState currentState = SchedulerState.IDLE;
 
+    // Performance metrics
+    private long totalResponseTime = 0;
+    private int responseCount = 0;
+    private long maxResponseTime = 0;
+    private final Map<String, Long> eventStartTimes = new HashMap<>();
+
     /**
      * @param gui reference to the main GUI window
      */
@@ -72,6 +78,17 @@ public class Scheduler implements Runnable {
     public DatagramSocket getSocket() { return socket; }
 
     public void closeSocket() { socket.close(); }
+
+    private String getEventKey(FireEvent event) { return event.getTime() + "|" + event.getZoneId(); }
+
+    // Divide by 1000.0 to convert to seconds and keep decimal points
+    public double getAverageResponseTime() { return responseCount == 0 ? 0.0 : ((double) totalResponseTime / responseCount) / 1000.0; }
+
+    public double getMaxResponseTime() { return maxResponseTime / 1000.0; }
+
+    public int getResponseCount() { return responseCount; }
+
+    public long getTotalResponseTime() { return totalResponseTime; }
 
     @Override
     public void run() {
@@ -540,6 +557,8 @@ public class Scheduler implements Runnable {
             FireEvent event = message.getEvent();
             pending.add(event);
             totalEvents++;
+            // Start the time tracking for response time here
+            eventStartTimes.putIfAbsent(getEventKey(event), System.currentTimeMillis());
             String msg = "[Scheduler] Received event: " + event;
             System.out.println(msg);
 
@@ -621,6 +640,25 @@ public class Scheduler implements Runnable {
                 droneStatuses.put(droneId, status);
                 droneAddresses.put(droneId, addr);
                 dronePorts.put(droneId, port);
+
+                // Record response time the first time a drone arrives to service the event
+                if (status.getState() == DroneState.EXTINGUISHING) {
+                    FireEvent assignedEvent = activeAssignments.get(droneId);
+                    if (assignedEvent != null) {
+                        String eventKey = getEventKey(assignedEvent);
+                        Long startTime = eventStartTimes.remove(eventKey);
+
+                        if (startTime != null) {
+                            long responseTime = System.currentTimeMillis() - startTime;
+                            totalResponseTime += responseTime;
+                            responseCount++;
+
+                            if (responseTime > maxResponseTime) {
+                                maxResponseTime = responseTime;
+                            }
+                        }
+                    }
+                }
 
                 if (status.getState() == DroneState.EXTINGUISHING || status.getState() == DroneState.IDLE) {
                     assignmentDeadlines.remove(droneId);

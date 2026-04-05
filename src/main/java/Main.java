@@ -72,5 +72,9 @@ public class Main {
             d.closeSocket();
         }
         scheduler.closeSocket();
+
+        // Print performance metrics
+        System.out.println("Average response time: " + scheduler.getAverageResponseTime() + " seconds");
+        System.out.println("Maximum response time: " + scheduler.getMaxResponseTime() + " seconds");
     }
 }
