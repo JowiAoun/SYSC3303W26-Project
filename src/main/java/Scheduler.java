@@ -57,6 +57,13 @@ public class Scheduler implements Runnable {
     private long maxCompletionTime = 0;
     private final Map<String, Long> eventCompletionStartTimes = new HashMap<>();
 
+    // Drone utilization
+    private long simulationStartTime = 0;
+    private long simulationEndTime = 0;
+    private final Map<Integer, Long> droneActiveTime = new HashMap<>();
+    private final Map<Integer, Long> droneLastTime = new HashMap<>();
+    private final Map<Integer, DroneState> droneLastState = new HashMap<>();
+
     /**
      * @param gui reference to the main GUI window
      */
@@ -95,6 +102,57 @@ public class Scheduler implements Runnable {
     public int getResponseCount() { return responseCount; }
 
     public long getTotalResponseTime() { return totalResponseTime; }
+    /**
+     * Get a string of the drone utilization.
+     */
+    public String getDroneUtilization() {
+        long totalSimulationTime = simulationEndTime - simulationStartTime;
+        String result = "Drone Utilization:\n";
+        for (Integer droneId : droneActiveTime.keySet()) {
+            long activeTime = droneActiveTime.get(droneId);
+            long idleTime = totalSimulationTime - activeTime;
+            double utilization = (activeTime * 100.0) / totalSimulationTime;
+
+            result += "Drone " + droneId + ": " + String.format("%.2f", utilization)
+                    + "% active (" + activeTime + " ms active, " + idleTime + " ms idle)\n";
+        }
+        return result;
+    }
+    /**
+     * Updates the drone utilization when a drone changes state
+     */
+    private void updateDroneUtilization(int droneId, DroneState newState) {
+        long now = System.currentTimeMillis();
+        //init
+        if (!droneLastTime.containsKey(droneId)) {
+            droneLastTime.put(droneId, now);
+            droneLastState.put(droneId, newState);
+            droneActiveTime.put(droneId, 0L);
+            return;
+        }
+        long lastTime = droneLastTime.get(droneId);
+        DroneState lastState = droneLastState.get(droneId);
+        long timePassed = now - lastTime;
+        if (lastState == DroneState.EN_ROUTE || lastState == DroneState.EXTINGUISHING || lastState == DroneState.RETURNING) {
+            droneActiveTime.put(droneId, droneActiveTime.get(droneId) + timePassed);
+        }
+        droneLastTime.put(droneId, now);
+        droneLastState.put(droneId, newState);
+    }
+    /**
+     * Finishes the utilization tracking when the simulation is done
+     */
+    private void finishDroneUtilization() {
+        simulationEndTime = System.currentTimeMillis();
+        for (Integer droneId : droneLastState.keySet()) {
+            DroneState lastState = droneLastState.get(droneId);
+            long lastTime = droneLastTime.get(droneId);
+            long timePassed = simulationEndTime - lastTime;
+            if (lastState == DroneState.EN_ROUTE || lastState == DroneState.EXTINGUISHING || lastState == DroneState.RETURNING) {
+                droneActiveTime.put(droneId, droneActiveTime.get(droneId) + timePassed);
+            }
+        }
+    }
 
     public double getAverageCompletionTime() {
         return completionCount == 0 ? 0.0 : ((double) totalCompletionTime / completionCount) / 1000.0;
@@ -105,6 +163,7 @@ public class Scheduler implements Runnable {
     @Override
     public void run() {
         System.out.println("[Scheduler] Started.");
+        simulationStartTime = System.currentTimeMillis();
 
         try {
             while (currentState != SchedulerState.SHUTTING_DOWN) {
@@ -136,6 +195,7 @@ public class Scheduler implements Runnable {
             throw new RuntimeException("[Scheduler] Interrupted.", e);
         }
 
+        finishDroneUtilization();
         System.out.println("[Scheduler] Finished.");
     }
 
@@ -303,6 +363,7 @@ public class Scheduler implements Runnable {
                 status.getCurrentCol(),
                 status.getCurrentRow()
         ));
+        updateDroneUtilization(droneId, DroneState.EN_ROUTE);
         activeAssignments.put(droneId, next);
         assignmentDeadlines.put(droneId, System.currentTimeMillis() + EXPECTED_ARRIVAL_TIME);
 
@@ -342,6 +403,7 @@ public class Scheduler implements Runnable {
                     FaultType.STUCK_MID_FLIGHT
             );
             droneStatuses.put(droneId, faultedStatus);
+            updateDroneUtilization(droneId, DroneState.FAULTED);
 
             String faultMsg = "[Scheduler] Drone " + droneId + " timed out while travelling, event requeued.";
             System.out.println(faultMsg);
@@ -376,6 +438,7 @@ public class Scheduler implements Runnable {
                 current != null ? current.getCurrentCol() : 0,
                 current != null ? current.getCurrentRow() : 0
         ));
+        updateDroneUtilization(droneId, DroneState.RETURNING);
 
         String rtbMsg = "[Scheduler] Commanding Drone " + droneId + " to Return to Base.";
         System.out.println(rtbMsg);
@@ -513,6 +576,7 @@ public class Scheduler implements Runnable {
                 faultType
         );
         droneStatuses.put(droneId, faultedStatus);
+        updateDroneUtilization(droneId, DroneState.FAULTED);
 
         if (isHardFault(faultType)) {
             hardFaultedDrones.add(droneId);
@@ -608,6 +672,7 @@ public class Scheduler implements Runnable {
             case DRONE_STATUS_UPDATE: {
                 DroneStatus status = message.getStatus();
                 int droneId = status.getDroneId();
+                updateDroneUtilization(droneId, status.getState());
 
                 // Hard-faulted drones: accept position updates but override state to FAULTED
                 if (hardFaultedDrones.contains(droneId)) {

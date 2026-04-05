@@ -78,5 +78,6 @@ public class Main {
         System.out.println("Maximum response time: " + scheduler.getMaxResponseTime() + " seconds");
         System.out.println("Average completion time: " + scheduler.getAverageCompletionTime() + " seconds");
         System.out.println("Maximum completion time: " + scheduler.getMaxCompletionTime() + " seconds");
+        System.out.println(scheduler.getDroneUtilization());
     }
 }
