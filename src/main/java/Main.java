@@ -76,5 +76,7 @@ public class Main {
         // Print performance metrics
         System.out.println("Average response time: " + scheduler.getAverageResponseTime() + " seconds");
         System.out.println("Maximum response time: " + scheduler.getMaxResponseTime() + " seconds");
+        System.out.println("Average completion time: " + scheduler.getAverageCompletionTime() + " seconds");
+        System.out.println("Maximum completion time: " + scheduler.getMaxCompletionTime() + " seconds");
     }
 }

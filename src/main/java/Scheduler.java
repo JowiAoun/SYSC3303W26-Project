@@ -51,6 +51,12 @@ public class Scheduler implements Runnable {
     private long maxResponseTime = 0;
     private final Map<String, Long> eventStartTimes = new HashMap<>();
 
+    // Completion time
+    private long totalCompletionTime = 0;
+    private int completionCount = 0;
+    private long maxCompletionTime = 0;
+    private final Map<String, Long> eventCompletionStartTimes = new HashMap<>();
+
     /**
      * @param gui reference to the main GUI window
      */
@@ -89,6 +95,12 @@ public class Scheduler implements Runnable {
     public int getResponseCount() { return responseCount; }
 
     public long getTotalResponseTime() { return totalResponseTime; }
+
+    public double getAverageCompletionTime() {
+        return completionCount == 0 ? 0.0 : ((double) totalCompletionTime / completionCount) / 1000.0;
+    }
+
+    public double getMaxCompletionTime() { return maxCompletionTime / 1000.0; }
 
     @Override
     public void run() {
@@ -559,6 +571,7 @@ public class Scheduler implements Runnable {
             totalEvents++;
             // Start the time tracking for response time here
             eventStartTimes.putIfAbsent(getEventKey(event), System.currentTimeMillis());
+            eventCompletionStartTimes.putIfAbsent(getEventKey(event), eventStartTimes.get(getEventKey(event)));
             String msg = "[Scheduler] Received event: " + event;
             System.out.println(msg);
 
@@ -707,6 +720,16 @@ public class Scheduler implements Runnable {
 
                 completed++;
                 if (message.getEvent() != null) {
+                    String ck = getEventKey(message.getEvent());
+                    Long tComplete = eventCompletionStartTimes.remove(ck);
+                    if (tComplete != null) {
+                        long elapsed = System.currentTimeMillis() - tComplete;
+                        totalCompletionTime += elapsed;
+                        completionCount++;
+                        if (elapsed > maxCompletionTime) {
+                            maxCompletionTime = elapsed;
+                        }
+                    }
                     for (Map.Entry<Integer, FireEvent> entry : new HashMap<>(activeAssignments).entrySet()) {
                         FireEvent active = entry.getValue();
                         if (active != null && active.getZoneId() == message.getEvent().getZoneId()
