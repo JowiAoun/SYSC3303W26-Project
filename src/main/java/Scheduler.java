@@ -263,21 +263,28 @@ public class Scheduler implements Runnable {
     }
 
     /**
-     * Find an idle drone from the registered drones (arbitrary order).
+     * Find the idle drone with the least accumulated active time.
      * Kept as fallback for sendReturnToBase() and checkAndSendReturnToBase().
-     * @return the drone ID of an idle drone, or null if none available
+     * @return the drone ID of the least-utilized idle drone, or null if none available
      */
     private Integer findIdleDrone() {
+        Integer bestDrone = null;
+        long leastActiveTime = Long.MAX_VALUE;
         for (Map.Entry<Integer, DroneStatus> entry : droneStatuses.entrySet()) {
             if (entry.getValue().getState() == DroneState.IDLE) {
-                return entry.getKey();
+                long activeTime = droneActiveTime.getOrDefault(entry.getKey(), 0L);
+                if (activeTime < leastActiveTime) {
+                    leastActiveTime = activeTime;
+                    bestDrone = entry.getKey();
+                }
             }
         }
-        return null;
+        return bestDrone;
     }
 
     /**
      * Find the closest idle drone to a target zone using Euclidean distance.
+     * Ties in distance are broken by least accumulated active time to spread utilization evenly.
      * @return the drone ID of the closest idle drone, or null if none available
      */
     private Integer findClosestIdleDrone(int targetZoneId) {
@@ -287,6 +294,7 @@ public class Scheduler implements Runnable {
         int[] targetCenter = PathPlanner.zoneCenterCell(targetZone);
         Integer bestDrone = null;
         double bestDistance = Double.MAX_VALUE;
+        long leastActiveTime = Long.MAX_VALUE;
 
         for (Map.Entry<Integer, DroneStatus> entry : droneStatuses.entrySet()) {
             DroneStatus ds = entry.getValue();
@@ -295,9 +303,11 @@ public class Scheduler implements Runnable {
             double dist = PathPlanner.distance(
                     ds.getCurrentCol(), ds.getCurrentRow(),
                     targetCenter[0], targetCenter[1]);
+            long activeTime = droneActiveTime.getOrDefault(entry.getKey(), 0L);
 
-            if (dist < bestDistance) {
+            if (dist < bestDistance || (dist == bestDistance && activeTime < leastActiveTime)) {
                 bestDistance = dist;
+                leastActiveTime = activeTime;
                 bestDrone = entry.getKey();
             }
         }

@@ -616,11 +616,14 @@ public class FireDroneGUI extends JFrame {
         droneLabels.clear();
         for (int i = 1; i <= count; i++) {
             JLabel lbl = new JLabel("Drone " + i + " - Idle");
-            lbl.setBorder(new EmptyBorder(4,4,4,4));
+            lbl.setBorder(new EmptyBorder(2,4,2,4));
             droneLabels.add(lbl);
             p.add(lbl);
         }
-        return p;
+        JScrollPane scroll = new JScrollPane(p);
+        scroll.setPreferredSize(new Dimension(280, 200));
+        scroll.setVerticalScrollBarPolicy(JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED);
+        return scroll;
     }
 
     /**

@@ -178,3 +178,10 @@ Zachary: Source code
 Amir: Documentation and Diagrams
 Thanos: Testing
 Jowi: GUI
+
+Iteration 5
+-----------
+Zachary: Metrics
+Amir: Metrics
+Thanos: Metrics
+Jowi: Source code

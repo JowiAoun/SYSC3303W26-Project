@@ -9,7 +9,7 @@ public class SchedulerMain {
         // Read CLI args for Scheduler and the GUI.
         int port = Integer.parseInt(getArg(args, "port", Integer.toString(SwarmNetwork.SCHEDULER_PORT)));
         String zonesPath = getArg(args, "zones", "./src/main/resources/data/zones.csv");
-        int droneCount = Integer.parseInt(getArg(args, "drones", "3"));
+        int droneCount = Integer.parseInt(getArg(args, "drones", "20"));
 
         // Build the GUI for the specified number of drones.
         FireDroneGUI gui = new FireDroneGUI(droneCount);
