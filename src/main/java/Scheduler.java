@@ -182,7 +182,7 @@ public class Scheduler implements Runnable {
                 while (canDispatchPendingEvent()) {
                     dispatchPendingEvent();
                 }
-                if (!canDispatchPendingEvent()) {
+                if (!canDispatchPendingEvent() && !isProcessingComplete()) {
                     checkAndSendReturnToBase();
                 }
 
