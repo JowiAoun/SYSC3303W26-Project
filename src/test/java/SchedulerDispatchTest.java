@@ -11,6 +11,8 @@ public class SchedulerDispatchTest {
 
     @BeforeEach
     public void setup() throws SocketException {
+        SimulationConfig.unlockSpeedForTests();
+        SimulationConfig.setTimeFactor(1);
         // Build scheduler
         scheduler = new Scheduler(null);
     }
@@ -18,6 +20,7 @@ public class SchedulerDispatchTest {
     @AfterEach
     public void teardown() {
         scheduler.closeSocket();
+        SimulationConfig.unlockSpeedForTests();
         System.out.println();
     }
 

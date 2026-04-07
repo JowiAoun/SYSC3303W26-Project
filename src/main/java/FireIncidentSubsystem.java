@@ -112,6 +112,9 @@ public class FireIncidentSubsystem implements Runnable {
      */
     FireEvent parseEventLine(String line) {
         String trimmedLine = line.trim();
+        if (!trimmedLine.isEmpty() && trimmedLine.charAt(0) == '\uFEFF') {
+            trimmedLine = trimmedLine.substring(1).trim();
+        }
         if (trimmedLine.isEmpty() || trimmedLine.startsWith("#")) {
             return null;
         }
@@ -125,14 +128,14 @@ public class FireIncidentSubsystem implements Runnable {
         }
         String time = parts[0].trim();
         int zoneId = Integer.parseInt(parts[1].trim());
-        FireEvent.EventType eventType = FireEvent.parseEventType(parts[2]);
-        FireEvent.Severity severity = FireEvent.parseSeverity(parts[3]);
+        FireEvent.EventType eventType = FireEvent.parseEventType(parts[2].trim());
+        FireEvent.Severity severity = FireEvent.parseSeverity(parts[3].trim());
 
         FaultType faultType = FaultType.NONE;
         long faultDelayTime = 0;
 
         if (parts.length >= 5) {
-            faultType = FireEvent.parseFaultType(parts[4]);
+            faultType = FireEvent.parseFaultType(parts[4].trim());
         }
         if (parts.length >= 6 && !parts[5].trim().isEmpty()) {
             faultDelayTime = Long.parseLong(parts[5].trim());
@@ -142,18 +145,80 @@ public class FireIncidentSubsystem implements Runnable {
     }
 
     /**
+     * Parses CSV time fields such as {@code HH:MM:SS} or {@code HH:MM:SS.mmm} into milliseconds since midnight.
+     * @return ms since midnight, or -1 if unparseable
+     */
+    static long parseCsvTimeToMillisSinceMidnight(String raw) {
+        if (raw == null) {
+            return -1;
+        }
+        String t = raw.trim();
+        if (t.isEmpty()) {
+            return -1;
+        }
+        int dot = t.indexOf('.');
+        String fraction = "";
+        if (dot >= 0) {
+            fraction = t.substring(dot + 1).trim();
+            t = t.substring(0, dot).trim();
+        }
+        String[] parts = t.split(":");
+        if (parts.length != 3) {
+            return -1;
+        }
+        try {
+            int h = Integer.parseInt(parts[0].trim());
+            int m = Integer.parseInt(parts[1].trim());
+            int s = Integer.parseInt(parts[2].trim());
+            long ms = (h * 3600L + m * 60L + s) * 1000L;
+            if (!fraction.isEmpty()) {
+                String f = fraction;
+                while (f.length() < 3) {
+                    f += "0";
+                }
+                if (f.length() > 3) {
+                    f = f.substring(0, 3);
+                }
+                ms += Long.parseLong(f);
+            }
+            return ms;
+        } catch (NumberFormatException e) {
+            return -1;
+        }
+    }
+
+    /**
      * Sends events to the Scheduler.
+     * Waits between events according to the CSV Time column when {@link SimulationConfig#isCsvTimePacingEnabled()}
+     * is true; delay is divided by the simulation speed factor.
      * @return number of events sent
      */
     int sendEventsToScheduler(List<FireEvent> events) throws Exception {
         int eventsSent = 0;
+        long prevMs = -1;
         for (FireEvent event : events) {
-            // retaining old method for now
-            // toScheduler.put(Message.fireEvent(event));
-            // NEW: UDP sendMessage
+            long tMs = parseCsvTimeToMillisSinceMidnight(event.getTime());
+            if (SimulationConfig.isCsvTimePacingEnabled() && prevMs >= 0 && tMs >= 0) {
+                long delta = tMs - prevMs;
+                if (delta < 0) {
+                    delta += 24L * 3600_000;
+                }
+                if (delta > 0) {
+                    try {
+                        // Advance simulation time by the CSV delta; sleep scaled wall time for fast-forward.
+                        SimulationConfig.sleepSimulated(delta);
+                    } catch (InterruptedException e) {
+                        Thread.currentThread().interrupt();
+                        throw e;
+                    }
+                }
+            }
             SwarmNetwork.sendMessage(socket, schedulerAddr, schedulerPort, Message.fireEvent(event), "[FireIncident]", "sent Event", "to Scheduler");
             eventsSent++;
             System.out.println("[FireIncident] Sent event: " + event);
+            if (tMs >= 0) {
+                prevMs = tMs;
+            }
         }
         return eventsSent;
     }

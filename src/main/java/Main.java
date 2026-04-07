@@ -3,6 +3,7 @@
  *
  * Starts the three subsystem threads and wires their queues together.
  */
+import java.lang.reflect.InvocationTargetException;
 import java.net.SocketException;
 import java.net.UnknownHostException;
 import java.util.concurrent.TimeUnit;
@@ -13,22 +14,45 @@ public class Main {
         int droneCount = 20;
 
         boolean headless = false;
+        boolean speedFromArgs = false;
         for (String arg : args) {
             if ("--headless".equals(arg)) {
                 headless = true;
-                break;
+            } else if (arg.startsWith("--speed=")) {
+                SimulationConfig.setTimeFactor(Integer.parseInt(arg.substring("--speed=".length())));
+                speedFromArgs = true;
             }
         }
 
-        // Build GUI (on EDT)
+        // Build GUI (on EDT); simulation threads start only after user presses Start (speed locked there).
         FireDroneGUI gui = null;
         if (!headless) {
-            gui = new FireDroneGUI(droneCount);
-            FireDroneGUI finalGui = gui;
-            javax.swing.SwingUtilities.invokeLater(() -> finalGui.setVisible(true));
+            FireDroneGUI window = new FireDroneGUI(droneCount);
+            gui = window;
+            try {
+                javax.swing.SwingUtilities.invokeAndWait(() -> window.setVisible(true));
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                return;
+            } catch (InvocationTargetException e) {
+                throw new RuntimeException(e.getCause());
+            }
+            try {
+                window.awaitStart();
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                return;
+            }
         } else {
             System.out.println("[Main] Running in headless mode (no GUI).");
+            if (!speedFromArgs) {
+                SimulationConfig.setTimeFactor(480);
+            }
+            SimulationConfig.lockSpeed();
         }
+
+        // Start the simulation clock at 0 now that speed is locked and before any threads run.
+        SimulationConfig.resetSimClock();
 
         // Build subsystems.
         FireIncidentSubsystem fireIncident = null;
@@ -72,7 +96,8 @@ public class Main {
 
         // Wait until every registered drone is IDLE and all fire events are completed,
         // so timing metrics are populated before threads wind down.
-        long deadline = System.currentTimeMillis() + TimeUnit.HOURS.toMillis(2);
+        // CSV pacing can span many hours at 1x; default sim speed is fast-forward.
+        long deadline = System.currentTimeMillis() + TimeUnit.HOURS.toMillis(12);
         while (schedulerThread.isAlive() && System.currentTimeMillis() < deadline) {
             if (scheduler.isProcessingComplete()) {
                 try {
@@ -115,19 +140,12 @@ public class Main {
         String line3 = "Average completion time: " + scheduler.getAverageCompletionTime() + " seconds";
         String line4 = "Maximum completion time: " + scheduler.getMaxCompletionTime() + " seconds";
         String line5 = scheduler.getDroneUtilization();
-        System.out.println("[Main] --- Performance metrics ---");
+        System.out.println("[Main] --- Performance Metrics ---");
         System.out.println(line1);
         System.out.println(line2);
         System.out.println(line3);
         System.out.println(line4);
         System.out.print(line5);
-        System.err.println("[Main] --- Performance metrics ---");
-        System.err.println(line1);
-        System.err.println(line2);
-        System.err.println(line3);
-        System.err.println(line4);
-        System.err.print(line5);
         System.out.flush();
-        System.err.flush();
     }
 }

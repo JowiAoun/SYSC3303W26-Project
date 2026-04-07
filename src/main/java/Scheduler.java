@@ -47,19 +47,19 @@ public class Scheduler implements Runnable {
     // State machine
     private SchedulerState currentState = SchedulerState.IDLE;
 
-    // Performance metrics
+    // Performance metrics (simulated-time ms)
     private long totalResponseTime = 0;
     private int responseCount = 0;
     private long maxResponseTime = 0;
     private final Map<String, Long> eventStartTimes = new HashMap<>();
 
-    // Completion time
+    // Completion time (simulated-time ms)
     private long totalCompletionTime = 0;
     private int completionCount = 0;
     private long maxCompletionTime = 0;
     private final Map<String, Long> eventCompletionStartTimes = new HashMap<>();
 
-    // Drone utilization
+    // Drone utilization (simulated-time ms)
     private long simulationStartTime = 0;
     private long simulationEndTime = 0;
     private final Map<Integer, Long> droneActiveTime = new HashMap<>();
@@ -96,24 +96,25 @@ public class Scheduler implements Runnable {
 
     private String getEventKey(FireEvent event) { return event.getTime() + "|" + event.getZoneId(); }
 
-    // Divide by 1000.0 to convert to seconds and keep decimal points
+    // All times are stored in simulated ms. Divide by 1000.0 to convert to seconds for averages.
     public double getAverageResponseTime() { return responseCount == 0 ? 0.0 : ((double) totalResponseTime / responseCount) / 1000.0; }
 
     public double getMaxResponseTime() { return maxResponseTime / 1000.0; }
 
     public int getResponseCount() { return responseCount; }
 
+    /** Sum of response intervals in simulated ms. */
     public long getTotalResponseTime() { return totalResponseTime; }
     /**
      * Get a string of the drone utilization.
      */
     public String getDroneUtilization() {
         long totalSimulationTime = simulationEndTime - simulationStartTime;
-        String result = "Drone Utilization:\n";
+        String result = "Drone Utilization (simulated time):\n";
         for (Integer droneId : droneActiveTime.keySet()) {
             long activeTime = droneActiveTime.get(droneId);
             long idleTime = totalSimulationTime - activeTime;
-            double utilization = (activeTime * 100.0) / totalSimulationTime;
+            double utilization = totalSimulationTime <= 0 ? 0.0 : (activeTime * 100.0) / totalSimulationTime;
 
             result += "Drone " + droneId + ": " + String.format("%.2f", utilization)
                     + "% active (" + activeTime + " ms active, " + idleTime + " ms idle)\n";
@@ -124,7 +125,7 @@ public class Scheduler implements Runnable {
      * Updates the drone utilization when a drone changes state
      */
     private void updateDroneUtilization(int droneId, DroneState newState) {
-        long now = System.currentTimeMillis();
+        long now = SimulationConfig.nowSimMs();
         //init
         if (!droneLastTime.containsKey(droneId)) {
             droneLastTime.put(droneId, now);
@@ -145,7 +146,7 @@ public class Scheduler implements Runnable {
      * Finishes the utilization tracking when the simulation is done
      */
     private void finishDroneUtilization() {
-        simulationEndTime = System.currentTimeMillis();
+        simulationEndTime = SimulationConfig.nowSimMs();
         for (Integer droneId : droneLastState.keySet()) {
             DroneState lastState = droneLastState.get(droneId);
             long lastTime = droneLastTime.get(droneId);
@@ -165,7 +166,7 @@ public class Scheduler implements Runnable {
     @Override
     public void run() {
         System.out.println("[Scheduler] Started.");
-        simulationStartTime = System.currentTimeMillis();
+        simulationStartTime = SimulationConfig.nowSimMs();
 
         try {
             while (currentState != SchedulerState.SHUTTING_DOWN) {
@@ -191,6 +192,7 @@ public class Scheduler implements Runnable {
                 sendShutdownToDroneIfComplete();
                 sendShutdownToFireIfComplete();
                 evaluateTransition();
+                syncGuiWithSchedulerDroneTruth();
             }
         } catch (Exception e) {
             Thread.currentThread().interrupt();
@@ -262,6 +264,16 @@ public class Scheduler implements Runnable {
             default:
                 System.out.println("[Scheduler] Unknown message type: " + msg.getType());
         }
+        syncGuiWithSchedulerDroneTruth();
+    }
+
+    /**
+     * Removes any GUI drone markers that no longer correspond to a drone in {@link #droneStatuses}.
+     */
+    private void syncGuiWithSchedulerDroneTruth() {
+        if (gui != null) {
+            gui.pruneDronesNotInScheduler(droneStatuses.keySet());
+        }
     }
 
     /**
@@ -327,17 +339,19 @@ public class Scheduler implements Runnable {
     }
 
     /**
-     * True if the pending queue or an in-flight assignment still references this zone.
-     * Keeps the GUI fire indicator on while any work for that zone remains.
+     * True if there is still a {@link FireEvent.EventType#FIRE_DETECTED} for this zone
+     * waiting in the queue or assigned to a drone. Used for the red “fire” GUI and to
+     * decide whether a {@link FireEvent.EventType#DRONE_REQUEST} still makes sense.
      */
-    private boolean hasOpenWorkAtZone(int zoneId) {
+    private boolean zoneHasActiveFire(int zoneId) {
         for (FireEvent e : pending) {
-            if (e.getZoneId() == zoneId) {
+            if (e.getZoneId() == zoneId && e.getEventType() == FireEvent.EventType.FIRE_DETECTED) {
                 return true;
             }
         }
         for (FireEvent e : activeAssignments.values()) {
-            if (e != null && e.getZoneId() == zoneId) {
+            if (e != null && e.getZoneId() == zoneId
+                    && e.getEventType() == FireEvent.EventType.FIRE_DETECTED) {
                 return true;
             }
         }
@@ -378,7 +392,14 @@ public class Scheduler implements Runnable {
      */
     boolean canDispatchPendingEvent() {
         if (pending.isEmpty()) return false;
-        return findClosestIdleDrone(pending.peek().getZoneId()) != null;
+        FireEvent peek = pending.peek();
+        // Orphan DRONE_REQUEST (no FIRE_DETECTED left for that zone) — resolve without a drone
+        if (peek.getEventType() == FireEvent.EventType.DRONE_REQUEST
+                && fireIncidentDone
+                && !zoneHasActiveFire(peek.getZoneId())) {
+            return true;
+        }
+        return findClosestIdleDrone(peek.getZoneId()) != null;
     }
 
     /**
@@ -387,6 +408,23 @@ public class Scheduler implements Runnable {
     void dispatchPendingEvent() throws Exception {
         FireEvent next = pending.peek();
         if (next == null) return;
+
+        // After all CSV lines are in, a trailing DRONE_REQUEST with no active fire is a no-op
+        // (e.g. last line "...,5,DRONE_REQUEST" when zone 5 fires are already done).
+        if (next.getEventType() == FireEvent.EventType.DRONE_REQUEST
+                && fireIncidentDone
+                && !zoneHasActiveFire(next.getZoneId())) {
+            pending.poll();
+            completed++;
+            sendFireIncidentMessage(Message.fireAck(next), "skipped DRONE_REQUEST (no active fire)");
+            String skipMsg = "[Scheduler] Skipped DRONE_REQUEST for zone " + next.getZoneId()
+                    + " — no FIRE_DETECTED work remains.";
+            System.out.println(skipMsg);
+            if (gui != null) {
+                gui.appendEvent(skipMsg);
+            }
+            return;
+        }
 
         Integer droneId = findClosestIdleDrone(next.getZoneId());
         if (droneId == null) return;
@@ -414,23 +452,26 @@ public class Scheduler implements Runnable {
         }
 
         // Optimistically update status to prevent double dispatch
-        droneStatuses.put(droneId, new DroneStatus(
+        DroneStatus optimistic = new DroneStatus(
                 droneId,
                 DroneState.EN_ROUTE,
                 next.getZoneId(),
                 status.getRemainingLiters(),
                 status.getCurrentCol(),
                 status.getCurrentRow()
-        ));
+        );
+        droneStatuses.put(droneId, optimistic);
         updateDroneUtilization(droneId, DroneState.EN_ROUTE);
         activeAssignments.put(droneId, next);
-        assignmentDeadlines.put(droneId, System.currentTimeMillis() +
-                Math.round(EXPECTED_ARRIVAL_TIME * SimulationConfig.getTimeFractionFactor()));
+        // Wall-clock grace period (do not scale with sim speed): scaling was shrinking this at high
+        // speed and falsely timing out EN_ROUTE while travel sleeps were still in progress.
+        assignmentDeadlines.put(droneId, System.currentTimeMillis() + EXPECTED_ARRIVAL_TIME);
 
         String dispatchMsg = "[Scheduler] Dispatched to Drone " + droneId + ": " + next;
         System.out.println(dispatchMsg);
         if (gui != null) {
             gui.appendEvent(dispatchMsg);
+            gui.updateDroneStatus(optimistic);
         }
     }
 
@@ -444,7 +485,8 @@ public class Scheduler implements Runnable {
             Long deadline = assignmentDeadlines.get(droneId);
             DroneStatus status = droneStatuses.get(droneId);
 
-            if (status.getState() != DroneState.EN_ROUTE || now <= deadline) {
+            // Use strict < so a wall-clock instant equal to deadline counts as expired (ms granularity).
+            if (status.getState() != DroneState.EN_ROUTE || now < deadline) {
                 continue;
             }
 
@@ -490,20 +532,22 @@ public class Scheduler implements Runnable {
 
         // Optimistically update status
         DroneStatus current = droneStatuses.get(droneId);
-        droneStatuses.put(droneId, new DroneStatus(
+        DroneStatus optimistic = new DroneStatus(
                 droneId,
                 DroneState.RETURNING,
                 0,
                 current != null ? current.getRemainingLiters() : 0,
                 current != null ? current.getCurrentCol() : 0,
                 current != null ? current.getCurrentRow() : 0
-        ));
+        );
+        droneStatuses.put(droneId, optimistic);
         updateDroneUtilization(droneId, DroneState.RETURNING);
 
         String rtbMsg = "[Scheduler] Commanding Drone " + droneId + " to Return to Base.";
         System.out.println(rtbMsg);
         if (gui != null) {
             gui.appendEvent(rtbMsg);
+            gui.updateDroneStatus(optimistic);
         }
     }
 
@@ -694,14 +738,16 @@ public class Scheduler implements Runnable {
             pending.add(event);
             totalEvents++;
             // Start the time tracking for response time here
-            eventStartTimes.putIfAbsent(getEventKey(event), System.currentTimeMillis());
+            eventStartTimes.putIfAbsent(getEventKey(event), SimulationConfig.nowSimMs());
             eventCompletionStartTimes.putIfAbsent(getEventKey(event), eventStartTimes.get(getEventKey(event)));
             String msg = "[Scheduler] Received event: " + event;
             System.out.println(msg);
 
-            // Update GUI: New Fire with severity
+            // GUI: only FIRE_DETECTED lights the red cell; DRONE_REQUEST is scheduling-only
             if (gui != null) {
-                gui.setZoneFire(event.getZoneId(), true, event.getSeverity());
+                if (event.getEventType() == FireEvent.EventType.FIRE_DETECTED) {
+                    gui.setZoneFire(event.getZoneId(), true, event.getSeverity());
+                }
                 gui.appendEvent(msg);
             }
 
@@ -787,12 +833,12 @@ public class Scheduler implements Runnable {
                         Long startTime = eventStartTimes.remove(eventKey);
 
                         if (startTime != null) {
-                            long responseTime = System.currentTimeMillis() - startTime;
-                            totalResponseTime += responseTime;
+                            long responseSim = SimulationConfig.nowSimMs() - startTime;
+                            totalResponseTime += responseSim;
                             responseCount++;
 
-                            if (responseTime > maxResponseTime) {
-                                maxResponseTime = responseTime;
+                            if (responseSim > maxResponseTime) {
+                                maxResponseTime = responseSim;
                             }
                         }
                     }
@@ -802,6 +848,7 @@ public class Scheduler implements Runnable {
                     assignmentDeadlines.remove(droneId);
                 }
 
+                boolean skipGuiDroneUpdate = false;
                 if (status.getState() == DroneState.FAULTED) {
                     FireEvent interrupted = activeAssignments.remove(droneId);
                     assignmentDeadlines.remove(droneId);
@@ -820,12 +867,16 @@ public class Scheduler implements Runnable {
                         System.out.println(msg);
                         if (gui != null) {
                             gui.appendEvent(msg);
+                            gui.unregisterDrone(droneId);
                         }
+                        skipGuiDroneUpdate = true;
                     }
                 }
 
                 if (gui != null) {
-                    gui.updateDroneStatus(status);
+                    if (!skipGuiDroneUpdate) {
+                        gui.updateDroneStatus(status);
+                    }
                     gui.appendEvent(statusMsg);
                 }
                 break;
@@ -849,11 +900,11 @@ public class Scheduler implements Runnable {
                     String ck = getEventKey(done);
                     Long tComplete = eventCompletionStartTimes.remove(ck);
                     if (tComplete != null) {
-                        long elapsed = System.currentTimeMillis() - tComplete;
-                        totalCompletionTime += elapsed;
+                        long elapsedSim = SimulationConfig.nowSimMs() - tComplete;
+                        totalCompletionTime += elapsedSim;
                         completionCount++;
-                        if (elapsed > maxCompletionTime) {
-                            maxCompletionTime = elapsed;
+                        if (elapsedSim > maxCompletionTime) {
+                            maxCompletionTime = elapsedSim;
                         }
                     }
                     if (senderDroneId >= 0) {
@@ -877,7 +928,7 @@ public class Scheduler implements Runnable {
                 // GUI: clear zone fire only when no other pending or assigned work for that zone
                 if (gui != null) {
                     if (message.getEvent() != null
-                            && !hasOpenWorkAtZone(message.getEvent().getZoneId())) {
+                            && !zoneHasActiveFire(message.getEvent().getZoneId())) {
                         gui.setZoneFire(message.getEvent().getZoneId(), false);
                     }
                     gui.appendEvent(completedMsg);

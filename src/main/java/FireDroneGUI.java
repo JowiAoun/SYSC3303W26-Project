@@ -9,6 +9,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.CountDownLatch;
 
 /**
  * FireDroneGUI.java
@@ -54,6 +55,11 @@ public class FireDroneGUI extends JFrame {
     private int faultedDrones = 0;
     private int droneCount;
 
+    private final CountDownLatch startLatch = new CountDownLatch(1);
+    private volatile boolean simulationStarted;
+    private JSpinner speedSpinner;
+    private JButton startButton;
+
     public FireDroneGUI() {
         this(1);
     }
@@ -88,6 +94,14 @@ public class FireDroneGUI extends JFrame {
         pack();
         setMinimumSize(new Dimension(1150, 850));
         setLocationRelativeTo(null);
+    }
+
+    /**
+     * Blocks until the user presses Start (speed is then locked for the whole run).
+     * Used by {@link Main}; standalone {@link #main} does not call this.
+     */
+    public void awaitStart() throws InterruptedException {
+        startLatch.await();
     }
 
     // Create a grid of ZoneCell objects and store references in gridCells[][]
@@ -270,6 +284,68 @@ public class FireDroneGUI extends JFrame {
         return null; 
     }
 
+    private boolean cellOnGrid(int col, int row) {
+        return col >= 0 && col < COLS && row >= 0 && row < ROWS;
+    }
+
+    /**
+     * Removes a drone from grid tracking (e.g. permanently removed from service).
+     * Recomputes the last known cell so a marker does not stay behind ("ghost drone").
+     */
+    public void unregisterDrone(int droneId) {
+        runOnEdt(() -> {
+            int[] last = droneLastCell.remove(droneId);
+            droneCurrentStatuses.remove(droneId);
+            activeDroneIds.remove(droneId);
+            faultedDroneIds.remove(droneId);
+            permanentlyFaultedDrones.remove(droneId);
+            setActiveDrones(activeDroneIds.size());
+            setFaultedDrones(faultedDroneIds.size());
+            if (last != null && cellOnGrid(last[0], last[1])) {
+                recomputeCell(last[0], last[1]);
+            }
+            setDroneState(droneId, "Removed from service", false);
+        });
+    }
+
+    /**
+     * Clears a drone marker from the grid when it is no longer tracked by the scheduler.
+     * Does not remove {@link #permanentlyFaultedDrones} (retired-at-base display).
+     */
+    private void removeStaleDroneMarker(int droneId) {
+        int[] last = droneLastCell.remove(droneId);
+        droneCurrentStatuses.remove(droneId);
+        activeDroneIds.remove(droneId);
+        faultedDroneIds.remove(droneId);
+        setActiveDrones(activeDroneIds.size());
+        setFaultedDrones(faultedDroneIds.size());
+        if (last != null && cellOnGrid(last[0], last[1])) {
+            recomputeCell(last[0], last[1]);
+        }
+        setDroneState(droneId, "Idle", false);
+    }
+
+    /**
+     * Drops any grid/sidebar tracking for drones the scheduler no longer knows about,
+     * so stale UDP or removed drones cannot leave a permanent icon ("ghost").
+     * Retired hard-fault drones shown at base are preserved.
+     */
+    public void pruneDronesNotInScheduler(Set<Integer> knownSchedulerDroneIds) {
+        runOnEdt(() -> {
+            Set<Integer> tracked = new HashSet<>();
+            tracked.addAll(droneLastCell.keySet());
+            tracked.addAll(droneCurrentStatuses.keySet());
+            for (Integer id : tracked) {
+                if (permanentlyFaultedDrones.contains(id)) {
+                    continue;
+                }
+                if (!knownSchedulerDroneIds.contains(id)) {
+                    removeStaleDroneMarker(id);
+                }
+            }
+        });
+    }
+
     /**
      * Updates the GUI based on the drone's status.
      * Tracks drone position by exact (col, row) cell, recomputes old and new cells
@@ -288,12 +364,16 @@ public class FireDroneGUI extends JFrame {
             int col = status.getCurrentCol();
             int row = status.getCurrentRow();
 
-            // Save the old cell before updating
             int[] lastCell = droneLastCell.get(droneId);
+            boolean newOnGrid = cellOnGrid(col, row);
+            boolean lastOnGrid = lastCell != null && cellOnGrid(lastCell[0], lastCell[1]);
 
-            // Update tracking maps
             droneCurrentStatuses.put(droneId, status);
-            droneLastCell.put(droneId, new int[]{col, row});
+            if (newOnGrid) {
+                droneLastCell.put(droneId, new int[]{col, row});
+            } else {
+                droneLastCell.remove(droneId);
+            }
 
             // Track active drones via set
             if (status.getState() == DroneState.IDLE) {
@@ -315,13 +395,13 @@ public class FireDroneGUI extends JFrame {
             }
             setFaultedDrones(faultedDroneIds.size());
 
-            // Recompute the old cell (drone left it)
-            if (lastCell != null && (lastCell[0] != col || lastCell[1] != row)) {
+            if (lastOnGrid && (lastCell[0] != col || lastCell[1] != row)) {
                 recomputeCell(lastCell[0], lastCell[1]);
             }
 
-            // Recompute the new cell (drone arrived or updated state)
-            recomputeCell(col, row);
+            if (newOnGrid) {
+                recomputeCell(col, row);
+            }
 
             // Update sidebar label with zone + remaining liters + fault info
             int currentZoneId = status.getZoneId();
@@ -603,10 +683,21 @@ public class FireDroneGUI extends JFrame {
     private void updateStatusBar() {
         runOnEdt(() -> {
             if (statusLeft != null) {
-                String text = "Simulation: Running | Active Fires: " + activeFires
+                String simState = simulationStarted
+                        ? "Running"
+                        : "Waiting — set speed, press Start";
+                String speedStr;
+                if (simulationStarted) {
+                    speedStr = SimulationConfig.getTimeFactor() + "x (locked)";
+                } else if (speedSpinner != null) {
+                    speedStr = ((Number) speedSpinner.getValue()).intValue() + "x (pending)";
+                } else {
+                    speedStr = "—";
+                }
+                String text = "Simulation: " + simState + " | Active Fires: " + activeFires
                         + " | Active Drones: " + activeDrones
                         + " | Faulted: " + faultedDrones
-                        + " | Speed: " + SimulationConfig.getTimeFactor() + "x";
+                        + " | Speed: " + speedStr;
                 statusLeft.setText(text);
             }
         });
@@ -689,22 +780,28 @@ public class FireDroneGUI extends JFrame {
 
         toolbar.add(Box.createHorizontalStrut(16));
 
-        // Speed control
-        JLabel speedLabel = new JLabel("Speed: 1x");
-        JSlider speedSlider = new JSlider(JSlider.HORIZONTAL, 1, 50, 1);
-        speedSlider.setPreferredSize(new Dimension(200, 30));
-        speedSlider.setMajorTickSpacing(10);
-        speedSlider.setMinorTickSpacing(1);
-        speedSlider.setPaintTicks(true);
-        speedSlider.addChangeListener(e -> {
-            int val = speedSlider.getValue();
-            SimulationConfig.setTimeFactor(val);
-            speedLabel.setText("Speed: " + val + "x");
-            updateStatusBar();
-        });
-        toolbar.add(speedLabel);
-        toolbar.add(speedSlider);
+        toolbar.add(new JLabel("Speed (1–480×):"));
+        speedSpinner = new JSpinner(new SpinnerNumberModel(480, 1, 480, 1));
+        speedSpinner.setPreferredSize(new Dimension(72, 28));
+        speedSpinner.addChangeListener(e -> updateStatusBar());
+        toolbar.add(speedSpinner);
 
+        startButton = new JButton("Start simulation");
+        startButton.setToolTipText("Applies the speed above and begins the run (cannot change until restart)");
+        startButton.addActionListener(e -> {
+            int speed = ((Number) speedSpinner.getValue()).intValue();
+            SimulationConfig.setTimeFactor(speed);
+            SimulationConfig.lockSpeed();
+            speedSpinner.setEnabled(false);
+            startButton.setEnabled(false);
+            simulationStarted = true;
+            appendEvent("[GUI] Simulation started at " + speed + "× (speed locked for this run).");
+            updateStatusBar();
+            startLatch.countDown();
+        });
+        toolbar.add(startButton);
+
+        updateStatusBar();
         return toolbar;
     }
 

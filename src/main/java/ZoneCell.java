@@ -24,7 +24,7 @@ public class ZoneCell extends JLabel {
         this.zone = zone;
         setOpaque(true);
         setFont(getFont().deriveFont(10f));
-        setPreferredSize(new Dimension(36, 36));
+        setPreferredSize(new Dimension(24, 24));
 
         if (zone != null) baseBg = zone.baseColor;
         else baseBg = new Color(240,240,240);

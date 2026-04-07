@@ -17,6 +17,9 @@ public class MainTest {
 
     @BeforeEach
     public void setup() throws SocketException, UnknownHostException {
+        SimulationConfig.unlockSpeedForTests();
+        SimulationConfig.setTimeFactor(1);
+        SimulationConfig.setCsvTimePacingEnabled(false);
         inputPath = "./src/test/resources/data/events.csv";
 
         fireIncident = new FireIncidentSubsystem(inputPath);
@@ -29,6 +32,8 @@ public class MainTest {
         fireIncident.closeSocket();
         drone.closeSocket();
         scheduler.closeSocket();
+        SimulationConfig.unlockSpeedForTests();
+        SimulationConfig.setCsvTimePacingEnabled(true);
         System.out.println();
     }
 

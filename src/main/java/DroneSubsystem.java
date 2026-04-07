@@ -13,7 +13,8 @@ import java.util.List;
 public class DroneSubsystem implements Runnable {
     private static final int MAX_CAPACITY_LITERS = 15;
     private static final double TRAVEL_SPEED_MPS = 15.0;
-    private static final int METERS_PER_ZONE = 10;
+    /** Must match {@link ZoneLoader#DEFAULT_CELL_SIZE_METERS}. */
+    private static final int METERS_PER_CELL = 100;
     private static final double DROP_SECONDS_PER_LITER = 0.5;
     private static final int BASE_ZONE_ID = 0;
     private int remainingLiters = MAX_CAPACITY_LITERS;
@@ -35,7 +36,7 @@ public class DroneSubsystem implements Runnable {
     // Current Fault Status
     private FaultType faultStatus = FaultType.NONE;
 
-    // Non-blocking fault hold: timestamp when the soft fault expires
+    // Non-blocking fault hold: simulated-time timestamp (ms) when the soft fault expires
     private long faultEndsAt = 0;
     private FaultType pendingFaultType = FaultType.NONE;
 
@@ -183,7 +184,7 @@ public class DroneSubsystem implements Runnable {
                     System.out.println("[Drone " + droneId + "] Fault injected: " + ft + ". Holding for " + (sleepMs / 1000) + "s.");
                     int cellZone = findZoneForCell(currentCol, currentRow);
                     pendingFaultType = ft;
-                    faultEndsAt = System.currentTimeMillis() + sleepMs;
+                    faultEndsAt = SimulationConfig.nowSimMs() + sleepMs;
                     sendStatus(DroneState.FAULTED, cellZone, ft);
                     // handleFaulted() will poll until faultEndsAt expires
                     break;
@@ -238,14 +239,15 @@ public class DroneSubsystem implements Runnable {
 
         int toDrop = Math.min(remainingLiters, remainingRequired);
         double dropSeconds = toDrop * DROP_SECONDS_PER_LITER;
-        long sleepMs = scaledSleepMs(Math.round(dropSeconds * 1000));
+        long dropSimMs = Math.round(dropSeconds * 1000);
 
-        // Non-blocking: sleep in 100ms chunks, checking for RTB/SHUTDOWN
-        long dropEndsAt = System.currentTimeMillis() + sleepMs;
-        while (System.currentTimeMillis() < dropEndsAt) {
+        // Non-blocking: advance simulated time in 100ms chunks, checking for RTB/SHUTDOWN
+        long remainingSim = dropSimMs;
+        while (remainingSim > 0) {
             if (checkForRTB()) return;
-            long remaining = dropEndsAt - System.currentTimeMillis();
-            if (remaining > 0) Thread.sleep(Math.min(100, remaining));
+            long chunk = Math.min(100, remainingSim);
+            SimulationConfig.sleepSimulated(chunk);
+            remainingSim -= chunk;
         }
 
         remainingLiters -= toDrop;
@@ -287,11 +289,12 @@ public class DroneSubsystem implements Runnable {
     private void handleRefilling() throws Exception {
         System.out.println("[Drone " + droneId + "] Refilling...");
         // Non-blocking: sleep in 100ms chunks, stay responsive to SHUTDOWN
-        long refillEndsAt = System.currentTimeMillis() + scaledSleepMs(2000);
-        while (System.currentTimeMillis() < refillEndsAt) {
+        long remainingSim = 2000;
+        while (remainingSim > 0) {
             if (checkForRTB()) return;
-            long remaining = refillEndsAt - System.currentTimeMillis();
-            if (remaining > 0) Thread.sleep(Math.min(100, remaining));
+            long chunk = Math.min(100, remainingSim);
+            SimulationConfig.sleepSimulated(chunk);
+            remainingSim -= chunk;
         }
         remainingLiters = MAX_CAPACITY_LITERS;
         System.out.println("[Drone " + droneId + "] Refilled. Capacity: " + remainingLiters);
@@ -319,9 +322,9 @@ public class DroneSubsystem implements Runnable {
         }
 
         // Non-blocking fault hold: poll for SHUTDOWN/RTB while waiting for timer
-        if (faultEndsAt > 0 && System.currentTimeMillis() < faultEndsAt) {
+        if (faultEndsAt > 0 && SimulationConfig.nowSimMs() < faultEndsAt) {
             if (checkForRTB()) return; // handles SHUTDOWN and fault-related RTB
-            Thread.sleep(100);
+            SimulationConfig.sleepSimulated(100);
             return;
         }
 
@@ -535,8 +538,8 @@ public class DroneSubsystem implements Runnable {
                 "[Drone " + droneId + "]", "sent Drone Status", "to Scheduler");
     }
 
-    /** Time per cell step in ms, derived from zone size and travel speed. */
-    private static final long CELL_TRAVEL_MS = Math.round((METERS_PER_ZONE / TRAVEL_SPEED_MPS) * 1000);
+    /** Time per cell step in ms, derived from cell size and travel speed. */
+    private static final long CELL_TRAVEL_MS = Math.round((METERS_PER_CELL / TRAVEL_SPEED_MPS) * 1000);
 
     /**
      * Simulate cell-by-cell travel to the target zone center using Bresenham path.
@@ -546,7 +549,7 @@ public class DroneSubsystem implements Runnable {
         ZoneDef targetZone = getZoneById(targetZoneId);
         if (targetZone == null) {
             // Fallback: fixed sleep if zone not found
-            Thread.sleep(scaledSleepMs(2000));
+            SimulationConfig.sleepSimulated(2000);
             return true;
         }
         int[] targetCenter = PathPlanner.zoneCenterCell(targetZone);
@@ -554,7 +557,7 @@ public class DroneSubsystem implements Runnable {
 
         // Skip first cell (current position), traverse remaining cells
         for (int i = 1; i < path.size(); i++) {
-            Thread.sleep(scaledSleepMs(CELL_TRAVEL_MS));
+            SimulationConfig.sleepSimulated(CELL_TRAVEL_MS);
 
             // Check for RTB command during travel (non-blocking)
             if (checkForRTB()) return false;
@@ -607,7 +610,7 @@ public class DroneSubsystem implements Runnable {
                     System.out.println("[Drone " + droneId + "] Fault injected: " + ft + ". Holding for " + (durationMs / 1000) + "s.");
                     int cellZone = findZoneForCell(currentCol, currentRow);
                     pendingFaultType = ft;
-                    faultEndsAt = System.currentTimeMillis() + durationMs;
+                    faultEndsAt = SimulationConfig.nowSimMs() + durationMs;
                     sendStatus(DroneState.FAULTED, cellZone, ft);
                     // handleFaulted() will poll until faultEndsAt expires
                     return true;
@@ -687,7 +690,7 @@ public class DroneSubsystem implements Runnable {
         // Refill
         System.out.println("[Drone " + droneId + "] Refilling...");
         sendStatus(DroneState.REFILLING, BASE_ZONE_ID);
-        Thread.sleep(scaledSleepMs(2000)); // Simulate refill time
+        SimulationConfig.sleepSimulated(2000); // Simulate refill time
         remainingLiters = MAX_CAPACITY_LITERS;
         System.out.println("[Drone " + droneId + "] Refilled. Capacity: " + remainingLiters);
 

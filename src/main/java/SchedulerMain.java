@@ -4,6 +4,8 @@
  * entry point for the Scheduler subsystem.
  * Starts the Scheduler and GUI using CLI-provided settings.
  */
+import java.lang.reflect.InvocationTargetException;
+
 public class SchedulerMain {
     public static void main(String[] args) {
         // Read CLI args for Scheduler and the GUI.
@@ -11,16 +13,43 @@ public class SchedulerMain {
         String zonesPath = getArg(args, "zones", "./src/main/resources/data/zones.csv");
         int droneCount = Integer.parseInt(getArg(args, "drones", "20"));
         boolean headless = hasFlag(args, "headless");
+        boolean speedFromArgs = false;
+        for (String arg : args) {
+            if (arg.startsWith("--speed=")) {
+                SimulationConfig.setTimeFactor(Integer.parseInt(arg.substring("--speed=".length())));
+                speedFromArgs = true;
+            }
+        }
 
-        // Build the GUI for the specified number of drones.
+        // Build the GUI for the specified number of drones; wait for Start unless headless.
         FireDroneGUI gui = null;
         if (!headless) {
-            gui = new FireDroneGUI(droneCount);
-            FireDroneGUI finalGui = gui;
-            javax.swing.SwingUtilities.invokeLater(() -> finalGui.setVisible(true));
+            FireDroneGUI window = new FireDroneGUI(droneCount);
+            gui = window;
+            try {
+                javax.swing.SwingUtilities.invokeAndWait(() -> window.setVisible(true));
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                return;
+            } catch (InvocationTargetException e) {
+                throw new RuntimeException(e.getCause());
+            }
+            try {
+                window.awaitStart();
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                return;
+            }
         } else {
             System.out.println("[SchedulerMain] Running in headless mode (no GUI).");
+            if (!speedFromArgs) {
+                SimulationConfig.setTimeFactor(480);
+            }
+            SimulationConfig.lockSpeed();
         }
+
+        // Start the simulation clock at 0 now that speed is locked and before any threads run.
+        SimulationConfig.resetSimClock();
 
         // Build the Scheduler and bind its UDP port.
         Scheduler scheduler;

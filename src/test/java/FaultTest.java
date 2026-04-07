@@ -17,6 +17,8 @@ public class FaultTest {
 
     @BeforeEach
     public void setup() {
+        SimulationConfig.unlockSpeedForTests();
+        SimulationConfig.setTimeFactor(1);
         try {
             drone = new DroneSubsystem(1);
             schedulerSocket = new DatagramSocket(SwarmNetwork.SCHEDULER_PORT);
@@ -29,6 +31,7 @@ public class FaultTest {
     public void teardown() {
         drone.closeSocket();
         schedulerSocket.close();
+        SimulationConfig.unlockSpeedForTests();
         System.out.println();
     }
 
@@ -359,7 +362,9 @@ public class FaultTest {
             schedulerSocket.close();
         }
 
-        Scheduler scheduler = new Scheduler(null);
+        // Use a non-default port so stray UDP from earlier tests' drone threads cannot queue ahead of this test.
+        final int testPort = 5001;
+        Scheduler scheduler = new Scheduler(null, testPort, "./src/main/resources/data/zones.csv");
         DatagramSocket fireSocket = new DatagramSocket();
         DatagramSocket droneSocket = new DatagramSocket();
 
@@ -367,7 +372,7 @@ public class FaultTest {
         SwarmNetwork.sendMessage(
                 droneSocket,
                 InetAddress.getByName(SwarmNetwork.LOCALHOST),
-                SwarmNetwork.SCHEDULER_PORT,
+                testPort,
                 Message.droneReady(),
                 "[Drone 1]",
                 "sent Ready",
@@ -378,7 +383,7 @@ public class FaultTest {
         SwarmNetwork.sendMessage(
                 droneSocket,
                 InetAddress.getByName(SwarmNetwork.LOCALHOST),
-                SwarmNetwork.SCHEDULER_PORT,
+                testPort,
                 Message.droneStatus(new DroneStatus(1, DroneState.IDLE, 0, 15)),
                 "[Drone 1]",
                 "sent Drone Status",
@@ -399,7 +404,7 @@ public class FaultTest {
         SwarmNetwork.sendMessage(
                 fireSocket,
                 InetAddress.getByName(SwarmNetwork.LOCALHOST),
-                SwarmNetwork.SCHEDULER_PORT,
+                testPort,
                 Message.fireEvent(e),
                 "[FireIncident]",
                 "sent FireEvent",
@@ -415,7 +420,7 @@ public class FaultTest {
         assertEquals(Message.Type.DRONE_ASSIGNMENT, assignment.getType());
         assertEquals(5, assignment.getEvent().getZoneId());
 
-        // wait past the timeout window
+        // wait past the timeout window (EXPECTED_ARRIVAL_TIME is 10s wall-clock in Scheduler)
         Thread.sleep(11000);
 
         // run timeout check

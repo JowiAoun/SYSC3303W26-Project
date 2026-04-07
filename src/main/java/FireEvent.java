@@ -119,20 +119,25 @@ public class FireEvent {
      * Parse event type token from CSV.
      */
     public static EventType parseEventType(String token) {
-        return EventType.valueOf(token.trim().toUpperCase());
+        String t = token.trim().toUpperCase().replace(' ', '_').replace('-', '_');
+        return EventType.valueOf(t);
     }
 
     /**
      * Parse severity token from CSV.
      */
     public static Severity parseSeverity(String token) {
-        return Severity.valueOf(token.trim().toUpperCase());
+        String t = token.trim().toUpperCase().replace(' ', '_').replace('-', '_');
+        return Severity.valueOf(t);
     }
 
     /**
      * Parse fault type from CSV.
      */
-    public static FaultType parseFaultType(String token) { return FaultType.valueOf(token.trim().toUpperCase()); }
+    public static FaultType parseFaultType(String token) {
+        String t = token.trim().toUpperCase().replace(' ', '_').replace('-', '_');
+        return FaultType.valueOf(t);
+    }
 
     /**
      * Return a copy of this event with no injected fault.
