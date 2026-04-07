@@ -17,11 +17,11 @@ import java.util.Set;
  * Displays a grid of zones and a sidebar with simulation status.
  */
 public class FireDroneGUI extends JFrame {
-    private static final int COLS = 16;
-    private static final int ROWS = 16;
+    private final int COLS;
+    private final int ROWS;
 
     // grid reference so caller can change cell states
-    private ZoneCell[][] gridCells = new ZoneCell[ROWS][COLS];
+    private final ZoneCell[][] gridCells;
 
     // public state enum to use externally
     public enum CellState {
@@ -64,7 +64,11 @@ public class FireDroneGUI extends JFrame {
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         setLayout(new BorderLayout());
 
-        zones.addAll(ZoneLoader.loadZones("./src/main/resources/data/zones.csv", COLS, ROWS));
+        ZoneLoader.MeterGrid meterGrid = ZoneLoader.loadZonesMeters("./src/main/resources/data/zones.csv");
+        this.COLS = meterGrid.cols();
+        this.ROWS = meterGrid.rows();
+        this.gridCells = new ZoneCell[ROWS][COLS];
+        zones.addAll(meterGrid.zones());
 
         //grid panel showing the zones
         JPanel gridPanel = createGridPanel(COLS, ROWS);
@@ -109,7 +113,7 @@ public class FireDroneGUI extends JFrame {
                     cell = new ZoneCell(c, r, null, "");
                 }
                 // Update border after creating the cell
-                cell.updateBorder(COLS, ROWS, zones);
+                cell.updateBorder(cols, rows, zones);
                 gridCells[r][c] = cell;
                 panel.add(cell);
             }

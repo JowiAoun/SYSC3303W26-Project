@@ -1,9 +1,8 @@
+# Coordinates in meters; grid uses ZoneLoader.DEFAULT_CELL_SIZE_METERS (100 m) per cell.
+# Zone 0 (refuel / top-left base) is added by ZoneLoader; BASE_PAD_COLS x BASE_PAD_ROWS cells reserved.
 Zone ID,Zone Start,Zone End
-0,(0;0),(2;2)
-1,(2;0),(9;4)
-2,(9;0),(16;4)
-3,(0;2),(2;8)
-4,(2;4),(9;8)
-5,(9;4),(16;8)
-6,(0;8),(8;16)
-7,(8;8),(16;16)
+1,(0;0),(900;900)
+2,(900;0),(2500;900)
+3,(0;900),(1200;1800)
+4,(1200;900),(2500;1800)
+5,(0;1800),(2500;2500)

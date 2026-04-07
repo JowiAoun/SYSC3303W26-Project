@@ -81,7 +81,7 @@ public class Scheduler implements Runnable {
         this.gui = gui;
         this.socket = new DatagramSocket(schedulerPort);
         this.socket.setSoTimeout(500);
-        this.zones = ZoneLoader.loadZones(zonesPath, 16, 16);
+        this.zones = ZoneLoader.loadZonesMeters(zonesPath).zones();
     }
 
     public int getTotalEvents() { return totalEvents; }

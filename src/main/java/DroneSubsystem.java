@@ -64,7 +64,7 @@ public class DroneSubsystem implements Runnable {
         this.schedulerPort = schedulerPort;
 
         // Load zone geometry for path planning
-        this.zones = ZoneLoader.loadZones("./src/main/resources/data/zones.csv", 16, 16);
+        this.zones = ZoneLoader.loadZonesMeters("./src/main/resources/data/zones.csv").zones();
         ZoneDef baseZone = getZoneById(BASE_ZONE_ID);
         if (baseZone != null) {
             int[] baseCenter = PathPlanner.zoneCenterCell(baseZone);
