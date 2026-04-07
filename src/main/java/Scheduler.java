@@ -163,6 +163,21 @@ public class Scheduler implements Runnable {
 
     public double getMaxCompletionTime() { return maxCompletionTime / 1000.0; }
 
+    /** Average active (non-idle) time per drone in seconds. */
+    public double getAverageUsageTime() {
+        if (droneActiveTime.isEmpty()) return 0.0;
+        long total = 0;
+        for (long active : droneActiveTime.values()) {
+            total += active;
+        }
+        return ((double) total / droneActiveTime.size()) / 1000.0;
+    }
+
+    /** Total simulation runtime in seconds (simulated time). */
+    public double getTotalRuntime() {
+        return (simulationEndTime - simulationStartTime) / 1000.0;
+    }
+
     @Override
     public void run() {
         System.out.println("[Scheduler] Started.");
