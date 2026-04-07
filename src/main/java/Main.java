@@ -135,10 +135,15 @@ public class Main {
     }
 
     private static void printMetrics(Scheduler scheduler) {
-        String line1 = "Average response time: " + scheduler.getAverageResponseTime() + " seconds";
-        String line2 = "Maximum response time: " + scheduler.getMaxResponseTime() + " seconds";
-        String line3 = "Average completion time: " + scheduler.getAverageCompletionTime() + " seconds";
-        String line4 = "Maximum completion time: " + scheduler.getMaxCompletionTime() + " seconds";
+        // Print with consistent numeric formatting.
+        double avgResp = scheduler.getAverageResponseTime();
+        double maxResp = scheduler.getMaxResponseTime();
+        double avgComp = scheduler.getAverageCompletionTime();
+        double maxComp = scheduler.getMaxCompletionTime();
+        String line1 = String.format(java.util.Locale.US, "Average response time: %.3f seconds", avgResp);
+        String line2 = String.format(java.util.Locale.US, "Maximum response time: %.3f seconds", maxResp);
+        String line3 = String.format(java.util.Locale.US, "Average completion time: %.3f seconds", avgComp);
+        String line4 = String.format(java.util.Locale.US, "Maximum completion time: %.3f seconds", maxComp);
         String line5 = scheduler.getDroneUtilization();
         System.out.println("[Main] --- Performance Metrics ---");
         System.out.println(line1);

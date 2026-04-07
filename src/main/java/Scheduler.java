@@ -735,13 +735,25 @@ public class Scheduler implements Runnable {
         fireIncidentPort = port;
         if (message.getType() == Message.Type.FIRE_EVENT) {
             FireEvent event = message.getEvent();
-            pending.add(event);
             totalEvents++;
+            String msg = "[Scheduler] Received event: " + event;
+            System.out.println(msg);
+
+            // Only FIRE_DETECTED is dispatched to drones. DRONE_REQUEST rows are CSV bookkeeping only:
+            // ack immediately so FIS completes, and avoid extra dispatches after the fire is out (zombie drones).
+            if (event.getEventType() == FireEvent.EventType.DRONE_REQUEST) {
+                completed++;
+                sendFireIncidentMessage(Message.fireAck(event), "ack DRONE_REQUEST (no dispatch)");
+                if (gui != null) {
+                    gui.appendEvent(msg);
+                }
+                return;
+            }
+
+            pending.add(event);
             // Start the time tracking for response time here
             eventStartTimes.putIfAbsent(getEventKey(event), SimulationConfig.nowSimMs());
             eventCompletionStartTimes.putIfAbsent(getEventKey(event), eventStartTimes.get(getEventKey(event)));
-            String msg = "[Scheduler] Received event: " + event;
-            System.out.println(msg);
 
             // GUI: only FIRE_DETECTED lights the red cell; DRONE_REQUEST is scheduling-only
             if (gui != null) {
