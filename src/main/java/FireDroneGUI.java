@@ -59,6 +59,7 @@ public class FireDroneGUI extends JFrame {
     private volatile boolean simulationStarted;
     private JSpinner speedSpinner;
     private JButton startButton;
+    private javax.swing.Timer clockTimer;
 
     public FireDroneGUI() {
         this(1);
@@ -69,6 +70,8 @@ public class FireDroneGUI extends JFrame {
         this.droneCount = droneCount;
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         setLayout(new BorderLayout());
+
+        clockTimer = new javax.swing.Timer(100, e -> updateClock());
 
         ZoneLoader.MeterGrid meterGrid = ZoneLoader.loadZonesMeters("./src/main/resources/data/zones.csv");
         this.COLS = meterGrid.cols();
@@ -677,6 +680,19 @@ public class FireDroneGUI extends JFrame {
         updateStatusBar();
     }
 
+    private void updateClock() {
+        long simTimeMs = SimulationConfig.nowSimMs();
+        long seconds = (simTimeMs / 1000) % 60;
+        long minutes = (simTimeMs / (1000 * 60)) % 60;
+        long hours = (simTimeMs / (1000 * 60 * 60));
+        String timeStr = String.format("Time: %02d:%02d:%02d", hours, minutes, seconds);
+        runOnEdt(() -> {
+            if (statusRight != null) {
+                statusRight.setText(timeStr);
+            }
+        });
+    }
+
     /**
      * rebuild the status bar text.
      */
@@ -795,6 +811,7 @@ public class FireDroneGUI extends JFrame {
             speedSpinner.setEnabled(false);
             startButton.setEnabled(false);
             simulationStarted = true;
+            if (clockTimer != null) clockTimer.start();
             appendEvent("[GUI] Simulation started at " + speed + "× (speed locked for this run).");
             updateStatusBar();
             startLatch.countDown();

@@ -16,6 +16,7 @@ public class SimulationConfig {
     private static volatile boolean speedLocked = false;
     /** Shared simulation clock in milliseconds (monotonic). */
     private static final AtomicLong SIM_TIME_MS = new AtomicLong(0);
+    private static volatile long startWallTimeMs = -1;
 
     /**
      * When true, {@link FireIncidentSubsystem} sleeps between CSV rows according to the Time column
@@ -62,11 +63,16 @@ public class SimulationConfig {
     /** Reset simulation clock to 0 ms (call right before starting simulation threads). */
     public static void resetSimClock() {
         SIM_TIME_MS.set(0);
+        startWallTimeMs = System.currentTimeMillis();
     }
 
     /** Current simulated time in ms since last reset. */
     public static long nowSimMs() {
-        return SIM_TIME_MS.get();
+        if (startWallTimeMs == -1) return SIM_TIME_MS.get();
+        if (TIME_FACTOR == 1 && !csvTimePacingEnabled) {
+            return SIM_TIME_MS.get();
+        }
+        return (System.currentTimeMillis() - startWallTimeMs) * Math.max(1, TIME_FACTOR);
     }
 
     /** Advance the simulation clock by the given simulated duration (ms). */
