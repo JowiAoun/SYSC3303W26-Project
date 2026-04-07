@@ -4,8 +4,10 @@ import java.net.SocketException;
 import java.net.SocketTimeoutException;
 import java.net.UnknownHostException;
 import java.util.ArrayDeque;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Queue;
@@ -322,6 +324,53 @@ public class Scheduler implements Runnable {
             if (z.id == id) return z;
         }
         return null;
+    }
+
+    /**
+     * True if the pending queue or an in-flight assignment still references this zone.
+     * Keeps the GUI fire indicator on while any work for that zone remains.
+     */
+    private boolean hasOpenWorkAtZone(int zoneId) {
+        for (FireEvent e : pending) {
+            if (e.getZoneId() == zoneId) {
+                return true;
+            }
+        }
+        for (FireEvent e : activeAssignments.values()) {
+            if (e != null && e.getZoneId() == zoneId) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static boolean sameIncident(FireEvent a, FireEvent b) {
+        return a.getZoneId() == b.getZoneId() && a.getTime().equals(b.getTime());
+    }
+
+    /**
+     * When one drone completes an incident, any other drone still assigned the same incident
+     * (same zone and CSV time) is recalled: assignment cleared and RTB sent. The completing
+     * drone is not recalled.
+     */
+    private void releaseStaleChasers(FireEvent done, int completerDroneId) throws Exception {
+        List<Integer> recall = new ArrayList<>();
+        Iterator<Map.Entry<Integer, FireEvent>> it = activeAssignments.entrySet().iterator();
+        while (it.hasNext()) {
+            Map.Entry<Integer, FireEvent> e = it.next();
+            FireEvent assigned = e.getValue();
+            if (assigned != null && sameIncident(assigned, done)) {
+                int did = e.getKey();
+                it.remove();
+                assignmentDeadlines.remove(did);
+                if (completerDroneId >= 0 && did != completerDroneId) {
+                    recall.add(did);
+                }
+            }
+        }
+        for (int did : recall) {
+            sendReturnToBase(did);
+        }
     }
 
     /**
@@ -795,7 +844,8 @@ public class Scheduler implements Runnable {
 
                 completed++;
                 if (message.getEvent() != null) {
-                    String ck = getEventKey(message.getEvent());
+                    FireEvent done = message.getEvent();
+                    String ck = getEventKey(done);
                     Long tComplete = eventCompletionStartTimes.remove(ck);
                     if (tComplete != null) {
                         long elapsed = System.currentTimeMillis() - tComplete;
@@ -805,13 +855,16 @@ public class Scheduler implements Runnable {
                             maxCompletionTime = elapsed;
                         }
                     }
-                    for (Map.Entry<Integer, FireEvent> entry : new HashMap<>(activeAssignments).entrySet()) {
-                        FireEvent active = entry.getValue();
-                        if (active != null && active.getZoneId() == message.getEvent().getZoneId()
-                                && active.getTime().equals(message.getEvent().getTime())) {
-                            activeAssignments.remove(entry.getKey());
-                            assignmentDeadlines.remove(entry.getKey());
-                            break;
+                    if (senderDroneId >= 0) {
+                        releaseStaleChasers(done, senderDroneId);
+                    } else {
+                        for (Map.Entry<Integer, FireEvent> entry : new HashMap<>(activeAssignments).entrySet()) {
+                            FireEvent active = entry.getValue();
+                            if (active != null && sameIncident(active, done)) {
+                                activeAssignments.remove(entry.getKey());
+                                assignmentDeadlines.remove(entry.getKey());
+                                break;
+                            }
                         }
                     }
                 }
@@ -820,9 +873,12 @@ public class Scheduler implements Runnable {
                 String completedMsg = "[Scheduler] Completion ack forwarded: " + message.getEvent();
                 System.out.println(completedMsg);
 
-                // Update GUI: Fire Extinguished
+                // GUI: clear zone fire only when no other pending or assigned work for that zone
                 if (gui != null) {
-                    gui.setZoneFire(message.getEvent().getZoneId(), false);
+                    if (message.getEvent() != null
+                            && !hasOpenWorkAtZone(message.getEvent().getZoneId())) {
+                        gui.setZoneFire(message.getEvent().getZoneId(), false);
+                    }
                     gui.appendEvent(completedMsg);
                 }
                 break;
