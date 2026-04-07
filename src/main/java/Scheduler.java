@@ -424,7 +424,8 @@ public class Scheduler implements Runnable {
         ));
         updateDroneUtilization(droneId, DroneState.EN_ROUTE);
         activeAssignments.put(droneId, next);
-        assignmentDeadlines.put(droneId, System.currentTimeMillis() + EXPECTED_ARRIVAL_TIME);
+        assignmentDeadlines.put(droneId, System.currentTimeMillis() +
+                Math.round(EXPECTED_ARRIVAL_TIME * SimulationConfig.getTimeFractionFactor()));
 
         String dispatchMsg = "[Scheduler] Dispatched to Drone " + droneId + ": " + next;
         System.out.println(dispatchMsg);

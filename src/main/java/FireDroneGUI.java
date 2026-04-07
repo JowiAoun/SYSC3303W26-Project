@@ -605,7 +605,8 @@ public class FireDroneGUI extends JFrame {
             if (statusLeft != null) {
                 String text = "Simulation: Running | Active Fires: " + activeFires
                         + " | Active Drones: " + activeDrones
-                        + " | Faulted: " + faultedDrones;
+                        + " | Faulted: " + faultedDrones
+                        + " | Speed: " + SimulationConfig.getTimeFactor() + "x";
                 statusLeft.setText(text);
             }
         });
@@ -685,6 +686,24 @@ public class FireDroneGUI extends JFrame {
         injectFaultBtn.setToolTipText("Manually inject a fault into a drone");
         injectFaultBtn.addActionListener(e -> showFaultInjectionDialog());
         toolbar.add(injectFaultBtn);
+
+        toolbar.add(Box.createHorizontalStrut(16));
+
+        // Speed control
+        JLabel speedLabel = new JLabel("Speed: 1x");
+        JSlider speedSlider = new JSlider(JSlider.HORIZONTAL, 1, 50, 1);
+        speedSlider.setPreferredSize(new Dimension(200, 30));
+        speedSlider.setMajorTickSpacing(10);
+        speedSlider.setMinorTickSpacing(1);
+        speedSlider.setPaintTicks(true);
+        speedSlider.addChangeListener(e -> {
+            int val = speedSlider.getValue();
+            SimulationConfig.setTimeFactor(val);
+            speedLabel.setText("Speed: " + val + "x");
+            updateStatusBar();
+        });
+        toolbar.add(speedLabel);
+        toolbar.add(speedSlider);
 
         return toolbar;
     }

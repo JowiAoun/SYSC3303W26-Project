@@ -238,7 +238,7 @@ public class DroneSubsystem implements Runnable {
 
         int toDrop = Math.min(remainingLiters, remainingRequired);
         double dropSeconds = toDrop * DROP_SECONDS_PER_LITER;
-        long sleepMs = Math.round(dropSeconds * 1000);
+        long sleepMs = scaledSleepMs(Math.round(dropSeconds * 1000));
 
         // Non-blocking: sleep in 100ms chunks, checking for RTB/SHUTDOWN
         long dropEndsAt = System.currentTimeMillis() + sleepMs;
@@ -287,7 +287,7 @@ public class DroneSubsystem implements Runnable {
     private void handleRefilling() throws Exception {
         System.out.println("[Drone " + droneId + "] Refilling...");
         // Non-blocking: sleep in 100ms chunks, stay responsive to SHUTDOWN
-        long refillEndsAt = System.currentTimeMillis() + 2000;
+        long refillEndsAt = System.currentTimeMillis() + scaledSleepMs(2000);
         while (System.currentTimeMillis() < refillEndsAt) {
             if (checkForRTB()) return;
             long remaining = refillEndsAt - System.currentTimeMillis();
@@ -335,6 +335,13 @@ public class DroneSubsystem implements Runnable {
     }
 
     // ── Helpers ─────────────────────────────────────────────────────
+
+    /**
+     * Scale a base sleep duration by the current simulation speed factor.
+     */
+    private static long scaledSleepMs(long baseMs) {
+        return Math.max(1, Math.round(baseMs * SimulationConfig.getTimeFractionFactor()));
+    }
 
     /**
      * Get the currentState of the drone.
@@ -456,7 +463,7 @@ public class DroneSubsystem implements Runnable {
             // Refill
             System.out.println("[Drone " + droneId + "] Refilling...");
             sendStatus(DroneState.REFILLING, BASE_ZONE_ID);
-            Thread.sleep(2000); // Simulate refill time
+            Thread.sleep(scaledSleepMs(2000)); // Simulate refill time
             remainingLiters = MAX_CAPACITY_LITERS;
             System.out.println("[Drone " + droneId + "] Refilled. Capacity: " + remainingLiters);
         }
@@ -493,7 +500,7 @@ public class DroneSubsystem implements Runnable {
 
             int toDrop = Math.min(remainingLiters, remainingRequired);
             double dropSeconds = toDrop * DROP_SECONDS_PER_LITER;
-            long sleepMs = Math.round(dropSeconds * 1000);
+            long sleepMs = scaledSleepMs(Math.round(dropSeconds * 1000));
 
             Thread.sleep(sleepMs);
 
@@ -539,7 +546,7 @@ public class DroneSubsystem implements Runnable {
         ZoneDef targetZone = getZoneById(targetZoneId);
         if (targetZone == null) {
             // Fallback: fixed sleep if zone not found
-            Thread.sleep(2000);
+            Thread.sleep(scaledSleepMs(2000));
             return true;
         }
         int[] targetCenter = PathPlanner.zoneCenterCell(targetZone);
@@ -547,7 +554,7 @@ public class DroneSubsystem implements Runnable {
 
         // Skip first cell (current position), traverse remaining cells
         for (int i = 1; i < path.size(); i++) {
-            Thread.sleep(CELL_TRAVEL_MS);
+            Thread.sleep(scaledSleepMs(CELL_TRAVEL_MS));
 
             // Check for RTB command during travel (non-blocking)
             if (checkForRTB()) return false;
@@ -680,7 +687,7 @@ public class DroneSubsystem implements Runnable {
         // Refill
         System.out.println("[Drone " + droneId + "] Refilling...");
         sendStatus(DroneState.REFILLING, BASE_ZONE_ID);
-        Thread.sleep(2000); // Simulate refill time
+        Thread.sleep(scaledSleepMs(2000)); // Simulate refill time
         remainingLiters = MAX_CAPACITY_LITERS;
         System.out.println("[Drone " + droneId + "] Refilled. Capacity: " + remainingLiters);
 
