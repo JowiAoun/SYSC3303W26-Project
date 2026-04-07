@@ -8,16 +8,27 @@ import java.net.UnknownHostException;
 import java.util.concurrent.TimeUnit;
 
 public class Main {
-    /**
-     * Usage: java Main
-     */
     public static void main(String[] args) {
         String inputPath = "./src/main/resources/data/events.csv";
         int droneCount = 20;
 
+        boolean headless = false;
+        for (String arg : args) {
+            if ("--headless".equals(arg)) {
+                headless = true;
+                break;
+            }
+        }
+
         // Build GUI (on EDT)
-        FireDroneGUI gui = new FireDroneGUI(droneCount);
-        javax.swing.SwingUtilities.invokeLater(() -> gui.setVisible(true));
+        FireDroneGUI gui = null;
+        if (!headless) {
+            gui = new FireDroneGUI(droneCount);
+            FireDroneGUI finalGui = gui;
+            javax.swing.SwingUtilities.invokeLater(() -> finalGui.setVisible(true));
+        } else {
+            System.out.println("[Main] Running in headless mode (no GUI).");
+        }
 
         // Build subsystems.
         FireIncidentSubsystem fireIncident = null;
