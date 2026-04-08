@@ -100,7 +100,9 @@ public class FireEvent {
     }
 
     /**
-     * Map severity to required liters of agent.
+     * Map severity to required liters of extinguishing agent.
+     * These values are calibrated against the drone's 15L tank capacity:
+     * LOW (10L) fits in one trip, MODERATE (20L) needs two, HIGH (30L) needs two full refills.
      */
     public int getRequiredLiters() {
         switch (severity) {

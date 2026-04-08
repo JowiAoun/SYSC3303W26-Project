@@ -66,7 +66,12 @@ public class SimulationConfig {
         startWallTimeMs = System.currentTimeMillis();
     }
 
-    /** Current simulated time in ms since last reset. */
+    /**
+     * Current simulated time in ms since last reset.
+     * Before resetSimClock() is called, returns the manually-advanced counter (for tests).
+     * At 1x speed with pacing disabled (tests), returns the counter to keep results deterministic.
+     * Otherwise derives sim time from wall-clock elapsed * speed factor for smooth real-time tracking.
+     */
     public static long nowSimMs() {
         if (startWallTimeMs == -1) return SIM_TIME_MS.get();
         if (TIME_FACTOR == 1 && !csvTimePacingEnabled) {
@@ -86,6 +91,12 @@ public class SimulationConfig {
     /**
      * Sleep for a given simulated duration.
      * Always advances the simulation clock by {@code simulatedMs}, and sleeps scaled wall time.
+     */
+    /**
+     * Sleep for a given simulated duration.
+     * Advances the sim clock first (so metrics see the time pass even if the thread is interrupted),
+     * then sleeps the equivalent wall time (simulatedMs / TIME_FACTOR). Math.max(1, ...) prevents
+     * sleeping 0 ms at very high speed factors, which would spin-loop.
      */
     public static void sleepSimulated(long simulatedMs) throws InterruptedException {
         if (simulatedMs <= 0) {

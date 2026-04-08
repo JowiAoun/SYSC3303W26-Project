@@ -19,6 +19,8 @@ public class PathPlanner {
     public static List<int[]> computePath(int startCol, int startRow, int endCol, int endRow) {
         List<int[]> path = new ArrayList<>();
 
+        // Bresenham variables: dx/dy = axis deltas, sx/sy = step direction (+1 or -1),
+        // err = accumulated error used to decide when to step diagonally.
         int dx = Math.abs(endCol - startCol);
         int dy = Math.abs(endRow - startRow);
         int sx = startCol < endCol ? 1 : -1;
@@ -76,9 +78,12 @@ public class PathPlanner {
         for (int[] cell : path) {
             int col = cell[0];
             int row = cell[1];
+            // Find the first zone containing this cell. Break after the first match
+            // because zones don't overlap — checking further would be wasted work.
             for (ZoneDef z : zones) {
                 if (col >= z.startCol && col < z.startCol + z.widthCols &&
                         row >= z.startRow && row < z.startRow + z.heightRows) {
+                    // Only record when zone changes to avoid consecutive duplicates.
                     if (z.id != lastZoneId) {
                         result.add(z.id);
                         lastZoneId = z.id;

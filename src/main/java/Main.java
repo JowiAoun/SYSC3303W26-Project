@@ -97,6 +97,9 @@ public class Main {
         // Wait until every registered drone is IDLE and all fire events are completed,
         // so timing metrics are populated before threads wind down.
         // CSV pacing can span many hours at 1x; default sim speed is fast-forward.
+        // Poll until the scheduler reports all events complete. The 400ms pause after
+        // completion lets final shutdown messages propagate before we join threads.
+        // 12-hour wall-clock safety cap prevents infinite hangs if something goes wrong.
         long deadline = System.currentTimeMillis() + TimeUnit.HOURS.toMillis(12);
         while (schedulerThread.isAlive() && System.currentTimeMillis() < deadline) {
             if (scheduler.isProcessingComplete()) {

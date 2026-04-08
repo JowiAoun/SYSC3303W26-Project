@@ -74,6 +74,8 @@ public final class ZoneLoader {
             int endColEx = (int) Math.ceil((endX - csv.minX) / cellSizeMeters);
             int endRowEx = (int) Math.ceil((endY - csv.minY) / cellSizeMeters);
 
+            // Clamp to grid bounds. endColEx/endRowEx use [startCol+1, cols] as their range
+            // to guarantee each zone is at least 1 cell wide/tall.
             startCol = clamp(startCol, 0, cols - 1);
             startRow = clamp(startRow, 0, rows - 1);
             endColEx = clamp(endColEx, startCol + 1, cols);
@@ -106,6 +108,8 @@ public final class ZoneLoader {
      */
     private static MeterGrid applyBaseTopLeftPad(
             ParsedCsv csv, double cellSizeMeters, int cols, int rows, List<ZoneDef> zones) {
+        // Remove any zone 0 from the CSV (we inject our own canonical base).
+        // Shift all fire zones right/down by the pad size so zone 0 occupies the top-left corner.
         List<ZoneDef> shifted = new ArrayList<>();
         for (ZoneDef z : zones) {
             if (z.id == 0) {
@@ -154,6 +158,8 @@ public final class ZoneLoader {
         ParsedCsv csv = parseCsv(csvPath);
         double spanX = Math.max(csv.maxX - csv.minX, 1e-9);
         double spanY = Math.max(csv.maxY - csv.minY, 1e-9);
+        // Scale coordinates proportionally when CSV values exceed the explicit grid size;
+        // otherwise treat them as direct cell indices.
         boolean scaleToGrid = csv.maxX > cols || csv.maxY > rows;
 
         List<ZoneDef> zones = new ArrayList<>();
@@ -285,6 +291,7 @@ public final class ZoneLoader {
                 new Color(250, 240, 235),
                 new Color(255, 255, 235)
         };
+        // floorMod handles negative zone IDs gracefully (always returns a valid index).
         return palette[Math.floorMod(zoneId, palette.length)];
     }
 

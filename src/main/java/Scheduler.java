@@ -20,7 +20,10 @@ import java.util.Set;
  * Supports multiple drones, each tracked independently via maps.
  */
 public class Scheduler implements Runnable {
-    private static final int EXPECTED_ARRIVAL_TIME = 10000;//time before assume drone is stuck
+    /** Wall-clock ms grace period before assuming a drone is stuck in EN_ROUTE.
+     *  Uses wall-clock (not sim time) because scaling shrank this at high speed,
+     *  falsely timing out drones whose travel sleeps were still in progress. */
+    private static final int EXPECTED_ARRIVAL_TIME = 10000;
     private final DatagramSocket socket;
     private final Queue<FireEvent> pending = new ArrayDeque<>();
 
@@ -29,14 +32,19 @@ public class Scheduler implements Runnable {
     private boolean fireIncidentDone = false;
     private boolean shutdownSentToFire = false;
 
-    // Track multiple drones' statuses, addresses, and ports.
+    // ── Per-drone tracking maps (keyed by droneId) ──
+    // All maps must stay consistent: when a drone is removed (hard fault, shutdown),
+    // it must be cleaned up from ALL maps to avoid stale references.
     private final Map<Integer, DroneStatus> droneStatuses = new HashMap<>();
     private final Map<Integer, InetAddress> droneAddresses = new HashMap<>();
     private final Map<Integer, Integer> dronePorts = new HashMap<>();
     private final Set<Integer> shutdownSentToDrones = new HashSet<>();
+    /** Currently dispatched event per drone; cleared on completion or fault. */
     private final Map<Integer, FireEvent> activeAssignments = new HashMap<>();
+    /** Wall-clock deadline for EN_ROUTE drones; exceeded = presumed stuck. */
     private final Map<Integer, Long> assignmentDeadlines = new HashMap<>();
-    private final Set<Integer> hardFaultedDrones = new HashSet<>();     // drones with permanent faults (returning to base)
+    /** Drones with permanent (hard) faults — allowed to return to base, then removed. */
+    private final Set<Integer> hardFaultedDrones = new HashSet<>();
 
     private final FireDroneGUI gui;
     private final List<ZoneDef> zones;
@@ -47,22 +55,26 @@ public class Scheduler implements Runnable {
     // State machine
     private SchedulerState currentState = SchedulerState.IDLE;
 
-    // Performance metrics (simulated-time ms)
+    // ── Performance metrics (all times in simulated ms) ──
+    // Response time: interval from FIRE_EVENT received to first EXTINGUISHING status.
     private long totalResponseTime = 0;
     private int responseCount = 0;
     private long maxResponseTime = 0;
+    /** Keyed by "time|zoneId". Records when each event entered the scheduler. */
     private final Map<String, Long> eventStartTimes = new HashMap<>();
 
-    // Completion time (simulated-time ms)
+    // Completion time: interval from FIRE_EVENT received to DRONE_COMPLETED.
     private long totalCompletionTime = 0;
     private int completionCount = 0;
     private long maxCompletionTime = 0;
     private final Map<String, Long> eventCompletionStartTimes = new HashMap<>();
 
-    // Drone utilization (simulated-time ms)
+    // Drone utilization: tracks how long each drone spends in "active" states
+    // (EN_ROUTE, EXTINGUISHING, RETURNING) vs total simulation time.
     private long simulationStartTime = 0;
     private long simulationEndTime = 0;
     private final Map<Integer, Long> droneActiveTime = new HashMap<>();
+    /** Last sim-time a drone changed state — used to accumulate active intervals. */
     private final Map<Integer, Long> droneLastTime = new HashMap<>();
     private final Map<Integer, DroneState> droneLastState = new HashMap<>();
 
@@ -126,13 +138,16 @@ public class Scheduler implements Runnable {
      */
     private void updateDroneUtilization(int droneId, DroneState newState) {
         long now = SimulationConfig.nowSimMs();
-        //init
+        // First time seeing this drone — initialize tracking, no time to accumulate yet.
         if (!droneLastTime.containsKey(droneId)) {
             droneLastTime.put(droneId, now);
             droneLastState.put(droneId, newState);
             droneActiveTime.put(droneId, 0L);
             return;
         }
+        // Accumulate time spent in the PREVIOUS state: if it was an "active" state
+        // (EN_ROUTE, EXTINGUISHING, RETURNING), add the elapsed interval to active time.
+        // IDLE, FAULTED, and REFILLING are considered non-active.
         long lastTime = droneLastTime.get(droneId);
         DroneState lastState = droneLastState.get(droneId);
         long timePassed = now - lastTime;
@@ -402,6 +417,10 @@ public class Scheduler implements Runnable {
         return false;
     }
 
+    /**
+     * Two events are the "same incident" if they share both zone and CSV timestamp.
+     * Zone alone is not enough — the same zone can have multiple fires at different times.
+     */
     private static boolean sameIncident(FireEvent a, FireEvent b) {
         return a.getZoneId() == b.getZoneId() && a.getTime().equals(b.getTime());
     }
@@ -412,6 +431,8 @@ public class Scheduler implements Runnable {
      * drone is not recalled.
      */
     private void releaseStaleChasers(FireEvent done, int completerDroneId) throws Exception {
+        // Collect recall targets first, then send RTB after iteration to avoid ConcurrentModificationException.
+        // Uses iterator.remove() for safe removal from activeAssignments during traversal.
         List<Integer> recall = new ArrayList<>();
         Iterator<Map.Entry<Integer, FireEvent>> it = activeAssignments.entrySet().iterator();
         while (it.hasNext()) {
@@ -537,6 +558,7 @@ public class Scheduler implements Runnable {
             FireEvent interrupted = activeAssignments.remove(droneId);
             assignmentDeadlines.remove(droneId);
 
+            // Requeue without the original fault so the replacement drone won't re-trigger it.
             pending.add(interrupted.withoutFault());
 
             DroneStatus faultedStatus = new DroneStatus(

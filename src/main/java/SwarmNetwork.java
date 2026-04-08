@@ -4,6 +4,12 @@ import java.net.InetAddress;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 
+/**
+ * Network communication utilities for UDP messaging between subsystems.
+ * Provides shared constants (ports, buffer sizes), send/receive helpers,
+ * and the {@link ReceivedMessage} wrapper that pairs a decoded {@link Message}
+ * with its sender address and port.
+ */
 public class SwarmNetwork {
     public static final int SCHEDULER_PORT = 5000;
     public static final int FIS_PORT = 6000;

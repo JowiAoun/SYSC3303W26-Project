@@ -161,6 +161,8 @@ public class DroneSubsystem implements Runnable {
                 remainingRequired = currentAssignment.getRequiredLiters();
                 System.out.println("[Drone " + droneId + "] Assigned: " + currentAssignment);
 
+                // If the CSV row injected a CORRUPTED_MESSAGE fault, send one corrupted packet
+                // to test checksum handling. The flag ensures it only fires once per drone lifetime.
                 if (currentAssignment.hasFault() && currentAssignment.getFaultType() == FaultType.CORRUPTED_MESSAGE && !corruptedMessageSent) {
                     System.out.println("[Drone " + droneId + "] Sending corrupted status packet for test.");
                     sendCorruptedStatus(currentZoneId);
@@ -218,6 +220,8 @@ public class DroneSubsystem implements Runnable {
         }
         currentZoneId = targetZone;
 
+        // Arrival sensor fault is checked AFTER travel completes — the drone reaches the zone
+        // but its sensor fails to confirm arrival, so it enters FAULTED instead of EXTINGUISHING.
         if (currentAssignment.hasFault()  && currentAssignment.getFaultType() == FaultType.ARRIVAL_SENSOR_FAILURE) {
             triggerFault(FaultType.ARRIVAL_SENSOR_FAILURE, "Arrival sensor failure detected at Zone " + targetZone);
             return;
@@ -592,6 +596,8 @@ public class DroneSubsystem implements Runnable {
             // Check for RTB command during travel (non-blocking)
             if (checkForRTB()) return false;
 
+            // Inject STUCK_MID_FLIGHT fault: triggers when the cumulative travel time
+            // (cell index * ms per cell) reaches the configured fault delay threshold.
             if (currentAssignment != null && currentAssignment.hasFault()) {
                 if (currentAssignment.getFaultType() == FaultType.STUCK_MID_FLIGHT && currentAssignment.getFaultDelayTime() > 0
                 && ((long) i * CELL_TRAVEL_MS) >= currentAssignment.getFaultDelayTime()) {
@@ -619,6 +625,8 @@ public class DroneSubsystem implements Runnable {
      */
     private boolean checkForRTB() {
         if (terminated || socket.isClosed()) return false;
+        // Save and restore the socket timeout so this non-blocking peek
+        // doesn't interfere with the caller's blocking receive behavior.
         int oldTimeout;
         try {
             oldTimeout = socket.getSoTimeout();
@@ -626,6 +634,7 @@ public class DroneSubsystem implements Runnable {
             return false;
         }
         try {
+            // 1ms timeout = effectively non-blocking poll for incoming messages.
             socket.setSoTimeout(1);
             Message msg = SwarmNetwork.receiveMessage(socket);
             if (msg.getType() == Message.Type.DRONE_RETURN_TO_BASE) {
@@ -702,6 +711,7 @@ public class DroneSubsystem implements Runnable {
      */
     public void sendCorruptedStatus(int zoneId) throws Exception {
         byte[] data = Message.droneStatus(new DroneStatus(droneId, DroneState.FAULTED, zoneId, remainingLiters, currentCol, currentRow, FaultType.CORRUPTED_MESSAGE)).toBytes();
+        // Flip the last byte to invalidate the CRC32 checksum, triggering the receiver's corruption check.
         data[data.length - 1] = (byte) (data[data.length - 1] == '0' ? '1' : '0');
         java.net.DatagramPacket packet = new java.net.DatagramPacket(data, data.length, schedulerAddr, schedulerPort);
         socket.send(packet);

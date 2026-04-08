@@ -144,6 +144,7 @@ public class FireIncidentSubsystem implements Runnable {
      */
     FireEvent parseEventLine(String line) {
         String trimmedLine = line.trim();
+        // Strip UTF-8 BOM (byte-order mark) that some editors prepend to CSV files.
         if (!trimmedLine.isEmpty() && trimmedLine.charAt(0) == '\uFEFF') {
             trimmedLine = trimmedLine.substring(1).trim();
         }
@@ -163,6 +164,7 @@ public class FireIncidentSubsystem implements Runnable {
         FireEvent.EventType eventType = FireEvent.parseEventType(parts[2].trim());
         FireEvent.Severity severity = FireEvent.parseSeverity(parts[3].trim());
 
+        // CSV columns 5 & 6 (fault type, fault delay) are optional; default to NONE / 0 if absent.
         FaultType faultType = FaultType.NONE;
         long faultDelayTime = 0;
 
@@ -232,6 +234,8 @@ public class FireIncidentSubsystem implements Runnable {
             long tMs = parseCsvTimeToMillisSinceMidnight(event.getTime());
             if (SimulationConfig.isCsvTimePacingEnabled() && prevMs >= 0 && tMs >= 0) {
                 long delta = tMs - prevMs;
+                // Negative delta means the CSV times wrapped past midnight (e.g. 23:59 -> 00:01).
+                // Add 24 hours to get the correct forward interval.
                 if (delta < 0) {
                     delta += 24L * 3600_000;
                 }

@@ -114,6 +114,8 @@ public class Message {
 
     /**
      * Scheduler signals that the simulation has started, carrying the speed factor.
+     * The speed factor is piggy-backed in the FireEvent's zoneId field to avoid adding
+     * a dedicated message field for a one-time handshake value.
      */
     public static Message simStart(int speedFactor) {
         FireEvent payload = new FireEvent("0", speedFactor, FireEvent.EventType.FIRE_DETECTED, FireEvent.Severity.LOW, FaultType.NONE, 0);
@@ -150,6 +152,12 @@ public class Message {
 
     /**
      * Convert Message data into bytes.
+     */
+    /**
+     * Wire format: 15 pipe-delimited fields.
+     * [0] type | [1-6] FireEvent fields | [7-13] DroneStatus fields | [14] CRC32 checksum.
+     * Empty strings fill unused slots. The checksum is computed over fields [0-13] with [14] blank,
+     * then placed into [14] for the final serialized string.
      */
     public byte[] toBytes() {
         String[] fields = new String[15];
@@ -201,6 +209,12 @@ public class Message {
 
     /**
      * Decode bytes into Message data.
+     */
+    /**
+     * Deserialize a wire-format byte array back into a Message.
+     * split("\\|", -1) is used so trailing empty fields are preserved (default split drops them).
+     * The checksum in field [14] is extracted, then field [14] is blanked before recomputing
+     * the CRC32 over the same string the sender used — any mismatch indicates corruption.
      */
     public static Message fromBytes(byte[] data, int length) {
         String wire = new String(data, 0, length, StandardCharsets.UTF_8);
