@@ -69,6 +69,8 @@ public class SchedulerMain {
         } finally {
             scheduler.closeSocket();
         }
+
+        scheduler.printMetrics();
     }
 
     private static boolean hasFlag(String[] args, String key) {

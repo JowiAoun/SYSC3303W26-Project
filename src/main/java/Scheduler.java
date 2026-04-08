@@ -178,6 +178,32 @@ public class Scheduler implements Runnable {
         return (simulationEndTime - simulationStartTime) / 1000.0;
     }
 
+    /** Prints all performance metrics to stdout. */
+    public void printMetrics() {
+        double avgResp = getAverageResponseTime();
+        double maxResp = getMaxResponseTime();
+        double avgComp = getAverageCompletionTime();
+        double maxComp = getMaxCompletionTime();
+        double avgUsage = getAverageUsageTime();
+        double totalRuntime = getTotalRuntime();
+        String line1 = String.format(java.util.Locale.US, "Average response time: %.3f seconds", avgResp);
+        String line2 = String.format(java.util.Locale.US, "Maximum response time: %.3f seconds", maxResp);
+        String line3 = String.format(java.util.Locale.US, "Average completion time: %.3f seconds", avgComp);
+        String line4 = String.format(java.util.Locale.US, "Maximum completion time: %.3f seconds", maxComp);
+        String line5 = String.format(java.util.Locale.US, "Average drone usage time: %.3f seconds", avgUsage);
+        String line6 = String.format(java.util.Locale.US, "Total runtime: %.3f seconds", totalRuntime);
+        String line7 = getDroneUtilization();
+        System.out.println("--- Performance Metrics ---");
+        System.out.println(line1);
+        System.out.println(line2);
+        System.out.println(line3);
+        System.out.println(line4);
+        System.out.println(line5);
+        System.out.println(line6);
+        System.out.print(line7);
+        System.out.flush();
+    }
+
     @Override
     public void run() {
         System.out.println("[Scheduler] Started.");
@@ -267,6 +293,9 @@ public class Scheduler implements Runnable {
             case FIRE_EVENT:
             case SHUTDOWN:
                 handleFireIncidentMessage(msg, rm.getAddress(), rm.getPort());
+                break;
+            case FIRE_READY:
+                handleFireReady(rm.getAddress(), rm.getPort());
                 break;
             case DRONE_READY:
             case DRONE_COMPLETED:
@@ -743,6 +772,17 @@ public class Scheduler implements Runnable {
     }
 
     /**
+     * Handle FIRE_READY: record the Fire Incident address and reply with SIM_START.
+     */
+    private void handleFireReady(InetAddress addr, int port) throws Exception {
+        fireIncidentAddress = addr;
+        fireIncidentPort = port;
+        System.out.println("[Scheduler] Fire Incident ready — sending SIM_START.");
+        SwarmNetwork.sendMessage(socket, addr, port, Message.simStart(SimulationConfig.getTimeFactor()),
+                "[Scheduler]", "sent SIM_START", "to FireIncident");
+    }
+
+    /**
      * Handle messages from Fire Incident subsystem.
      */
     private void handleFireIncidentMessage(Message message, InetAddress addr, int port) throws InterruptedException {
@@ -799,6 +839,9 @@ public class Scheduler implements Runnable {
                 if (gui != null) {
                     gui.appendEvent(readyMsg);
                 }
+                // Reply with SIM_START so the drone knows the Scheduler is running.
+                SwarmNetwork.sendMessage(socket, addr, port, Message.simStart(SimulationConfig.getTimeFactor()),
+                        "[Scheduler]", "sent SIM_START", "to Drone");
                 break;
             }
 

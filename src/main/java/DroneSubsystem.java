@@ -99,8 +99,8 @@ public class DroneSubsystem implements Runnable {
         System.out.println("[Drone " + droneId + "] Ready.");
 
         try {
-            // Announce initial readiness and IDLE state.
-            sendReadySignal();
+            // Wait for the Scheduler to be running before registering.
+            waitForSimStart();
             sendStatus(DroneState.IDLE, BASE_ZONE_ID);
 
             boolean running = true;
@@ -195,6 +195,10 @@ public class DroneSubsystem implements Runnable {
 
             case SHUTDOWN:
                 return false;
+
+            case SIM_START:
+                // Stale handshake reply — ignore.
+                break;
 
             default:
                 System.out.println("[Drone " + droneId + "] Unknown message type in IDLE: " + reply.getType());
@@ -370,6 +374,32 @@ public class DroneSubsystem implements Runnable {
     /**
      * Announce readiness to the Scheduler.
      */
+    /**
+     * Sends DRONE_READY to the Scheduler repeatedly until a SIM_START reply is received.
+     * This ensures the drone does not register before the Scheduler is running.
+     */
+    private void waitForSimStart() throws Exception {
+        System.out.println("[Drone " + droneId + "] Waiting for simulation to start...");
+        socket.setSoTimeout(500);
+        while (true) {
+            try {
+                sendReadySignal();
+                Message reply = SwarmNetwork.receiveMessage(socket);
+                if (reply.getType() == Message.Type.SIM_START && reply.getEvent() != null) {
+                    int speed = reply.getEvent().getZoneId();
+                    SimulationConfig.setTimeFactor(speed);
+                    SimulationConfig.lockSpeed();
+                    SimulationConfig.resetSimClock();
+                    System.out.println("[Drone " + droneId + "] Simulation started at " + speed + "x — proceeding.");
+                    break;
+                }
+            } catch (java.net.SocketTimeoutException e) {
+                // Scheduler not ready yet, retry
+            }
+        }
+        socket.setSoTimeout(0);
+    }
+
     void sendReadySignal() throws Exception {
         if (terminated || socket.isClosed()) return;
         SwarmNetwork.sendMessage(socket, schedulerAddr, schedulerPort, Message.droneReady(), "[Drone " + droneId + "]", "sent Ready", "to Scheduler");

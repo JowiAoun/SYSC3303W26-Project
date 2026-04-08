@@ -21,6 +21,8 @@ public class Message {
         DRONE_RETURN_TO_BASE,
         FIRE_ACK,
         FAULT_INJECTION,
+        FIRE_READY,
+        SIM_START,
         SHUTDOWN
     }
 
@@ -101,6 +103,21 @@ public class Message {
 
     public static Message fireAck(FireEvent event) {
         return new Message(Type.FIRE_ACK, event, null);
+    }
+
+    /**
+     * Fire Incident signals it is ready and waiting for the simulation to start.
+     */
+    public static Message fireReady() {
+        return new Message(Type.FIRE_READY, null, null);
+    }
+
+    /**
+     * Scheduler signals that the simulation has started, carrying the speed factor.
+     */
+    public static Message simStart(int speedFactor) {
+        FireEvent payload = new FireEvent("0", speedFactor, FireEvent.EventType.FIRE_DETECTED, FireEvent.Severity.LOW, FaultType.NONE, 0);
+        return new Message(Type.SIM_START, payload, null);
     }
 
     /**

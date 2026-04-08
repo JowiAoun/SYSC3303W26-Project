@@ -88,11 +88,11 @@ public class Main {
         }
         Thread schedulerThread = new Thread(scheduler, "Scheduler");
 
-        fireThread.start();
+        schedulerThread.start();
         for (Thread dt : droneThreads) {
             dt.start();
         }
-        schedulerThread.start();
+        fireThread.start();
 
         // Wait until every registered drone is IDLE and all fire events are completed,
         // so timing metrics are populated before threads wind down.
@@ -131,32 +131,6 @@ public class Main {
             scheduler.closeSocket();
         }
 
-        printMetrics(scheduler);
-    }
-
-    private static void printMetrics(Scheduler scheduler) {
-        // Print with consistent numeric formatting.
-        double avgResp = scheduler.getAverageResponseTime();
-        double maxResp = scheduler.getMaxResponseTime();
-        double avgComp = scheduler.getAverageCompletionTime();
-        double maxComp = scheduler.getMaxCompletionTime();
-        String line1 = String.format(java.util.Locale.US, "Average response time: %.3f seconds", avgResp);
-        String line2 = String.format(java.util.Locale.US, "Maximum response time: %.3f seconds", maxResp);
-        String line3 = String.format(java.util.Locale.US, "Average completion time: %.3f seconds", avgComp);
-        String line4 = String.format(java.util.Locale.US, "Maximum completion time: %.3f seconds", maxComp);
-        double avgUsage = scheduler.getAverageUsageTime();
-        double totalRuntime = scheduler.getTotalRuntime();
-        String line5 = String.format(java.util.Locale.US, "Average drone usage time: %.3f seconds", avgUsage);
-        String line6 = String.format(java.util.Locale.US, "Total runtime: %.3f seconds", totalRuntime);
-        String line7 = scheduler.getDroneUtilization();
-        System.out.println("[Main] --- Performance Metrics ---");
-        System.out.println(line1);
-        System.out.println(line2);
-        System.out.println(line3);
-        System.out.println(line4);
-        System.out.println(line5);
-        System.out.println(line6);
-        System.out.print(line7);
-        System.out.flush();
+        scheduler.printMetrics();
     }
 }

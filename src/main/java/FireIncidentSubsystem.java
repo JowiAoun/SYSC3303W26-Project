@@ -52,9 +52,41 @@ public class FireIncidentSubsystem implements Runnable {
 
     public void closeSocket() { socket.close(); }
 
+    /**
+     * Sends FIRE_READY to the Scheduler and blocks until a SIM_START reply is received.
+     * Retries every 500 ms in case the Scheduler is not yet listening.
+     */
+    private void waitForSimStart() {
+        System.out.println("[FireIncident] Waiting for simulation to start...");
+        try {
+            socket.setSoTimeout(500);
+            while (true) {
+                try {
+                    SwarmNetwork.sendMessage(socket, schedulerAddr, schedulerPort,
+                            Message.fireReady(), "[FireIncident]", "sent FIRE_READY", "to Scheduler");
+                    Message reply = SwarmNetwork.receiveMessage(socket);
+                    if (reply.getType() == Message.Type.SIM_START && reply.getEvent() != null) {
+                        int speed = reply.getEvent().getZoneId();
+                        SimulationConfig.setTimeFactor(speed);
+                        SimulationConfig.lockSpeed();
+                        SimulationConfig.resetSimClock();
+                        System.out.println("[FireIncident] Simulation started at " + speed + "x — proceeding.");
+                        break;
+                    }
+                } catch (java.net.SocketTimeoutException e) {
+                    // Scheduler not ready yet, retry
+                }
+            }
+            socket.setSoTimeout(0);
+        } catch (Exception e) {
+            throw new RuntimeException("[FireIncident] Error waiting for SIM_START", e);
+        }
+    }
+
     @Override
     public void run() {
         List<FireEvent> events = loadEventsFromCsv();
+        waitForSimStart();
         int eventsSent = 0;
         try {
             eventsSent = sendEventsToScheduler(events);
