@@ -42,9 +42,10 @@ travel time between zones, how long a drop takes, and how much agent each drone 
 
 ## 🏆 Best Design
 
-Our team won the **Best Design** award for the final showcase. The judges looked at how
-the system was put together and how clearly it presented what the swarm was doing in
-real time. As a prize, each team member received a 3D printed token of the class name.
+Our team won the **Best Design** award for the final showcase, voted on by the students
+in the class. It is a fun award, not a formal one, but a nice sign that the tactical map
+console and the real-time view of the swarm stood out. As a prize, each team member
+received a 3D printed token of the class name.
 
 <img src="assets/demo/prizes.jpg" width="360" alt="Four 3D printed hexagon tokens with a drone icon and the text SYSC3303 W26.">
 
