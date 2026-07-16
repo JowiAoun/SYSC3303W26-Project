@@ -10,9 +10,11 @@ Course instructor: Dr. Rami Sabouni
 
 ### 🏆 Winner of the "Best Design" award
 
-<video src="https://github.com/JowiAoun/SYSC3303W26-Project/raw/gui-competition/assets/demo/SYSC3303-GUI-Submission.mp4" width="840" autoplay loop muted playsinline>
-  <a href="https://github.com/JowiAoun/SYSC3303W26-Project/raw/gui-competition/assets/demo/SYSC3303-GUI-Submission.mp4">Watch the demo</a>: drones fly out from base, spray water on fires across the map, and return to refill.
-</video>
+<a href="https://github.com/JowiAoun/SYSC3303W26-Project/blob/gui-competition/assets/demo/SYSC3303-GUI-Submission.mp4">
+  <img src="assets/demo/demo-poster.jpg" width="840" alt="Tactical Drone Command console: ten drones responding to fires across five zones, with live drone status on the right and a dispatcher view on the left.">
+</a>
+
+<sub>▶ <a href="https://github.com/JowiAoun/SYSC3303W26-Project/blob/gui-competition/assets/demo/SYSC3303-GUI-Submission.mp4">Watch the 36 second demo</a> (drones fly out from base, spray water on the fires, then return to refill)</sub>
 
 </div>
 
