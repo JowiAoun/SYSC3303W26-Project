@@ -8,8 +8,8 @@ A real-time control system and simulator for a swarm of firefighting drones.
 
 ### 🏆 Winner of the "Best Design" award
 
-<video src="assets/demo/SYSC3303-GUI-Submission.mp4" width="840" autoplay loop muted playsinline>
-  <a href="assets/demo/SYSC3303-GUI-Submission.mp4">Watch the demo</a>: drones fly out from base, spray water on fires across the map, and return to refill.
+<video src="https://github.com/JowiAoun/SYSC3303W26-Project/raw/gui-competition/assets/demo/SYSC3303-GUI-Submission.mp4" width="840" autoplay loop muted playsinline>
+  <a href="https://github.com/JowiAoun/SYSC3303W26-Project/raw/gui-competition/assets/demo/SYSC3303-GUI-Submission.mp4">Watch the demo</a>: drones fly out from base, spray water on fires across the map, and return to refill.
 </video>
 
 </div>
@@ -169,4 +169,3 @@ Team L3G1 (Team 1):
 - **[Getting started](docs/getting-started.md)** (build, run, and test)
 - **[Project specification](docs/project-specification.pdf)** (the assignment we built to)
 - **[Design diagrams](docs/diagrams)** (class, state machine, sequence, and timing)
-- **[Original submission notes](README.txt)** (file list and team responsibilities)
