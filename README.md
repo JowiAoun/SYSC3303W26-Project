@@ -6,6 +6,8 @@ A real-time control system and simulator for a swarm of firefighting drones.
 
 **SYSC 3303 · Real-Time Concurrent Systems · Carleton University · Winter 2026**
 
+Course instructor: Dr. Rami Sabouni
+
 ### 🏆 Winner of the "Best Design" award
 
 <video src="https://github.com/JowiAoun/SYSC3303W26-Project/raw/gui-competition/assets/demo/SYSC3303-GUI-Submission.mp4" width="840" autoplay loop muted playsinline>
@@ -161,6 +163,8 @@ Team L3G1 (Team 1):
 - Amir Dedeic ([@amirdedeic](https://github.com/amirdedeic))
 - Thanos Jia ([@ThanosJia](https://github.com/ThanosJia))
 - Jowi Aoun ([@JowiAoun](https://github.com/JowiAoun))
+
+> All four team members approved making this repository public, and the course instructor, Dr. Rami Sabouni, approved it as well.
 
 ---
 
