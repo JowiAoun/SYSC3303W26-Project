@@ -1,6 +1,8 @@
 <div align="center">
 
-# Firefighting Drone Swarm
+# Firefly
+
+**Firefighting Drone Swarm**
 
 A real-time control system and simulator for a swarm of firefighting drones.
 
@@ -20,7 +22,7 @@ Course instructor: Dr. Rami Sabouni
 
 ## About
 
-This is a control system and simulator for a swarm of firefighting drones, built for
+Firefly is a control system and simulator for a swarm of firefighting drones, built for
 SYSC 3303 (Real-Time Concurrent Systems) at Carleton University. Drones are dispatched
 to put out fires that break out across a set of zones. The work is split into three
 programs that run at the same time and talk to each other over the network, the same

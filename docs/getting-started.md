@@ -1,6 +1,6 @@
 # Getting started
 
-Build, run, and test the Firefighting Drone Swarm. For an overview of the project, see
+Build, run, and test Firefly, the firefighting drone swarm. For an overview of the project, see
 the main [README](../README.md).
 
 ## Requirements
